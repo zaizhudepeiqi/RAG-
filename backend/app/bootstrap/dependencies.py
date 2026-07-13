@@ -13,7 +13,9 @@ from app.infrastructure.database.repositories.audit import SqlAlchemyAuditReposi
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
 from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyAdminIdempotencyRepository,
+    SqlAlchemyOperationExecutionStore,
     SqlAlchemyOperationRepository,
+    SqlAlchemyOutboxDispatchStore,
     SqlAlchemyOutboxRepository,
 )
 from app.infrastructure.database.session import create_engine_from_settings, create_session_factory
@@ -29,6 +31,7 @@ from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
+from app.modules.tasks.ports import TaskDispatchRegistry
 from app.modules.tasks.service import TaskService
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -43,6 +46,9 @@ class ApplicationDependencies:
     health_service: HealthService
     task_service: TaskService
     admin_idempotency_service: AdminIdempotencyService
+    outbox_dispatch_store: SqlAlchemyOutboxDispatchStore
+    operation_execution_store: SqlAlchemyOperationExecutionStore
+    task_dispatch_registry: TaskDispatchRegistry
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -87,6 +93,8 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     )
     task_service = TaskService(SqlAlchemyOperationRepository(), SqlAlchemyOutboxRepository())
     admin_idempotency_service = AdminIdempotencyService(SqlAlchemyAdminIdempotencyRepository())
+    outbox_dispatch_store = SqlAlchemyOutboxDispatchStore(session_factory)
+    operation_execution_store = SqlAlchemyOperationExecutionStore(session_factory)
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,
@@ -95,4 +103,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         health_service=health_service,
         task_service=task_service,
         admin_idempotency_service=admin_idempotency_service,
+        outbox_dispatch_store=outbox_dispatch_store,
+        operation_execution_store=operation_execution_store,
+        task_dispatch_registry=TaskDispatchRegistry(),
     )

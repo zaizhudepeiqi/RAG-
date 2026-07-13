@@ -1,24 +1,30 @@
 import re
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import Select, asc, desc, func, select, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.infrastructure.database.base import utc_now
 from app.infrastructure.database.models.tasks import (
     AdminApiIdempotencyRecordModel,
     OperationModel,
     TaskOutboxModel,
 )
+from app.infrastructure.database.session import transaction
 from app.modules.tasks.domain import (
     AdminIdempotencyRecord,
     Operation,
+    OperationEvent,
     OperationStatus,
     OutboxEvent,
+    transition_operation,
 )
 from app.modules.tasks.errors import InvalidStateTransitionError
+from app.modules.tasks.ports import ClaimedOutboxEvent, ClaimKind, OperationClaim
 from app.modules.tasks.repository import OperationListQuery, Page
 
 
@@ -242,3 +248,130 @@ def _sanitize_error(value: str | None) -> str | None:
     if value is None:
         return None
     return re.sub(r"[\r\n]+", " ", value).strip()[:1000]
+
+
+class SqlAlchemyOutboxDispatchStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    def claim_batch(self, now: datetime, limit: int) -> list[ClaimedOutboxEvent]:
+        with transaction(self._session_factory) as session:
+            models = session.scalars(
+                select(TaskOutboxModel)
+                .where(
+                    TaskOutboxModel.status.in_(("pending", "failed")),
+                    TaskOutboxModel.next_attempt_at <= now,
+                )
+                .order_by(TaskOutboxModel.created_at)
+                .with_for_update(skip_locked=True)
+                .limit(limit)
+            ).all()
+            claimed = []
+            for model in models:
+                model.status = "publishing"
+                model.publish_attempts += 1
+                claimed.append(
+                    ClaimedOutboxEvent(
+                        id=model.id,
+                        operation_id=model.operation_id,
+                        event_type=model.event_type,
+                        schema_version=model.schema_version,
+                        publish_attempts=model.publish_attempts,
+                    )
+                )
+            return claimed
+
+    def mark_published(self, event_id: UUID, now: datetime) -> None:
+        with transaction(self._session_factory) as session:
+            model = session.get(TaskOutboxModel, event_id)
+            if model is not None:
+                model.status = "published"
+                model.published_at = now
+                model.last_error = None
+
+    def mark_retry(
+        self,
+        event_id: UUID,
+        delay_seconds: int,
+        error: str,
+        now: datetime,
+    ) -> None:
+        with transaction(self._session_factory) as session:
+            model = session.get(TaskOutboxModel, event_id)
+            if model is not None:
+                model.status = "pending"
+                model.next_attempt_at = now + timedelta(seconds=delay_seconds)
+                model.last_error = error[:255]
+
+    def mark_schema_failed(self, event: ClaimedOutboxEvent, now: datetime) -> None:
+        with transaction(self._session_factory) as session:
+            outbox = session.get(TaskOutboxModel, event.id)
+            operation = session.get(OperationModel, event.operation_id)
+            if outbox is not None:
+                outbox.status = "failed"
+                outbox.next_attempt_at = datetime.max.replace(tzinfo=UTC)
+                outbox.last_error = "TASK_SCHEMA_UNSUPPORTED"
+            if operation is not None and operation.status == "queued":
+                operation.status = "failed"
+                operation.error_code = "TASK_SCHEMA_UNSUPPORTED"
+                operation.retryable = False
+                operation.finished_at = now
+
+    def reconcile(self, now: datetime) -> int:
+        cutoff = now - timedelta(minutes=1)
+        with transaction(self._session_factory) as session:
+            operation_ids = select(OperationModel.id).where(
+                OperationModel.status == "queued",
+                OperationModel.queued_at <= cutoff,
+            )
+            result = cast(
+                CursorResult[Any],
+                session.execute(
+                    update(TaskOutboxModel)
+                    .where(
+                        TaskOutboxModel.operation_id.in_(operation_ids),
+                        TaskOutboxModel.status != "published",
+                    )
+                    .values(status="pending", next_attempt_at=now)
+                    .execution_options(synchronize_session=False)
+                ),
+            )
+            return result.rowcount
+
+
+class SqlAlchemyOperationExecutionStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+        self._repository = SqlAlchemyOperationRepository()
+
+    def claim(self, operation_id: UUID, expected_task_type: str) -> OperationClaim:
+        with transaction(self._session_factory) as session:
+            operation = self._repository.get(session, operation_id, for_update=True)
+            if operation is None or operation.task_type != expected_task_type:
+                return OperationClaim(ClaimKind.TERMINAL, operation_id)
+            if operation.status is OperationStatus.RUNNING:
+                return OperationClaim(ClaimKind.ALREADY_RUNNING, operation_id)
+            if operation.status is not OperationStatus.QUEUED:
+                return OperationClaim(ClaimKind.TERMINAL, operation_id)
+            claimed = transition_operation(operation, OperationEvent.WORKER_CLAIM, utc_now())
+            self._repository.save(session, claimed)
+            return OperationClaim(ClaimKind.CLAIMED, operation_id)
+
+    def complete(self, operation_id: UUID, result: dict[str, object]) -> None:
+        with transaction(self._session_factory) as session:
+            operation = self._repository.get(session, operation_id, for_update=True)
+            if operation is None or operation.status is not OperationStatus.RUNNING:
+                return
+            operation.result_summary = result
+            completed = transition_operation(operation, OperationEvent.COMPLETE, utc_now())
+            self._repository.save(session, completed)
+
+    def fail(self, operation_id: UUID, code: str, *, retryable: bool) -> None:
+        with transaction(self._session_factory) as session:
+            operation = self._repository.get(session, operation_id, for_update=True)
+            if operation is None or operation.status is not OperationStatus.RUNNING:
+                return
+            operation.error_code = code
+            operation.retryable = retryable
+            failed = transition_operation(operation, OperationEvent.FAIL, utc_now())
+            self._repository.save(session, failed)
