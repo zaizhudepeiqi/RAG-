@@ -266,6 +266,7 @@ git commit -m "chore: lock repository runtimes"
 - Create: `deploy/scripts/import-env.ps1`
 - Create: `deploy/scripts/wait-for-dependencies.ps1`
 - Create: `deploy/tests/test-compose.ps1`
+- Create: `deploy/tests/test-import-env.ps1`
 
 - [ ] **Step 1: 先写镜像和端口静态失败测试**
 
@@ -280,7 +281,8 @@ $expectations = @(
   'chromadb/chroma:1.5.9@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6',
   '127.0.0.1:${POSTGRES_PORT:-5432}:5432',
   '127.0.0.1:${REDIS_PORT:-6379}:6379',
-  '127.0.0.1:${CHROMA_PORT:-8000}:8000'
+  '127.0.0.1:${CHROMA_PORT:-8000}:8000',
+  'exec 3<>/dev/tcp/127.0.0.1/8000'
 )
 
 foreach ($expected in $expectations) {
@@ -291,6 +293,10 @@ foreach ($expected in $expectations) {
 
 if ($compose -match "(?m)^\s*image:\s*[^\r\n]*:latest") {
   throw "Floating latest image is forbidden"
+}
+
+if ($compose.Contains('["CMD", "curl"')) {
+  throw "Chroma 1.5.9 does not contain curl; its healthcheck must use an available executable"
 }
 ```
 
@@ -349,7 +355,15 @@ services:
     volumes:
       - chroma_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
+      test:
+        - CMD
+        - bash
+        - -ec
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8000;
+          printf 'GET /api/v2/heartbeat HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3;
+          read -r status <&3;
+          [[ "$$status" == *"200 OK"* ]]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -410,6 +424,8 @@ ENABLE_PRODUCTION_OPENAPI=false
 
 `deploy/scripts/import-env.ps1` 接受固定参数 `-Path`，逐行跳过空行和 `#`，按第一个 `=` 分割并设置当前进程环境变量；拒绝无 `=`、空 key 和重复 key。值保持原文，不执行变量展开、命令替换或 PowerShell 表达式。
 
+`deploy/tests/test-import-env.ps1` 必须验证首个 `=` 分割、重复键和非法行拒绝，并确认脚本不输出导入值。脚本先完成全部解析和校验，再一次性更新进程环境，失败时不能留下半导入状态。
+
 使用方式：
 
 ```powershell
@@ -427,6 +443,7 @@ ENABLE_PRODUCTION_OPENAPI=false
 ```powershell
 Copy-Item deploy/env/.env.development.example deploy/env/.env.development
 pwsh -NoProfile -File deploy/tests/test-compose.ps1
+pwsh -NoProfile -File deploy/tests/test-import-env.ps1
 docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml config --quiet
 ```
 
@@ -444,7 +461,7 @@ Expected: `postgres`、`redis`、`chroma` 均为 running/healthy。若 Docker De
 - [ ] **Step 7: 提交基础设施**
 
 ```powershell
-git add deploy/compose/compose.deps.yml deploy/env/.env.development.example deploy/scripts/import-env.ps1 deploy/scripts/wait-for-dependencies.ps1 deploy/tests/test-compose.ps1
+git add deploy/compose/compose.deps.yml deploy/env/.env.development.example deploy/scripts/import-env.ps1 deploy/scripts/wait-for-dependencies.ps1 deploy/tests/test-compose.ps1 deploy/tests/test-import-env.ps1 docs/implementation/01-foundation-implementation-plan.md
 git commit -m "chore: add pinned development services"
 ```
 
