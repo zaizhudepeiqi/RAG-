@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>企业 RAG 知识库系统</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div class="brand-mark">R</div>
+        <div>
+          <strong>企业 RAG</strong>
+          <span>知识库管理系统</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-scroll" aria-label="主导航">
+        <button class="nav-item active" data-view="parsing">
+          <i data-lucide="file-scan"></i><span>数据清洗与解析</span>
+        </button>
+        <button class="nav-item" data-view="overview">
+          <i data-lucide="layout-dashboard"></i><span>仪表盘</span>
+        </button>
+
+        <div class="nav-module open" data-module="knowledge">
+          <div class="nav-module-row">
+            <button class="nav-item nav-main" data-view="knowledge">
+              <i data-lucide="library-big"></i><span>知识库管理</span>
+            </button>
+            <button class="nav-icon" data-view="knowledge-create" title="创建知识库" aria-label="创建知识库">
+              <i data-lucide="plus"></i>
+            </button>
+            <button class="nav-icon module-toggle" title="展开知识库菜单" aria-label="展开知识库菜单">
+              <i data-lucide="chevron-down"></i>
+            </button>
+          </div>
+          <div class="nav-children">
+            <button data-view="knowledge">知识库列表</button>
+            <button data-view="knowledge-create">创建知识库</button>
+            <button data-view="knowledge-detail">知识库详情</button>
+          </div>
+        </div>
+
+        <div class="nav-module open" data-module="robot">
+          <div class="nav-module-row">
+            <button class="nav-item nav-main" data-view="robots">
+              <i data-lucide="bot"></i><span>机器人管理</span>
+            </button>
+            <button class="nav-icon" data-view="robot-create" title="创建机器人" aria-label="创建机器人">
+              <i data-lucide="plus"></i>
+            </button>
+            <button class="nav-icon module-toggle" title="展开机器人菜单" aria-label="展开机器人菜单">
+              <i data-lucide="chevron-down"></i>
+            </button>
+          </div>
+          <div class="nav-children">
+            <button data-view="robots">机器人列表</button>
+            <button data-view="robot-create">创建机器人</button>
+            <button data-view="robot-test">问答测试</button>
+          </div>
+        </div>
+
+        <button class="nav-item" data-view="models">
+          <i data-lucide="boxes"></i><span>模型配置</span>
+        </button>
+        <button class="nav-item" data-view="channels">
+          <i data-lucide="plug-zap"></i><span>渠道接入</span>
+        </button>
+        <button class="nav-item" data-view="tasks">
+          <i data-lucide="list-checks"></i><span>任务中心</span>
+        </button>
+        <button class="nav-item" data-view="logs">
+          <i data-lucide="scroll-text"></i><span>问答日志</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-view="settings">
+          <i data-lucide="settings"></i><span>系统设置</span>
+        </button>
+        <div class="admin-row">
+          <div class="avatar">管</div>
+          <div><strong>系统管理员</strong><span>admin</span></div>
+          <i data-lucide="chevrons-up-down"></i>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <div>
+          <span class="breadcrumb">企业 RAG / <strong id="breadcrumb-current">数据清洗与解析</strong></span>
+        </div>
+        <div class="top-actions">
+          <span class="health"><span></span>服务正常</span>
+          <button class="icon-button" title="通知" aria-label="通知"><i data-lucide="bell"></i></button>
+          <button class="icon-button" title="帮助" aria-label="帮助"><i data-lucide="circle-help"></i></button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <section class="view active" id="view-parsing" data-title="数据清洗与解析">
+          <div class="page-head">
+            <div><h1>数据清洗与解析</h1><p>原始文档经 MinerU 处理后进入已解析数据源库。</p></div>
+            <button class="button primary" data-toast="已打开上传区"><i data-lucide="upload"></i>上传原始数据</button>
+          </div>
+
+          <div class="flow-line">
+            <span class="done">原始文件</span><i data-lucide="arrow-right"></i>
+            <span class="active">MinerU 解析</span><i data-lucide="arrow-right"></i>
+            <span>处理前后对比</span><i data-lucide="arrow-right"></i>
+            <span>已解析数据源</span>
+          </div>
+
+          <div class="tabs" data-tabs="parsing-tabs">
+            <button class="active" data-tab="parse-tasks">上传与解析任务</button>
+            <button data-tab="parse-compare">处理前后对比</button>
+            <button data-tab="parsed-sources">已解析数据源</button>
+          </div>
+
+          <div class="tab-pane active" data-pane="parse-tasks">
+            <div class="metric-row">
+              <article><span>今日上传</span><strong>18</strong><small>共 436 MB</small></article>
+              <article><span>正在解析</span><strong>3</strong><small>平均进度 62%</small></article>
+              <article><span>解析成功</span><strong>12</strong><small>已进入数据源库</small></article>
+              <article><span>解析失败</span><strong>1</strong><small class="danger-text">等待处理</small></article>
+            </div>
+
+            <section class="panel upload-panel">
+              <div class="upload-zone">
+                <i data-lucide="cloud-upload"></i>
+                <div><strong>拖拽文件到此处，或点击选择文件</strong><span>PDF、Word、Excel、PPT、图片、HTML、TXT、ZIP</span></div>
+                <button class="button" data-toast="已选择演示文件">选择文件</button>
+              </div>
+              <details class="accordion">
+                <summary><span><i data-lucide="sliders-horizontal"></i>本次解析参数</span><small>使用系统默认配置</small></summary>
+                <div class="form-grid four">
+                  <label>模型版本<select><option>VLM</option><option>Pipeline</option></select></label>
+                  <label>语言<select><option>中文 ch</option><option>英文 en</option></select></label>
+                  <label class="switch-field"><span>OCR</span><input type="checkbox" checked></label>
+                  <label class="switch-field"><span>表格与公式</span><input type="checkbox" checked></label>
+                </div>
+              </details>
+            </section>
+
+            <section class="panel table-panel">
+              <div class="panel-toolbar">
+                <div class="filters">
+                  <label class="search"><i data-lucide="search"></i><input placeholder="搜索文件名或任务 ID"></label>
+                  <select><option>全部状态</option><option>处理中</option><option>成功</option><option>失败</option></select>
+                </div>
+                <button class="icon-button" title="刷新" aria-label="刷新"><i data-lucide="refresh-cw"></i></button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>原始文件</th><th>解析模式</th><th>状态</th><th>进度</th><th>更新时间</th><th>操作</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>集团权限管理制度.pdf</strong><small>PDF · 8.4 MB · 42 页</small></td><td>VLM · OCR</td><td><span class="status success">解析成功</span></td><td><div class="progress"><span style="width:100%"></span></div></td><td>10:28</td><td><button class="text-button" data-open-tab="parse-compare">查看对比</button></td></tr>
+                    <tr><td><strong>产品知识手册-2026.docx</strong><small>DOCX · 3.1 MB</small></td><td>VLM</td><td><span class="status running">正在解析</span></td><td><div class="progress"><span style="width:68%"></span></div><small>68% · 34/50</small></td><td>10:24</td><td><button class="text-button" data-toast="已打开任务详情">任务详情</button></td></tr>
+                    <tr><td><strong>客户合同扫描件.pdf</strong><small>PDF · 21.6 MB · 106 页</small></td><td>Pipeline · OCR</td><td><span class="status warning">排队中</span></td><td><div class="progress"><span style="width:8%"></span></div></td><td>10:19</td><td><button class="text-button danger" data-toast="已取消演示任务">取消</button></td></tr>
+                    <tr><td><strong>历史工单导出.zip</strong><small>ZIP · 48.2 MB · 64 个文件</small></td><td>VLM</td><td><span class="status danger">解析失败</span></td><td><span class="error-code">MINERU_FILE_ERROR</span></td><td>09:48</td><td><button class="text-button" data-toast="已提交重新解析">重新解析</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="tab-pane" data-pane="parse-compare">
+            <section class="panel compare-toolbar">
+              <label>解析版本<select><option>集团权限管理制度.pdf · 最新成功版本</option><option>历史版本 · 2026-07-10</option></select></label>
+              <div class="page-stepper"><button class="icon-button"><i data-lucide="chevron-left"></i></button><strong>第 12 / 42 页</strong><button class="icon-button"><i data-lucide="chevron-right"></i></button></div>
+              <span class="status success">parsed</span>
+            </section>
+            <div class="compare-grid">
+              <section class="document-preview">
+                <div class="preview-head"><strong>处理前：原始文档</strong><button class="icon-button" title="放大"><i data-lucide="maximize-2"></i></button></div>
+                <div class="paper-page">
+                  <span>第十二条 跨部门数据权限申请</span>
+                  <h2>集团权限管理制度</h2>
+                  <p>跨部门数据权限申请需由申请部门填写用途说明，经数据归口部门负责人审批后开通。</p>
+                  <div class="fake-table"><span>申请类型</span><span>审批人</span><span>有效期</span><span>跨部门权限</span><span>归口负责人</span><span>90 天</span></div>
+                  <p>涉及敏感数据时，还需完成安全审查并记录访问日志。</p>
+                  <small>12</small>
+                </div>
+              </section>
+              <section class="parsed-preview">
+                <div class="preview-head"><strong>处理后：MinerU 解析结果</strong><button class="button small" data-toast="JSON 已复制"><i data-lucide="copy"></i>复制</button></div>
+                <div class="tabs compact" data-tabs="result-tabs">
+                  <button class="active" data-tab="result-markdown">Markdown</button>
+                  <button data-tab="result-blocks">Blocks</button>
+                  <button data-tab="result-ocr">OCR</button>
+                  <button data-tab="result-assets">表格与图片</button>
+                </div>
+                <div class="tab-pane active result-pane" data-pane="result-markdown">
+                  <pre>## 第十二条 跨部门数据权限申请
+
+跨部门数据权限申请需由申请部门填写用途说明，经数据归口部门负责人审批后开通。
+
+| 申请类型 | 审批人 | 有效期 |
+| --- | --- | --- |
+| 跨部门权限 | 归口负责人 | 90 天 |
+
+涉及敏感数据时，还需完成安全审查并记录访问日志。</pre>
+                </div>
+                <div class="tab-pane result-pane" data-pane="result-blocks"><div class="block-list"><article><span>heading</span><strong>第十二条 跨部门数据权限申请</strong><small>page=12 · block_038</small></article><article><span>paragraph</span><strong>跨部门数据权限申请需由申请部门填写用途说明...</strong><small>page=12 · block_039</small></article><article><span>table</span><strong>3 列 × 2 行</strong><small>page=12 · asset_table_006</small></article></div></div>
+                <div class="tab-pane result-pane" data-pane="result-ocr"><div class="ocr-box">OCR 置信度 98.6%<br><br>跨部门数据权限申请需由申请部门填写用途说明，经数据归口部门负责人审批后开通。</div></div>
+                <div class="tab-pane result-pane" data-pane="result-assets"><div class="asset-grid"><article><i data-lucide="table-2"></i><strong>table_006.html</strong><small>第 12 页</small></article><article><i data-lucide="image"></i><strong>page_12.png</strong><small>原始页面图</small></article></div></div>
+              </section>
+            </div>
+          </div>
+
+          <div class="tab-pane" data-pane="parsed-sources">
+            <section class="panel table-panel">
+              <div class="panel-toolbar"><div class="filters"><label class="search"><i data-lucide="search"></i><input placeholder="搜索已解析数据源"></label><select><option>全部格式</option><option>PDF</option><option>Office</option><option>图片</option></select></div><span class="muted">共 36 个数据源</span></div>
+              <div class="table-wrap"><table><thead><tr><th>数据源</th><th>解析版本</th><th>产物</th><th>被知识库引用</th><th>更新时间</th><th>操作</th></tr></thead><tbody>
+                <tr><td><strong>集团权限管理制度.pdf</strong><small>SHA-256: 62f4...91be</small></td><td>V3 · VLM</td><td>42 页 · 386 Blocks · 14 Assets</td><td><button class="link-count" data-toast="企业制度库、合规知识库">2 个知识库</button></td><td>今天 10:28</td><td><button class="text-button" data-open-tab="parse-compare">查看</button><button class="text-button danger" disabled>删除</button></td></tr>
+                <tr><td><strong>售后服务 SOP.pdf</strong><small>SHA-256: 24ac...0e63</small></td><td>V1 · Pipeline</td><td>18 页 · 192 Blocks · 8 Assets</td><td>0</td><td>昨天 16:42</td><td><button class="text-button">查看</button><button class="text-button danger" data-toast="已打开删除确认">删除</button></td></tr>
+              </tbody></table></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-overview" data-title="仪表盘">
+          <div class="page-head"><div><h1>仪表盘</h1><p>知识库构建、机器人调用和 RAG 质量概览。</p></div><select><option>最近 7 天</option><option>最近 30 天</option></select></div>
+          <div class="metric-row six"><article><span>知识库</span><strong>8</strong><small>6 个可用</small></article><article><span>已索引文档</span><strong>286</strong><small>12 个处理中</small></article><article><span>机器人</span><strong>5</strong><small>3 个已接渠道</small></article><article><span>今日问答</span><strong>1,284</strong><small class="success-text">+12.4%</small></article><article><span>命中率</span><strong>86.3%</strong><small>无命中 13.7%</small></article><article><span>平均响应</span><strong>2.8s</strong><small>模型 1.9s</small></article></div>
+          <div class="dashboard-grid">
+            <section class="panel"><div class="panel-title"><strong>RAG 质量趋势</strong><span>命中率 / 引用率</span></div><div class="chart-placeholder"><div style="height:42%"></div><div style="height:58%"></div><div style="height:52%"></div><div style="height:68%"></div><div style="height:74%"></div><div style="height:70%"></div><div style="height:82%"></div></div></section>
+            <section class="panel"><div class="panel-title"><strong>任务状态</strong><button class="text-button" data-view="tasks">查看全部</button></div><div class="status-list"><p><span><i class="dot blue"></i>正在解析</span><strong>3</strong></p><p><span><i class="dot amber"></i>正在索引</span><strong>4</strong></p><p><span><i class="dot red"></i>最近失败</span><strong>2</strong></p><p><span><i class="dot green"></i>今日完成</span><strong>48</strong></p></div></section>
+          </div>
+          <section class="panel table-panel"><div class="panel-title"><strong>低命中问题</strong><button class="text-button" data-view="logs">查看 Trace</button></div><div class="table-wrap"><table><thead><tr><th>问题</th><th>机器人</th><th>最高分</th><th>状态</th><th>时间</th></tr></thead><tbody><tr><td>海外售后工单的升级规则是什么？</td><td>售后助手</td><td>0.38</td><td><span class="status warning">无命中兜底</span></td><td>10:32</td></tr><tr><td>新员工可申请哪些系统权限？</td><td>制度助手</td><td>0.61</td><td><span class="status success">已命中</span></td><td>10:18</td></tr></tbody></table></div></section>
+        </section>
+
+        <section class="view" id="view-knowledge" data-title="知识库管理">
+          <div class="page-head"><div><h1>知识库管理</h1><p>每个知识库独立配置分块、Embedding、索引和检索策略。</p></div><button class="button primary" data-view="knowledge-create"><i data-lucide="plus"></i>创建知识库</button></div>
+          <div class="flow-line compact-flow"><span class="done">选择 parsed 数据源</span><i data-lucide="arrow-right"></i><span>配置分块与索引</span><i data-lucide="arrow-right"></i><span>配置检索策略</span><i data-lucide="arrow-right"></i><span>创建并异步构建</span></div>
+          <section class="panel table-panel"><div class="panel-toolbar"><div class="filters"><label class="search"><i data-lucide="search"></i><input placeholder="搜索知识库"></label><select><option>全部状态</option><option>ready</option><option>partial_ready</option><option>indexing</option></select><select><option>全部检索类型</option><option>混合检索</option><option>向量检索</option><option>关键词检索</option></select></div><button class="icon-button"><i data-lucide="refresh-cw"></i></button></div><div class="table-wrap"><table><thead><tr><th>知识库</th><th>状态</th><th>数据源</th><th>Embedding</th><th>索引</th><th>检索</th><th>更新时间</th><th>操作</th></tr></thead><tbody>
+            <tr><td><strong>企业制度库</strong><small>人事、权限、合规制度</small></td><td><span class="status success">ready</span></td><td>42</td><td>text-embedding-3-large</td><td>Parent-Child</td><td>混合检索</td><td>今天 10:30</td><td><button class="text-button" data-view="knowledge-detail">详情</button></td></tr>
+            <tr><td><strong>产品知识库</strong><small>产品功能与常见问题</small></td><td><span class="status warning">partial_ready</span></td><td>68</td><td>bge-m3</td><td>Chunk</td><td>混合检索</td><td>今天 09:42</td><td><button class="text-button" data-view="knowledge-detail">详情</button></td></tr>
+            <tr><td><strong>售后服务库</strong><small>服务流程和故障处理</small></td><td><span class="status running">indexing</span></td><td>18</td><td>bge-m3</td><td>Chunk</td><td>向量检索</td><td>昨天 18:21</td><td><button class="text-button" data-view="knowledge-detail">详情</button></td></tr>
+          </tbody></table></div></section>
+        </section>
+
+        <section class="view" id="view-knowledge-create" data-title="创建知识库">
+          <div class="page-head"><div><button class="back-link" data-view="knowledge"><i data-lucide="arrow-left"></i>知识库列表</button><h1>创建知识库</h1><p>全部配置确认后才会创建知识库并提交构建任务。</p></div><div><button class="button" data-toast="配置已保存到当前页面">暂存配置</button><button class="button primary" data-toast="知识库已创建，构建任务已提交">创建并开始构建</button></div></div>
+          <div class="stepper">
+            <button class="active" data-scroll="kb-basic"><span>1</span>基础信息</button><button data-scroll="kb-source"><span>2</span>选择数据源</button><button data-scroll="kb-index"><span>3</span>Embedding 与索引</button><button data-scroll="kb-chunk"><span>4</span>分块策略</button><button data-scroll="kb-retrieval"><span>5</span>检索策略</button><button data-scroll="kb-confirm"><span>6</span>确认创建</button>
+          </div>
+          <div class="long-form">
+            <details class="form-section" id="kb-basic" open><summary><span><b>1</b><strong>基础信息</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid two"><label>知识库名称<input value="企业制度库"></label><label>知识引擎<select><option>LangRAG</option></select></label><label class="span-two">描述<textarea>人事、权限和数据合规制度。</textarea></label></div></details>
+            <details class="form-section" id="kb-source" open><summary><span><b>2</b><strong>选择已解析数据源</strong><em>已选 2 个</em></span><i data-lucide="chevron-down"></i></summary><div class="source-picker"><div class="picker-toolbar"><label class="search"><i data-lucide="search"></i><input placeholder="搜索 parsed 数据源"></label><span>只显示可用版本</span></div><label class="source-row"><input type="checkbox" checked><span><strong>集团权限管理制度.pdf</strong><small>V3 · 42 页 · parsed</small></span><em>被 2 个知识库引用</em></label><label class="source-row"><input type="checkbox" checked><span><strong>数据合规流程.docx</strong><small>V1 · 18 页 · parsed</small></span><em>未引用</em></label><label class="source-row"><input type="checkbox"><span><strong>员工手册-2026.pdf</strong><small>V2 · 63 页 · parsed</small></span><em>存在新版本</em></label></div></details>
+            <details class="form-section" id="kb-index"><summary><span><b>3</b><strong>Embedding 与索引</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid three"><label>Embedding 模型<select><option>text-embedding-3-large</option><option>bge-m3</option></select></label><label>向量维度<input type="number" value="3072" disabled></label><label>索引类型<select><option>Parent-Child</option><option>Chunk</option><option disabled>QA · 后续预留</option></select></label></div></details>
+            <details class="form-section" id="kb-chunk"><summary><span><b>4</b><strong>分块策略</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid four"><label>分块方式<select><option>按标题层级</option><option>按 Token</option><option>按段落</option><option>按页</option><option>语义分块</option></select></label><label>Parent 大小<input type="number" value="1200"></label><label>Child 大小<input type="number" value="320"></label><label>Child Overlap<input type="number" value="64"></label></div></details>
+            <details class="form-section" id="kb-retrieval"><summary><span><b>5</b><strong>检索策略</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid four"><label>检索类型<select><option>混合检索</option><option>向量检索</option><option>关键词检索</option></select></label><label>融合策略<select><option>RRF</option><option>Weighted Score</option></select></label><label>Vector Top K<input type="number" value="20"></label><label>Keyword Top K<input type="number" value="20"></label><label>RRF K<input type="number" value="60"></label><label>Final Top K<input type="number" value="8"></label><label>查询重写<select><option>Multi-Query</option><option>关闭</option><option>HyDE</option><option>Step-Back</option></select></label><label>重排序<select><option>Rerank Model</option><option>关闭</option><option>LLM 重排序</option></select></label></div><details class="nested-advanced"><summary>高级阈值与模型设置</summary><div class="form-grid four"><label>向量阈值<input value="0.42"></label><label>最终阈值<input value="0.48"></label><label>查询重写模型<select><option>gpt-4.1-mini</option></select></label><label>Rerank 模型<select><option>bge-reranker-v2-m3</option></select></label></div></details></details>
+            <details class="form-section" id="kb-confirm" open><summary><span><b>6</b><strong>确认创建</strong></span><i data-lucide="chevron-down"></i></summary><div class="summary-grid"><p><span>数据源</span><strong>2 个 parsed 版本</strong></p><p><span>Embedding</span><strong>text-embedding-3-large</strong></p><p><span>分块</span><strong>Parent-Child / 标题层级</strong></p><p><span>检索</span><strong>混合检索 / RRF</strong></p></div><div class="notice"><i data-lucide="info"></i><span>点击创建后才会提交分块、Embedding 和索引任务。</span></div></details>
+          </div>
+        </section>
+
+        <section class="view" id="view-knowledge-detail" data-title="知识库详情">
+          <div class="page-head"><div><button class="back-link" data-view="knowledge"><i data-lucide="arrow-left"></i>知识库列表</button><h1>企业制度库</h1><p><span class="status success">ready</span> 42 个数据源 · 当前索引代次 G-008</p></div><div><button class="button" data-toast="已打开重建确认">全量重建</button><button class="button primary" data-toast="配置已保存">保存配置</button></div></div>
+          <div class="tabs" data-tabs="kb-detail-tabs"><button class="active" data-tab="kb-overview">概览与配置</button><button data-tab="kb-data">数据源</button><button data-tab="kb-build">构建任务</button><button data-tab="kb-test">检索测试</button></div>
+          <div class="tab-pane active" data-pane="kb-overview"><div class="detail-grid"><section class="panel"><div class="panel-title"><strong>基础配置</strong><span>最近更新 今天 10:30</span></div><div class="summary-grid vertical"><p><span>Embedding</span><strong>text-embedding-3-large</strong></p><p><span>索引类型</span><strong>Parent-Child</strong></p><p><span>检索类型</span><strong>混合检索 / RRF</strong></p><p><span>查询重写</span><strong>Multi-Query</strong></p><p><span>重排序</span><strong>bge-reranker-v2-m3</strong></p></div></section><section class="panel"><div class="panel-title"><strong>当前索引</strong><span class="status success">服务中</span></div><div class="summary-grid vertical"><p><span>索引代次</span><strong>G-008</strong></p><p><span>Chunks</span><strong>12,846</strong></p><p><span>Parents</span><strong>3,124</strong></p><p><span>向量集合</span><strong>kb_001_g008</strong></p><p><span>最近切换</span><strong>今天 10:28</strong></p></div></section></div></div>
+          <div class="tab-pane" data-pane="kb-data"><section class="panel table-panel"><div class="panel-toolbar"><strong>已绑定数据源</strong><button class="button"><i data-lucide="plus"></i>添加 parsed 数据源</button></div><div class="table-wrap"><table><thead><tr><th>数据源</th><th>解析版本</th><th>索引状态</th><th>Chunks</th><th>版本提示</th><th>操作</th></tr></thead><tbody><tr><td>集团权限管理制度.pdf</td><td>V2</td><td><span class="status success">indexed</span></td><td>1,286</td><td><span class="status warning">可升级到 V3</span></td><td><button class="text-button" data-toast="已打开版本替换确认">替换版本</button></td></tr><tr><td>数据合规流程.docx</td><td>V1</td><td><span class="status success">indexed</span></td><td>864</td><td>最新</td><td><button class="text-button danger" data-toast="已打开解绑确认">解绑</button></td></tr></tbody></table></div></section></div>
+          <div class="tab-pane" data-pane="kb-build"><section class="panel"><div class="generation-row"><div><span class="status running">构建中</span><strong>G-009</strong><small>使用新解析版本重新构建，旧索引 G-008 继续服务</small></div><div class="progress wide"><span style="width:74%"></span></div><strong>74%</strong></div><div class="timeline"><p class="done"><i data-lucide="check"></i>生成配置快照</p><p class="done"><i data-lucide="check"></i>分块完成</p><p class="active"><i data-lucide="loader-circle"></i>Embedding 与向量写入</p><p><i data-lucide="circle"></i>关键词索引</p><p><i data-lucide="circle"></i>校验并原子切换</p></div></section></div>
+          <div class="tab-pane" data-pane="kb-test"><div class="test-layout"><section class="panel"><label>测试问题<textarea>跨部门数据权限如何申请？</textarea></label><details class="accordion"><summary><span>临时覆盖参数</span><small>不影响知识库配置</small></summary><div class="form-grid two"><label>Final Top K<input value="8"></label><label>最终阈值<input value="0.48"></label></div></details><button class="button primary full" data-toast="检索测试完成">开始检索测试</button></section><section class="panel"><div class="panel-title"><strong>召回结果</strong><span>总耗时 186ms</span></div><article class="result-card"><div><span class="rank">1</span><strong>集团权限管理制度.pdf</strong><em>0.87</em></div><p>跨部门数据权限申请需由申请部门填写用途说明...</p><small>第 12 页 · Parent p-038 · vector + keyword</small></article><article class="result-card"><div><span class="rank">2</span><strong>数据合规流程.docx</strong><em>0.79</em></div><p>涉及敏感数据的访问申请还需要完成安全审查...</p><small>第 4-5 页 · Parent p-014 · vector</small></article></section></div></div>
+        </section>
+
+        <section class="view" id="view-robots" data-title="机器人管理">
+          <div class="page-head"><div><h1>机器人管理</h1><p>机器人选择知识库并负责回答、记忆、兜底和引用。</p></div><button class="button primary" data-view="robot-create"><i data-lucide="plus"></i>创建机器人</button></div>
+          <section class="panel table-panel"><div class="panel-toolbar"><div class="filters"><label class="search"><i data-lucide="search"></i><input placeholder="搜索机器人"></label><select><option>全部回答模型</option><option>gpt-4.1</option><option>DeepSeek-V3</option></select></div></div><div class="table-wrap"><table><thead><tr><th>机器人</th><th>回答模型</th><th>绑定知识库</th><th>绑定渠道</th><th>今日调用</th><th>命中率</th><th>最近调用</th><th>操作</th></tr></thead><tbody><tr><td><div class="entity"><div class="bot-avatar"><i data-lucide="bot"></i></div><span><strong>企业制度助手</strong><small>制度与合规问答</small></span></div></td><td>gpt-4.1</td><td>3</td><td>1</td><td>628</td><td>91.4%</td><td>2 分钟前</td><td><button class="text-button" data-view="robot-test">测试</button><button class="text-button" data-view="robot-create">编辑</button></td></tr><tr><td><div class="entity"><div class="bot-avatar green"><i data-lucide="headphones"></i></div><span><strong>售后服务助手</strong><small>服务流程与工单</small></span></div></td><td>DeepSeek-V3</td><td>2</td><td>2</td><td>314</td><td>82.8%</td><td>8 分钟前</td><td><button class="text-button" data-view="robot-test">测试</button><button class="text-button" data-view="robot-create">编辑</button></td></tr></tbody></table></div></section>
+        </section>
+
+        <section class="view" id="view-robot-create" data-title="创建机器人">
+          <div class="page-head"><div><button class="back-link" data-view="robots"><i data-lucide="arrow-left"></i>机器人列表</button><h1>创建机器人</h1><p>绑定知识库并配置最终回答行为。</p></div><button class="button primary" data-toast="机器人配置已保存">保存机器人</button></div>
+          <div class="long-form narrow">
+            <details class="form-section" open><summary><span><b>1</b><strong>基础信息与回答模型</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid two"><label>机器人名称<input value="企业制度助手"></label><label>基础回答模型<select><option>gpt-4.1</option><option>DeepSeek-V3</option></select></label><label class="span-two">描述<input value="回答企业制度、权限和合规问题"></label><label class="span-two">System Prompt<textarea>优先依据绑定知识库回答。引用必须包含知识库、文档和原始片段；知识库未命中时先明确提示，再使用基础模型兜底。</textarea></label></div></details>
+            <details class="form-section" open><summary><span><b>2</b><strong>绑定知识库</strong><em>已选 3 个</em></span><i data-lucide="chevron-down"></i></summary><div class="binding-list"><article><i data-lucide="grip-vertical"></i><input type="checkbox" checked><span><strong>企业制度库</strong><small>ready · 优先级 1</small></span><input class="priority" type="number" value="1"></article><article><i data-lucide="grip-vertical"></i><input type="checkbox" checked><span><strong>数据合规库</strong><small>ready · 优先级 2</small></span><input class="priority" type="number" value="2"></article><article><i data-lucide="grip-vertical"></i><input type="checkbox" checked><span><strong>员工手册库</strong><small>partial_ready · 优先级 3</small></span><input class="priority" type="number" value="3"></article></div></details>
+            <details class="form-section"><summary><span><b>3</b><strong>多知识库合并</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid four"><label>合并模式<select><option>balanced</option><option>score_first</option><option>priority_first</option></select></label><label>Final Top K<input type="number" value="8"></label><label>最大上下文 Token<input type="number" value="12000"></label><label>单库上限<input type="number" value="6"></label></div></details>
+            <details class="form-section"><summary><span><b>4</b><strong>会话记忆与无命中</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid four"><label class="switch-field"><span>启用会话记忆</span><input type="checkbox" checked></label><label>历史轮数<input type="number" value="6"></label><label>会话超时（分钟）<input type="number" value="30"></label><label>无命中处理<select><option>提示后使用 LLM 兜底</option><option>只提示未找到</option></select></label></div></details>
+            <details class="form-section"><summary><span><b>5</b><strong>引用策略</strong></span><i data-lucide="chevron-down"></i></summary><div class="form-grid two"><label>引用粒度<select><option>standard</option><option>simple</option><option>full</option><option>none</option></select></label><label>引用合并<select><option>按文档合并相邻片段</option><option>保持全部片段</option></select></label></div></details>
+          </div>
+        </section>
+
+        <section class="view" id="view-robot-test" data-title="机器人问答测试">
+          <div class="page-head"><div><button class="back-link" data-view="robots"><i data-lucide="arrow-left"></i>机器人列表</button><h1>企业制度助手 · 问答测试</h1><p>调用绑定知识库并保存完整问答 Trace。</p></div><button class="button" data-toast="测试会话已清空"><i data-lucide="trash-2"></i>清空会话</button></div>
+          <div class="chat-test-layout">
+            <section class="chat-panel">
+              <div class="chat-meta"><span><i data-lucide="bot"></i>企业制度助手</span><small>conversation: test_20260712_001</small></div>
+              <div class="messages"><article class="user-message">跨部门数据权限怎么申请？</article><article class="assistant-message"><strong>知识库已命中</strong><p>申请部门需要填写用途说明，并提交数据归口部门负责人审批。涉及敏感数据时，还需完成安全审查。</p><div class="citations"><button data-toast="企业制度库 · 权限管理制度.pdf · 第 12 页">[1] 权限管理制度.pdf · 第 12 页</button><button>[2] 数据合规流程.docx · 第 4-5 页</button></div></article></div>
+              <div class="composer"><textarea placeholder="输入测试问题"></textarea><button class="button primary" data-toast="已生成演示回答"><i data-lucide="send"></i>发送</button></div>
+            </section>
+            <aside class="trace-panel"><div class="panel-title"><strong>Trace 摘要</strong><button class="text-button" data-open-drawer="trace-drawer">完整 Trace</button></div><div class="summary-grid vertical"><p><span>是否命中</span><strong class="success-text">是</strong></p><p><span>参与知识库</span><strong>3 / 3</strong></p><p><span>最终上下文</span><strong>8 条</strong></p><p><span>引用来源</span><strong>2 个文档</strong></p><p><span>总耗时</span><strong>2.46s</strong></p><p><span>Token</span><strong>3,842</strong></p></div><div class="trace-mini"><p class="done">查询重写 <span>84ms</span></p><p class="done">多库检索 <span>176ms</span></p><p class="done">重排序 <span>93ms</span></p><p class="done">LLM 回答 <span>1.92s</span></p></div></aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-models" data-title="模型配置">
+          <div class="page-head"><div><h1>模型配置</h1><p>全局供应商与 LLM、Embedding、Rerank 模型能力池。</p></div><button class="button primary" data-toast="已打开新增供应商"><i data-lucide="plus"></i>新增供应商</button></div>
+          <div class="tabs" data-tabs="model-tabs"><button class="active" data-tab="providers">供应商</button><button data-tab="model-list">模型列表</button></div>
+          <div class="tab-pane active" data-pane="providers"><section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>供应商</th><th>类型</th><th>Base URL</th><th>密钥</th><th>模型</th><th>测试状态</th><th>操作</th></tr></thead><tbody><tr><td><strong>OpenAI 主账号</strong></td><td>OpenAI</td><td>api.openai.com/v1</td><td>sk-****8H2Q</td><td>6</td><td><span class="status success">通过</span></td><td><button class="text-button">编辑</button><button class="text-button">检测</button></td></tr><tr><td><strong>企业代理网关</strong></td><td>OpenAI-Compatible</td><td>llm.example.com/v1</td><td>已配置</td><td>4</td><td><span class="status success">通过</span></td><td><button class="text-button">编辑</button><button class="text-button">检测</button></td></tr><tr><td><strong>DeepSeek</strong></td><td>DeepSeek</td><td>api.deepseek.com</td><td>已配置</td><td>2</td><td><span class="status danger">失败</span></td><td><button class="text-button">编辑</button><button class="text-button">检测</button></td></tr></tbody></table></div></section></div>
+          <div class="tab-pane" data-pane="model-list"><section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>模型</th><th>类型</th><th>供应商</th><th>测试</th><th>业务引用</th><th>状态</th><th>操作</th></tr></thead><tbody><tr><td>gpt-4.1</td><td>LLM</td><td>OpenAI 主账号</td><td><span class="status success">通过</span></td><td>3 个机器人</td><td>启用</td><td><button class="text-button">测试</button></td></tr><tr><td>text-embedding-3-large</td><td>Embedding</td><td>OpenAI 主账号</td><td><span class="status success">3072 维</span></td><td>4 个知识库</td><td><span class="status warning">已锁定</span></td><td><button class="text-button">查看引用</button></td></tr><tr><td>bge-reranker-v2-m3</td><td>Rerank</td><td>企业代理网关</td><td><span class="status success">通过</span></td><td>2 个知识库</td><td>启用</td><td><button class="text-button">测试</button></td></tr></tbody></table></div></section></div>
+        </section>
+
+        <section class="view" id="view-channels" data-title="渠道接入">
+          <div class="page-head"><div><h1>渠道接入</h1><p>第一版只启用 Webhook/API，其他渠道保留独立适配器入口。</p></div><button class="button primary" data-toast="已打开 Webhook/API 创建"><i data-lucide="plus"></i>创建渠道</button></div>
+          <section class="panel table-panel"><div class="table-wrap"><table><thead><tr><th>渠道</th><th>类型</th><th>可用性</th><th>绑定机器人</th><th>今日调用</th><th>鉴权</th><th>操作</th></tr></thead><tbody><tr><td><strong>制度助手 API</strong><small>/api/channel/webhook/ch_001/messages</small></td><td>Webhook/API</td><td><span class="status success">已启用</span></td><td>企业制度助手</td><td>628</td><td>Bearer API Key</td><td><button class="text-button">详情</button><button class="text-button">调用示例</button></td></tr><tr class="disabled-row"><td><strong>钉钉</strong></td><td>Channel Adapter</td><td><span class="status muted-status">后续预留</span></td><td>—</td><td>—</td><td>—</td><td><button class="text-button" disabled>不可用</button></td></tr><tr class="disabled-row"><td><strong>企业微信</strong></td><td>Channel Adapter</td><td><span class="status muted-status">后续预留</span></td><td>—</td><td>—</td><td>—</td><td><button class="text-button" disabled>不可用</button></td></tr><tr class="disabled-row"><td><strong>飞书</strong></td><td>Channel Adapter</td><td><span class="status muted-status">后续预留</span></td><td>—</td><td>—</td><td>—</td><td><button class="text-button" disabled>不可用</button></td></tr></tbody></table></div></section>
+          <section class="panel endpoint-panel"><div><span>同步问答 Endpoint</span><code>POST /api/channel/webhook/ch_001/messages</code></div><button class="button small" data-toast="Endpoint 已复制"><i data-lucide="copy"></i>复制</button></section>
+        </section>
+
+        <section class="view" id="view-tasks" data-title="任务中心">
+          <div class="page-head"><div><h1>任务中心</h1><p>解析、分块、索引、重建和异步问答任务。</p></div><button class="icon-button"><i data-lucide="refresh-cw"></i></button></div>
+          <section class="panel table-panel"><div class="panel-toolbar"><div class="filters"><select><option>全部任务类型</option><option>parse_document</option><option>index_knowledge_base</option><option>async_chat</option></select><select><option>全部状态</option><option>running</option><option>failed</option><option>succeeded</option></select><label class="search"><i data-lucide="search"></i><input placeholder="任务 ID 或目标名称"></label></div></div><div class="table-wrap"><table><thead><tr><th>任务</th><th>类型</th><th>目标</th><th>状态</th><th>进度</th><th>重试</th><th>创建时间</th><th>操作</th></tr></thead><tbody><tr><td><code>task_7f19</code></td><td>parse_document</td><td>产品知识手册.docx</td><td><span class="status running">running</span></td><td><div class="progress"><span style="width:68%"></span></div><small>68%</small></td><td>0 / 2</td><td>10:24</td><td><button class="text-button" data-open-drawer="task-drawer">详情</button></td></tr><tr><td><code>task_8a03</code></td><td>index_knowledge_base</td><td>企业制度库 · G-009</td><td><span class="status running">running</span></td><td><div class="progress"><span style="width:74%"></span></div><small>74%</small></td><td>0 / 1</td><td>10:18</td><td><button class="text-button" data-open-drawer="task-drawer">详情</button></td></tr><tr><td><code>task_39bc</code></td><td>parse_document</td><td>历史工单导出.zip</td><td><span class="status danger">failed</span></td><td><span class="error-code">MINERU_FILE_ERROR</span></td><td>2 / 2</td><td>09:48</td><td><button class="text-button" data-open-drawer="task-drawer">详情</button><button class="text-button">重试</button></td></tr></tbody></table></div></section>
+        </section>
+
+        <section class="view" id="view-logs" data-title="问答日志">
+          <div class="page-head"><div><h1>问答日志</h1><p>查看知识库命中、模型调用、引用来源和完整 Trace。</p></div><button class="button" data-toast="日志已导出演示"><i data-lucide="download"></i>导出</button></div>
+          <section class="panel table-panel"><div class="panel-toolbar"><div class="filters"><label class="search"><i data-lucide="search"></i><input placeholder="Trace ID 或问题关键词"></label><select><option>全部机器人</option><option>企业制度助手</option><option>售后服务助手</option></select><select><option>全部结果</option><option>已命中</option><option>无命中兜底</option><option>失败</option></select></div></div><div class="table-wrap"><table><thead><tr><th>Trace ID</th><th>用户问题</th><th>机器人 / 来源</th><th>命中</th><th>兜底</th><th>引用</th><th>耗时</th><th>时间</th><th>操作</th></tr></thead><tbody><tr><td><code>tr_01JB8...</code></td><td>跨部门数据权限怎么申请？</td><td>企业制度助手<small>webhook_api</small></td><td><span class="status success">是</span></td><td>否</td><td>2</td><td>2.46s</td><td>10:32</td><td><button class="text-button" data-open-drawer="trace-drawer">Trace</button></td></tr><tr><td><code>tr_01JB7...</code></td><td>海外售后工单如何升级？</td><td>售后服务助手<small>admin_test</small></td><td><span class="status warning">否</span></td><td>是</td><td>0</td><td>3.18s</td><td>10:28</td><td><button class="text-button" data-open-drawer="trace-drawer">Trace</button></td></tr></tbody></table></div></section>
+        </section>
+
+        <section class="view" id="view-settings" data-title="系统设置">
+          <div class="page-head"><div><h1>系统设置</h1><p>全局解析参数、日志保留、运行状态和管理员安全。</p></div><button class="button primary" data-toast="系统设置已保存">保存设置</button></div>
+          <div class="settings-layout">
+            <section class="panel settings-section"><div class="panel-title"><strong>MinerU Precision API</strong><span class="status success">连接正常</span></div><div class="form-grid two"><label>API Base URL<input value="https://mineru.net"></label><label>API Token<input type="password" value="token-is-masked"></label><label>默认模型<select><option>VLM</option><option>Pipeline</option></select></label><label>默认语言<select><option>中文 ch</option></select></label><label class="switch-field"><span>默认开启 OCR</span><input type="checkbox" checked></label><label class="switch-field"><span>表格与公式识别</span><input type="checkbox" checked></label></div><button class="button" data-toast="MinerU 测试任务已提交">测试连接</button></section>
+            <section class="panel settings-section"><div class="panel-title"><strong>运行状态</strong><button class="text-button" data-toast="健康检查完成">健康检查</button></div><div class="health-grid"><p><span>PostgreSQL</span><strong class="success-text">正常</strong></p><p><span>Redis</span><strong class="success-text">正常</strong></p><p><span>Chroma</span><strong class="success-text">正常</strong></p><p><span>Celery Worker</span><strong class="success-text">2 在线</strong></p><p><span>本地存储</span><strong class="success-text">可写</strong></p><p><span>MinerU Token</span><strong class="success-text">已配置</strong></p></div></section>
+            <section class="panel settings-section"><div class="panel-title"><strong>日志与会话保留</strong></div><div class="form-grid two"><label>问答日志保留天数<input type="number" value="30"></label><label>会话历史保留天数<input type="number" value="7"></label></div><div class="button-row"><button class="button" data-toast="已提交日志清理任务">清理问答日志</button><button class="button" data-toast="已提交会话清理任务">清理会话历史</button></div></section>
+            <section class="panel settings-section"><div class="panel-title"><strong>修改管理员密码</strong></div><div class="form-grid three"><label>旧密码<input type="password"></label><label>新密码<input type="password"></label><label>确认新密码<input type="password"></label></div><button class="button">修改密码</button></section>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <aside class="drawer" id="task-drawer" aria-hidden="true">
+    <div class="drawer-head"><div><strong>任务详情</strong><span>task_8a03 · index_knowledge_base</span></div><button class="icon-button drawer-close"><i data-lucide="x"></i></button></div>
+    <div class="drawer-body"><div class="summary-grid vertical"><p><span>目标</span><strong>企业制度库 · G-009</strong></p><p><span>状态</span><strong class="running-text">running</strong></p><p><span>当前阶段</span><strong>Embedding 与向量写入</strong></p><p><span>进度</span><strong>74%</strong></p><p><span>Celery Task ID</span><code>3ec1...92bf</code></p></div><div class="timeline vertical"><p class="done"><i data-lucide="check"></i>配置快照 <span>24ms</span></p><p class="done"><i data-lucide="check"></i>分块 <span>3.2s</span></p><p class="active"><i data-lucide="loader-circle"></i>Embedding <span>运行中</span></p><p><i data-lucide="circle"></i>关键词索引</p><p><i data-lucide="circle"></i>原子切换</p></div></div>
+  </aside>
+
+  <aside class="drawer wide-drawer" id="trace-drawer" aria-hidden="true">
+    <div class="drawer-head"><div><strong>完整 Trace</strong><span>tr_01JB8... · 企业制度助手</span></div><button class="icon-button drawer-close"><i data-lucide="x"></i></button></div>
+    <div class="drawer-body"><div class="trace-stage-list"><button class="done">1 鉴权 <span>4ms</span></button><button class="done">2 读取机器人配置 <span>12ms</span></button><button class="done">3 会话记忆与追问判断 <span>36ms</span></button><button class="done">4 查询重写 <span>84ms</span></button><button class="active">5-10 多知识库检索与合并 <span>269ms</span></button><button class="done">11 Prompt 拼接 <span>18ms</span></button><button class="done">12 回答模型调用 <span>1.92s</span></button><button class="done">13 引用来源生成 <span>42ms</span></button></div><section class="trace-detail"><h3>多知识库检索与合并</h3><div class="summary-grid vertical"><p><span>可用知识库</span><strong>3</strong></p><p><span>跳过知识库</span><strong>0</strong></p><p><span>初召回</span><strong>40 chunks</strong></p><p><span>阈值过滤</span><strong>18 chunks</strong></p><p><span>重排序</span><strong>12 chunks</strong></p><p><span>最终上下文</span><strong>8 parents</strong></p></div><pre>{
+  "mergeMode": "balanced",
+  "finalTopK": 8,
+  "maxContextTokens": 12000,
+  "knowledgeBases": ["企业制度库", "数据合规库", "员工手册库"]
+}</pre></section></div>
+  </aside>
+
+  <div class="drawer-backdrop"></div>
+  <div class="toast" role="status"></div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
