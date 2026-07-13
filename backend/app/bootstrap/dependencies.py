@@ -11,6 +11,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
+from app.infrastructure.database.repositories.tasks import (
+    SqlAlchemyAdminIdempotencyRepository,
+    SqlAlchemyOperationRepository,
+    SqlAlchemyOutboxRepository,
+)
 from app.infrastructure.database.session import create_engine_from_settings, create_session_factory
 from app.infrastructure.health.celery import CeleryHealthProbe
 from app.infrastructure.health.chroma import ChromaHealthProbe
@@ -23,6 +28,8 @@ from app.infrastructure.storage.local import LocalStorageAdapter
 from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
 from app.modules.observability.service import HealthService, NotConfiguredProbe
+from app.modules.tasks.idempotency import AdminIdempotencyService
+from app.modules.tasks.service import TaskService
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -34,6 +41,8 @@ class ApplicationDependencies:
     redis_client: Redis
     auth_service: AuthService
     health_service: HealthService
+    task_service: TaskService
+    admin_idempotency_service: AdminIdempotencyService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -76,10 +85,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
             NotConfiguredProbe("models"),
         ],
     )
+    task_service = TaskService(SqlAlchemyOperationRepository(), SqlAlchemyOutboxRepository())
+    admin_idempotency_service = AdminIdempotencyService(SqlAlchemyAdminIdempotencyRepository())
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,
         redis_client=redis_client,
         auth_service=auth_service,
         health_service=health_service,
+        task_service=task_service,
+        admin_idempotency_service=admin_idempotency_service,
     )
