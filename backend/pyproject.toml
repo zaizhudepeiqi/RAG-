@@ -1,0 +1,69 @@
+[project]
+name = "enterprise-rag-backend"
+version = "0.1.0"
+description = "Enterprise RAG knowledge base backend"
+requires-python = "==3.13.*"
+dependencies = [
+  "alembic==1.18.5",
+  "argon2-cffi==25.1.0",
+  "celery[redis]==5.6.3",
+  "chromadb==1.5.9",
+  "cryptography==49.0.0",
+  "fastapi==0.139.0",
+  "httpx==0.28.1",
+  "psycopg[binary,pool]==3.3.4",
+  "psycopg-pool==3.3.1",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.14.2",
+  "PyJWT==2.13.0",
+  "python-multipart==0.0.32",
+  "redis==6.4.0",
+  "sqlalchemy==2.0.51",
+  "structlog==26.1.0",
+  "uvicorn[standard]==0.51.0",
+]
+
+[dependency-groups]
+dev = [
+  "asgi-lifespan==2.1.0",
+  "freezegun==1.5.5",
+  "mypy==2.2.0",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "respx==0.23.1",
+  "ruff==0.15.21",
+  "testcontainers==4.14.2",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+  "integration: requires Docker development services",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "RUF"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app"]
+warn_unreachable = true
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
