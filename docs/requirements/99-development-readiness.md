@@ -1,8 +1,8 @@
 # 开发就绪审计
 
-审计时间：2026-07-12
+审计时间：2026-07-13
 
-当前结论：**READY FOR BASELINE REVIEW**。需求和开发契约已形成；尚未开始生产代码。用户确认本基线后进入实施计划，不再重新询问已收口默认值。
+当前结论：**IMPLEMENTATION PLAN IN REVIEW**。需求和开发契约基线已形成，分阶段路线图和第一阶段详细计划已提交审阅；尚未开始生产代码。计划确认前不得创建生产工程骨架，也不重新询问已收口默认值。
 
 ## 1. 文档门禁
 
@@ -16,8 +16,8 @@
 | 状态机 | 完成 | `docs/state-machines/state-machines.md` |
 | 页面/API 对照 | 完成 | `docs/frontend-api-map/page-api-map.md` |
 | 第一版验收清单 | 完成 | `docs/acceptance/v1-acceptance.md` |
-| 用户基线审阅 | 待用户确认 | 当前任务结束后 |
-| 分阶段实施计划 | 未开始 | 用户确认后编写 |
+| 用户基线审阅 | 已进入实施计划审阅 | 用户已要求按既定顺序编写计划 |
+| 分阶段实施计划 | 待确认 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md` |
 | 生产代码 | 未开始 | 实施计划确认后 |
 
 ## 2. 已消除的高风险冲突
@@ -53,7 +53,7 @@
 
 ## 4. 首个实施阶段边界
 
-用户确认后，第一阶段只做工程和基础设施，不直接跳到 RAG 页面：
+实施计划确认后，第一阶段只做工程和基础设施，不直接跳到 RAG 页面：
 
 1. Monorepo 目录和依赖锁。
 2. FastAPI bootstrap、配置、错误、traceId、健康接口。
@@ -77,4 +77,4 @@
 
 ## 6. Git 状态说明
 
-当前 `D:\RAG知识库` 不是 Git 仓库，因此本次文档无法提交 commit。正式工程初始化时，第一笔提交应只包含经确认的文档基线和仓库基础配置，便于后续追溯。
+`D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；生产代码开始后使用独立阶段分支，不直接在 `main` 开发。

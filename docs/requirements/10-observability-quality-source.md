@@ -44,6 +44,8 @@ queued -> running -> succeeded
 queued -> cancelled
 ```
 
+Outbox/Worker 的 `eventType + schemaVersion` 必须命中代码内显式任务注册。部署版本无法识别时，不得猜测 payload 或调用任意 task name；对应 outbox 进入不可自动重试的 failed，Operation 进入 failed 并记录稳定错误码 `TASK_SCHEMA_UNSUPPORTED`，由部署兼容性检查和人工处理解决。
+
 运行中子阶段和重试不污染顶层状态：
 
 - `stageCode / stageLabel`。

@@ -472,6 +472,8 @@ CREATE INDEX chunks_source_idx
 - unique `(administrator_id, endpoint_code, idempotency_key_hash) WHERE administrator_id IS NOT NULL`。
 - unique `(channel_instance_id, endpoint_code, idempotency_key_hash) WHERE channel_instance_id IS NOT NULL`。
 
+分阶段迁移时允许先建立仅含 `administrator_id` 的 expand 形态以服务后台命令幂等；创建 `channel_instances` 后必须在后续迁移增加 `channel_instance_id` FK 和“恰好一个 actor”CHECK。V1 发布验收以本节最终结构为准，不允许长期保留无 actor 约束的中间形态。
+
 ### `temporary_attachments`
 
 - id uuid PK。

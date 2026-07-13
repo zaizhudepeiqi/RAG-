@@ -158,6 +158,7 @@
 - [ ] queued可取消，running界面不可假取消。
 - [ ] heartbeat丢失显示 stalled但不直接改业务终态。
 - [ ] 任务详情有阶段、item、attempt、错误、retryable、traceId。
+- [ ] 未注册的 eventType/schemaVersion 不执行任意 task，Outbox/Operation 以 `TASK_SCHEMA_UNSUPPORTED` 非重试失败并可定位。
 
 ## 13. 日志、指标和评测
 
