@@ -1,0 +1,1 @@
+"""Synchronous PostgreSQL persistence boundary."""
