@@ -29,6 +29,8 @@ from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
 from app.infrastructure.storage.local import LocalStorageAdapter
 from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
+from app.modules.capabilities.registry import CapabilityRegistry
+from app.modules.capabilities.service import CapabilityService
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchRegistry
@@ -49,6 +51,7 @@ class ApplicationDependencies:
     outbox_dispatch_store: SqlAlchemyOutboxDispatchStore
     operation_execution_store: SqlAlchemyOperationExecutionStore
     task_dispatch_registry: TaskDispatchRegistry
+    capability_service: CapabilityService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -95,6 +98,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     admin_idempotency_service = AdminIdempotencyService(SqlAlchemyAdminIdempotencyRepository())
     outbox_dispatch_store = SqlAlchemyOutboxDispatchStore(session_factory)
     operation_execution_store = SqlAlchemyOperationExecutionStore(session_factory)
+    capability_service = CapabilityService(CapabilityRegistry())
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,
@@ -106,4 +110,5 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         outbox_dispatch_store=outbox_dispatch_store,
         operation_execution_store=operation_execution_store,
         task_dispatch_registry=TaskDispatchRegistry(),
+        capability_service=capability_service,
     )
