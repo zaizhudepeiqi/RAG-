@@ -6,7 +6,7 @@
 
 **Architecture:** 后端保持模块化单体，FastAPI 路由和 Celery task 只调用 application service；PostgreSQL 是认证和任务状态真源，Redis 只作 broker/限流，Chroma 在本阶段只建立连接与契约，文件通过 LocalStorageAdapter。前端在独立阶段 worktree 导入 Ant Design Pro v6.0.2 固定 commit，先保留完整应用基线提交，再执行并审查官方 Simple Mode，最后删除剩余 demo 并建立产品壳；所有 API 类型和调用函数由后端 OpenAPI 通过 Umi 插件生成。
 
-**Tech Stack:** Python 3.13.9、uv 0.11.28、FastAPI 0.139.0、SQLAlchemy 2.0.51、Alembic 1.18.5、Celery 5.6.3、PostgreSQL 17.10、Redis 7.4.9、Chroma 1.5.9、Node 24.16.0、npm 11.13.0、Ant Design Pro 6.0.2、React 19.2.5、Umi Max 4.6.51、Ant Design 6.4.3、TypeScript 6.0.3。
+**Tech Stack:** Python 3.13.9、uv 0.11.28、PowerShell 7.4.17 LTS、FastAPI 0.139.0、SQLAlchemy 2.0.51、Alembic 1.18.5、Celery 5.6.3、PostgreSQL 17.10、Redis 7.4.9、Chroma 1.5.9、Node 24.16.0、npm 11.13.0、Ant Design Pro 6.0.2、React 19.2.5、Umi Max 4.6.51、Ant Design 6.4.3、TypeScript 6.0.3。
 
 ---
 

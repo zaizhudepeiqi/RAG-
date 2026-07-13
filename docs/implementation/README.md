@@ -46,6 +46,7 @@
 | uv | 0.11.28 | 生成并校验 `backend/uv.lock` |
 | Node.js | 24.16.0 LTS | `.node-version` 和 CI 一致 |
 | npm | 11.13.0 | 根 `packageManager`、`frontend/package-lock.json` 和 CI 一致 |
+| PowerShell | 7.4.17 LTS | Windows 本地脚本和 CI 均通过 `pwsh` 执行 |
 | Ant Design Pro | v6.0.2 | 固定 commit `2b453c67b535b76f5f95d6542397a4b987b61de2`，保留 MIT License，不跟随 `master` |
 
 ### 3.2 后端直接依赖

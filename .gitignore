@@ -10,6 +10,10 @@
 __pycache__/
 *.py[cod]
 .venv/
+/backend/.venv/
+/backend/.mypy_cache/
+/backend/.pytest_cache/
+/backend/.ruff_cache/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -22,6 +26,8 @@ dist/
 .vite/
 coverage/
 .pnpm-store/
+/frontend/playwright-report/
+/frontend/test-results/
 
 # Runtime data
 /data/
@@ -30,6 +36,11 @@ coverage/
 /tmp/
 .worktrees/
 *.log
+
+# Local development configuration
+/deploy/env/.env.development
+!deploy/env/.env.development.example
+!frontend/.env.example
 
 # Editors and operating systems
 .idea/

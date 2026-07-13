@@ -1,0 +1,14 @@
+{
+  "name": "enterprise-rag-knowledge-base",
+  "private": true,
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": "24.16.0",
+    "npm": "11.13.0"
+  },
+  "scripts": {
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:check": "npm --prefix frontend run check",
+    "frontend:generate-api": "npm --prefix frontend run generate:api"
+  }
+}
