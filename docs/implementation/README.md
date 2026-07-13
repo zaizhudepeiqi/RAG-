@@ -71,7 +71,7 @@
 | cryptography | 49.0.0 | AES-256-GCM 凭据加密 |
 | python-multipart | 0.0.32 | 后续流式上传协议支持 |
 
-开发门禁固定使用 pytest 9.1.1、pytest-asyncio 1.4.0、pytest-cov 7.1.0、testcontainers 4.14.2、ruff 0.15.21、mypy 2.2.0、respx 0.23.1、freezegun 1.5.5 和 pip-audit 2.10.1。
+开发门禁固定使用 pytest 9.1.1、pytest-asyncio 1.4.0、pytest-cov 7.1.0、testcontainers 4.14.2、ruff 0.15.21、mypy 2.2.0、respx 0.23.1、freezegun 1.5.5、httpx2 2.5.0 和 pip-audit 2.10.1。`httpx2` 仅供 Starlette 1.3.1 TestClient 使用，业务 HTTP Adapter 仍使用 `httpx==0.28.1`。
 
 ### 3.3 前端关键直接依赖
 

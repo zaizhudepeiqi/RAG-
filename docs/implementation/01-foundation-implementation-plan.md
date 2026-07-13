@@ -535,6 +535,7 @@ dependencies = [
 dev = [
   "asgi-lifespan==2.1.0",
   "freezegun==1.5.5",
+  "httpx2==2.5.0",
   "mypy==2.2.0",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
