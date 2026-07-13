@@ -1,7 +1,7 @@
 # 当前开发交接
 
-> 更新时间：2026-07-14（Asia/Shanghai）  
-> 用途：会话恢复与执行状态交接，不替代需求真源或实施计划。  
+> 更新时间：2026-07-14（Asia/Shanghai）
+> 用途：会话恢复与执行状态交接，不替代需求真源或实施计划。
 > 明日指令：读取本文件和 `docs/implementation/01-foundation-implementation-plan.md`，从 Task 12 当前断点继续。
 
 ## 1. 工作位置
@@ -11,7 +11,7 @@
 - 当前分支：`codex/phase-01-foundation`
 - 远端：`https://github.com/zaizhudepeiqi/RAG-.git`
 - 禁止直接在 `main` 或仓库根工作区继续开发。
-- 当前 HEAD：`3b1ee27 feat: add explicit capability registry`
+- 最近完成的代码检查点：`3b1ee27 feat: add explicit capability registry`
 - 当前分支已与 `origin/codex/phase-01-foundation` 同步。
 
 ## 2. 已完成并推送
