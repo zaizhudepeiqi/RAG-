@@ -15,6 +15,8 @@
 
 所有创建资源/Operation 的 POST 由 API client 自动生成 UUID `Idempotency-Key`；同一次用户提交和网络重试复用同一个 key，新一次人工操作生成新 key。
 
+所有表中列出的后端请求必须调用 `@umijs/max-plugin-openapi` 生成的 `src/services/ragApi` service，并统一经过 `src/app.tsx` 导出的 Umi `request` 配置。页面不得手写重复 DTO、URL wrapper 或第二套 Axios/fetch client。
+
 侧栏：
 
 | 项 | 主点击 | `+` | 下拉箭头 |
@@ -29,7 +31,7 @@
 | 问答日志 | `/chat-logs` | 无 | 无 |
 | 系统设置 | `/settings`，固定底部 | 无 | 无 |
 
-最近访问存在前端 Pinia/local persistence，只保存 ID 和时间；展示时仍调用 detail/list 验证资源存在，不能保存业务快照作为真源。
+最近访问存在小型 Umi model/local persistence，只保存 ID 和时间；展示时仍调用 detail/list 验证资源存在，不能保存业务快照作为真源。
 
 ## 2. 登录 `/login`
 

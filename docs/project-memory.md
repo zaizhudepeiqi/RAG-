@@ -1,14 +1,14 @@
 # 项目继续沟通记忆点
 
-更新时间：2026-07-12
+更新时间：2026-07-13
 
 ## 当前阶段
 
 - 尚未开始生产代码开发。
 - 第一版需求阶段性真源已按业务依赖重新组织并收口，产品阻塞问题已按推荐方案决定。
 - 已派生 API、数据库、状态机、页面/API 对照和第一版验收清单。
-- 已创建 `docs/implementation/README.md` 分阶段路线图和 `01-foundation-implementation-plan.md` 第一阶段详细计划，当前等待计划确认。
-- Git 已初始化并推送到 `zaizhudepeiqi/RAG-`；文档基线提交为 `79dccc1`。
+- 已创建 `docs/implementation/README.md` 分阶段路线图和 `01-foundation-implementation-plan.md` 第一阶段详细计划，Ant Design Pro 前端基线变更已同步，当前等待计划确认。
+- Git 已初始化并推送到 `zaizhudepeiqi/RAG-`；生产代码尚未开始。
 - `docs/prototype` 当前不存在，未擅自重建；低保真静态展示仍单独位于 `简单展示/`。
 - 下一步是确认实施计划，然后从独立阶段分支开始 Monorepo 脚手架和基础设施开发。
 
@@ -36,7 +36,10 @@
 ## 核心架构结论
 
 - Monorepo + 模块化单体 + 独立 Celery Workers，不拆微服务。
-- 后端 FastAPI；前端 Vue 3/Vite/TypeScript/Element Plus/v3-admin-vite。
+- 后端 FastAPI；前端固定 Ant Design Pro v6.0.2 Simple Mode、React 19、TypeScript、Umi Max 4 和 Ant Design 6。
+- 前端模板固定 commit `2b453c67b535b76f5f95d6542397a4b987b61de2`；导入时先提交完整应用基线，再执行并审查官方 `npm run simple`，不跟随 `master`。
+- 服务端状态使用 React Query；管理员/布局使用 Umi initialState/model；第一版 access 只作登录和强制改密守卫。
+- 前端 API 只由 `@umijs/max-plugin-openapi` 从后端 OpenAPI 生成，统一经过 Umi request，不手写重复 DTO/client。
 - PostgreSQL 是业务/任务真源；Redis 只做 broker/cache/限流；Chroma 是可重建向量索引；本地 StorageAdapter 保存文件。
 - Transactional outbox + 幂等 Worker 解决 Celery 至少一次投递。
 - 数据源、解析版本、知识库配置修订、索引代次、chunk 是不同对象。

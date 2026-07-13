@@ -25,10 +25,10 @@
 前端：
 
 - TypeScript `strict=true`。
-- ESLint + Prettier。
-- Vitest：纯逻辑、composable 和组件测试。
+- Biome：format、lint 和导入规则；不并行维护 ESLint/Prettier 第二套规则。
+- Jest + React Testing Library：纯逻辑、hooks 和组件测试。
 - Playwright：关键后台流程 E2E 和截图检查。
-- OpenAPI generator：API 类型/client。
+- `@umijs/max-plugin-openapi`：从后端 OpenAPI 生成唯一 API 类型/client。
 
 依赖使用锁文件；CI 和本机使用同一命令。
 
@@ -86,9 +86,9 @@
 
 ### 前端测试
 
-- 动态 SchemaForm 条件字段和 disabled capability。
+- React Testing Library 覆盖动态 SchemaForm 条件字段和 disabled capability。
 - 表单后端错误定位、409 冲突、离开未保存提示。
-- 任务轮询停止/退避和旧响应竞态。
+- React Query 任务轮询停止/退避、query key 隔离和旧响应竞态。
 - 状态摘要、长名称、错误文本和空状态。
 
 ### E2E
@@ -206,4 +206,3 @@ Playwright 覆盖最小生产闭环：
 - 重复任务和外部错误故障注入不产生重复上游计费或损坏活动索引。
 - 标准 RAG 数据集能稳定复现分块、检索和引用回归。
 - 关键模块达到覆盖率阈值且测试命名能说明业务行为。
-

@@ -25,7 +25,7 @@ Windows 本机：
 - Parsing Worker，`--pool=solo`。
 - Indexing Worker，`--pool=solo`。
 - Chat/Maintenance Worker，`--pool=solo`，开发可合并队列。
-- Vue/Vite dev server。
+- Ant Design Pro/Umi Max dev server。
 
 必须提供 PowerShell 友好的分步骤命令、`.env.example`、健康脚本和常见错误排查。所有命令从 Monorepo 根目录执行并说明当前工作目录。
 

@@ -13,7 +13,7 @@
 
 ```text
 Browser
-  -> Frontend (Vue 3)
+  -> Frontend (Ant Design Pro / React 19)
   -> FastAPI /api/v1
        -> PostgreSQL      业务真源、任务真源、关键词索引、日志元数据
        -> Redis           Celery broker、短期缓存、限流；不是业务真源
@@ -52,15 +52,19 @@ backend/
   tests/
 
 frontend/
+  config/
+    config.ts              Umi Max 插件、OpenAPI、代理和构建配置
+    routes.ts              唯一前端路由与菜单定义
   src/
-    api/generated/       由 OpenAPI 生成，禁止手改
-    api/client/          鉴权、错误、traceId、取消请求
-    features/            按业务模块组织页面和状态
-    components/          真正跨模块复用的 UI 组件
-    layouts/
-    router/
-    stores/
-  tests/
+    app.tsx                initialState、ProLayout 和 request 运行时配置
+    access.ts              登录守卫；第一版不承载 RBAC 业务规则
+    services/ragApi/       由 Umi OpenAPI 插件生成，禁止手改
+    features/              按业务模块组织用例状态、hooks 和组件
+    pages/                 Umi 路由页面入口，保持薄层
+    components/            真正跨模块复用的 UI 组件
+    models/                少量跨页面客户端状态，不保存业务真源
+  tests/                   Jest + React Testing Library
+  e2e/                     Playwright
 
 deploy/
   compose/

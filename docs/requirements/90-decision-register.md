@@ -9,11 +9,12 @@
 |---|---|---|
 | D-001 | 产品形态 | 企业私有化、单工作区、单管理员后台 |
 | D-002 | 工程组织 | Monorepo，模块化单体，独立 Worker 进程 |
-| D-003 | 后端/前端 | FastAPI；Vue 3 + Vite + TypeScript + Element Plus + v3-admin-vite |
+| D-003 | 后端/前端（已替代） | FastAPI；Vue 3 + Vite + TypeScript + Element Plus + v3-admin-vite；于 2026-07-13 被 D-008 替代 |
 | D-004 | 数据组件 | PostgreSQL + Redis/Celery + Chroma + 本地 StorageAdapter |
 | D-005 | 可靠任务 | PostgreSQL transactional outbox + Celery 至少一次投递 + 幂等 Worker |
 | D-006 | 能力扩展 | 代码内显式 Adapter/Strategy 注册，后端 capability 驱动前端下拉 |
 | D-007 | 接口契约 | `/api/v1`、OpenAPI 生成 TypeScript、统一错误和 revision 并发控制 |
+| D-008 | 当前后端/前端 | FastAPI；Ant Design Pro v6.0.2 Simple Mode + React 19 + TypeScript + Umi Max 4 + Ant Design 6 |
 
 ## 2. 数据解析
 
@@ -104,6 +105,9 @@
 | D-612 | E2E | Playwright 覆盖解析、知识库、机器人、渠道、任务和重建失败主闭环 |
 | D-613 | 标准数据集 | 仓库提供多格式、中文检索、无答案和安全攻击样例及来源标注 |
 | D-614 | CI 门禁 | lint/typecheck/unit/integration/OpenAPI/E2E/migration/security 全部通过才合并 |
+| D-615 | 前端模板基线 | 固定 Ant Design Pro v6.0.2 commit；先提交完整应用基线，再执行并审查官方 Simple Mode，不跟随 master |
+| D-616 | 前端状态职责 | React Query 管服务端状态；Umi initialState/model 管管理员和少量全局状态；第一版 access 只作登录守卫 |
+| D-617 | 前端契约工具 | 使用 `@umijs/max-plugin-openapi` 生成唯一 service；Biome + Jest/RTL + Playwright 作为质量门禁 |
 
 ## 8. 明确延期，不是待确认
 

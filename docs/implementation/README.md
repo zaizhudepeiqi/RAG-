@@ -4,9 +4,9 @@
 
 **Goal:** 在不改变已确认需求语义的前提下，把当前文档基线分阶段交付为可部署、可追溯、可验收的企业级 RAG 知识库 V1。
 
-**Architecture:** 采用 Monorepo、模块化单体 FastAPI、独立 Celery Worker、PostgreSQL 业务真源、Redis 队列、Chroma 向量索引、本地 StorageAdapter 和 Vue 管理后台。每个阶段都形成可运行的纵向增量，并以测试、OpenAPI、迁移和验收证据作为进入下一阶段的门禁。
+**Architecture:** 采用 Monorepo、模块化单体 FastAPI、独立 Celery Worker、PostgreSQL 业务真源、Redis 队列、Chroma 向量索引、本地 StorageAdapter 和 Ant Design Pro/React 管理后台。每个阶段都形成可运行的纵向增量，并以测试、OpenAPI、迁移和验收证据作为进入下一阶段的门禁。
 
-**Tech Stack:** Python 3.13、FastAPI、SQLAlchemy、Alembic、Celery、PostgreSQL 17、Redis 7、Chroma 1.5、Vue 3、Vite、TypeScript、Element Plus、pnpm、Docker Compose、GitHub Actions。
+**Tech Stack:** Python 3.13、FastAPI、SQLAlchemy、Alembic、Celery、PostgreSQL 17、Redis 7、Chroma 1.5、Ant Design Pro v6.0.2 Simple Mode、React 19、Umi Max 4、Ant Design 6、TypeScript、npm、Docker Compose、GitHub Actions。
 
 ---
 
@@ -45,8 +45,8 @@
 | Python | 3.13.9 | `.python-version`、`pyproject.toml` 和生产镜像一致 |
 | uv | 0.11.28 | 生成并校验 `backend/uv.lock` |
 | Node.js | 24.16.0 LTS | `.node-version` 和 CI 一致 |
-| pnpm | 11.12.0 | 根 `packageManager` 和 CI 一致 |
-| v3-admin-vite | v5.2.0 | 固定 commit `a079b069f9fa6b92b0946d36cf28b50d8655c457`，保留 MIT License |
+| npm | 11.13.0 | 根 `packageManager`、`frontend/package-lock.json` 和 CI 一致 |
+| Ant Design Pro | v6.0.2 | 固定 commit `2b453c67b535b76f5f95d6542397a4b987b61de2`，保留 MIT License，不跟随 `master` |
 
 ### 3.2 后端直接依赖
 
@@ -72,27 +72,35 @@
 
 开发门禁固定使用 pytest 9.1.1、pytest-asyncio 1.4.0、pytest-cov 7.1.0、testcontainers 4.14.2、ruff 0.15.21、mypy 2.2.0、respx 0.23.1、freezegun 1.5.5 和 pip-audit 2.10.1。
 
-### 3.3 前端直接依赖
+### 3.3 前端关键直接依赖
 
-第一阶段沿用 v3-admin-vite v5.2.0 已验证组合，不升级到同时期刚发布的 TypeScript 7 或 Vite 8：
+第一阶段以 Ant Design Pro v6.0.2 的 `package-lock.json` 为解析真源。以下是必须单独审计的关键版本；其他保留的直接依赖也在导入审计后写为锁文件中的精确版本，不保留 `^`/`~` 浮动范围：
 
 | 包 | 版本 |
 |---|---:|
-| vue | 3.5.39 |
-| vite | 7.3.6 |
-| typescript | 5.9.3 |
-| element-plus | 2.14.2 |
-| vue-router | 5.1.0 |
-| pinia | 3.0.4 |
-| axios | 1.18.1 |
-| vitest | 4.1.10 |
-| vue-tsc | 3.3.7 |
-| @vue/test-utils | 2.4.11 |
+| react | 19.2.5 |
+| react-dom | 19.2.5 |
+| antd | 6.4.3 |
+| @ant-design/icons | 6.2.3 |
+| @ant-design/pro-components | 3.1.12-0 |
+| @ant-design/x | 2.7.0 |
+| @ant-design/x-markdown | 2.7.0 |
+| @ant-design/x-sdk | 2.7.0 |
+| @tanstack/react-query | 5.100.9 |
+| @umijs/max | 4.6.51 |
+| @umijs/max-plugin-openapi | 2.0.3 |
+| typescript | 6.0.3 |
+| @biomejs/biome | 2.4.14 |
+| @testing-library/react | 16.3.2 |
+| jest | 30.4.1 |
+| jest-environment-jsdom | 30.4.1 |
+| tailwindcss | 4.3.0 |
+| antd-style | 4.1.0 |
 | @playwright/test | 1.61.1 |
-| @hey-api/openapi-ts | 0.99.0 |
-| @hey-api/client-axios | 0.9.1 |
 
-模板中与本产品无关的 demo API、demo 页面、权限演示和外链菜单不作为产品代码保留。布局、主题基础、Element Plus、Pinia、Router、HTTP 基础和构建配置经过审计后沿用。
+模板在独立阶段 worktree 中分三次形成可审查历史：先导入固定 commit 的完整可运行应用并提交，再执行官方 `npm run simple`、审查删除范围并提交，最后删除 Simple Mode 仍保留的 Welcome/Admin/查询表格、Mock、上游品牌和无关插件并建立产品壳。沿用 ProLayout、ProComponents、Ant Design、Umi Router/request/initialState/model/React Query/OpenAPI 和登录布局；第一版不把 Umi access 扩展成虚假 RBAC。
+
+官方 Simple Mode 会移除 `@ant-design/plots`、D3 和 TopoJSON。第一阶段接受该删除，阶段 7 根据实际指标图表重新引入所需精确依赖，不提前保留未使用图表栈。
 
 ### 3.4 基础设施镜像
 
@@ -112,7 +120,7 @@
 1. 计划确认后从 `main` 创建 `codex/phase-01-foundation`，不直接在 `main` 开发生产代码。
 2. 每个任务按“失败测试 -> 最小实现 -> 通过测试 -> 小提交”执行。
 3. 一个提交只承担一个可解释目的；迁移、ORM、API、OpenAPI 和对应测试必须在同一功能提交中保持一致。
-4. 不使用 `git add -A` 混入无关文件；生成物只提交明确允许的 OpenAPI、generated client 和锁文件。
+4. 不使用 `git add -A` 混入无关文件；生成物只提交明确允许的 OpenAPI、generated service 和锁文件。
 5. 每阶段通过代码审查、CI 和阶段验收后再合并；失败证据不得通过关闭测试或降低阈值处理。
 6. 后续增加能力时先更新 capability 注册和契约，不在页面或 service 增加供应商字符串分支。
 
@@ -125,7 +133,7 @@
 | 3. 知识库构建与检索 | 交付多知识库、分块、索引和单库检索 | 配置修订、五种分块、两种结构、Chroma HNSW、pg_trgm、三种检索、重写、重排、generation 原子激活 | 首次/重建/partial/失败重试和检索固定样例通过 |
 | 4. 机器人运行时 | 交付多机器人、多库融合、记忆、兜底和引用 | BotConfigRevision、并行单库检索、跨库加权 RRF、上下文预算、ChatRun、Citation | 命中、无命中、部分失败、全失败和引用来源验收通过 |
 | 5. Webhook/API 渠道 | 交付第一版外部接入面 | ChannelInstance、一次性 API Key、同步/异步、幂等、限流、附件、callback | 渠道鉴权、60 秒边界、异步查询、HMAC 和附件生命周期通过 |
-| 6. Vue 管理后台与联调 | 完成所有后台业务页面并与 generated client 对齐 | 固定导航、解析/模型/知识库/机器人/渠道/任务/日志/设置页面、错误和 operation 交互 | 页面/API 对照表、响应式和关键 Playwright 流程通过 |
+| 6. React 管理后台与联调 | 完成所有后台业务页面并与 generated service 对齐 | 固定导航、解析/模型/知识库/机器人/渠道/任务/日志/设置页面、错误和 operation 交互 | 页面/API 对照表、响应式和关键 Playwright 流程通过 |
 | 7. 可观测性与 RAG 质量 | 形成可排障、可评测的运行闭环 | Trace、审计、仪表盘、指标聚合、评测集、Hit@K/Recall@K/MRR/No-hit accuracy、保留清理 | 指标口径、敏感 Trace、评测固定样例和任务排障通过 |
 | 8. 生产部署与发布验收 | 完成 Linux 单节点交付和恢复证据 | 完整 Compose、反向代理、镜像、备份恢复、容量测试、安全扫描、发布清单 | `docs/acceptance/v1-acceptance.md` 全部适用项有证据 |
 
@@ -146,20 +154,20 @@
 5. 完成单管理员初始化、Argon2id、JWT Cookie、CSRF、authVersion 和登录限流。
 6. 建立 Storage/Redis/Chroma/PostgreSQL 健康 Adapter 和三个健康端点。
 7. 建立 Operation 状态机、Transactional Outbox、Celery 四队列、重复投递 claim 和最小 noop 任务证明。
-8. 导入并记录 v3-admin-vite 模板来源，删除 demo 业务，建立中文登录、运行健康/任务管理壳和 API client wrapper；完整固定导航随阶段 6 的真实页面落地。
-9. 从 FastAPI OpenAPI 生成前端 client，CI 检查生成结果无漂移。
+8. 导入并记录 Ant Design Pro 固定基线，分提交执行 Simple Mode 和 demo 清理，建立中文登录、运行健康/任务管理壳；完整固定导航随阶段 6 的真实页面落地。
+9. 使用 `@umijs/max-plugin-openapi` 从 FastAPI OpenAPI 生成唯一前端 service，并统一经过 Umi request；CI 检查生成结果无漂移。
 10. 建立 backend/frontend/integration 最小 CI 闭环和 Windows 启动文档。
 
 ### 退出门禁
 
-- `uv sync --project backend --frozen --all-groups` 和 `pnpm --dir frontend install --frozen-lockfile` 成功。
+- `uv sync --project backend --frozen --all-groups` 和 `npm --prefix frontend ci` 成功。
 - Compose 配置无浮动镜像，三个依赖达到 healthy。
 - 空 PostgreSQL 执行 Alembic upgrade 到 head，重复检查不产生 schema 漂移。
 - 初始管理员只创建一次；登录、首次强制改密、logout/authVersion 和 CSRF 测试通过。
 - `/api/v1/health/live` 不访问依赖；ready/dependencies 能区分 healthy/degraded/unhealthy/not_configured。
 - 业务记录、Operation 和 Outbox 在同一事务；重复 Celery delivery 不重复执行业务副作用。
-- OpenAPI 生成的 TypeScript client 无手写 DTO，重新生成后 `git diff --exit-code`。
-- Ruff、mypy、pytest、ESLint、vue-tsc、Vitest、Playwright smoke 和前端 build 全通过。
+- OpenAPI 生成的 TypeScript service 无手写 DTO，重新生成后 `git diff --exit-code`。
+- Ruff、mypy、pytest、Biome、TypeScript、Jest/React Testing Library、Playwright smoke 和前端 build 全通过。
 
 详细步骤见 `docs/implementation/01-foundation-implementation-plan.md`。
 
@@ -167,7 +175,7 @@
 
 ### 入口门禁
 
-阶段 1 已合并；认证、Operation、Outbox、加密服务、StorageAdapter 和 generated client 可复用。
+阶段 1 已合并；认证、Operation、Outbox、加密服务、StorageAdapter 和 generated service 可复用。
 
 ### 工作包
 
@@ -262,11 +270,11 @@
 - callback 失败不改成功 ChatRun；总投递次数和签名 fixture 可复算。
 - 对应验收清单第 11 节通过。
 
-## 11. 阶段 6：Vue 管理后台与完整联调
+## 11. 阶段 6：React 管理后台与完整联调
 
 ### 入口门禁
 
-阶段 2 至 5 的业务 API 和 OpenAPI 已稳定；阶段 1 的布局、认证和 generated client 可用。
+阶段 2 至 5 的业务 API 和 OpenAPI 已稳定；阶段 1 的布局、认证和 generated service 可用。
 
 ### 工作包
 
@@ -358,7 +366,7 @@
 1. 对应需求、API、数据库、状态机和页面映射没有未处理冲突。
 2. 所有新增行为先有失败测试，再有最小实现和通过证据。
 3. 迁移可从该阶段入口 schema 升级到 head，失败可恢复。
-4. OpenAPI 与前端 generated client 同步，重新生成无 diff。
+4. OpenAPI 与前端 generated service 同步，重新生成无 diff。
 5. 成功、空结果、失败、重试、并发、删除和依赖中断按风险覆盖。
 6. 日志和 Trace 能定位对象、修订、阶段和 traceId，且不泄露敏感数据。
 7. Windows 开发命令和 CI 使用同一锁文件及检查命令。

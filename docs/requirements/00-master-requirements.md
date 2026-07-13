@@ -137,7 +137,7 @@
 - 队列：Celery + Redis。
 - 文件：第一版本地 StorageAdapter。
 - Parser：MinerU Cloud Precision API + builtin_text。
-- 前端：Vue 3 + Vite + TypeScript + Element Plus + v3-admin-vite。
+- 前端：Ant Design Pro v6.0.2 Simple Mode + React 19 + TypeScript + Umi Max 4 + Ant Design 6。
 - 开发：Windows + Docker Desktop。
 - 生产：Linux 单节点 Docker Compose。
 - 工程门禁：强类型、单元/集成/契约/E2E、OpenAPI diff、迁移和安全扫描。
@@ -243,6 +243,7 @@
 - MinerU GitHub：`https://github.com/opendatalab/MinerU`
 - MinerU API：`https://mineru.net/apiManage/docs`
 - MinerU ecosystem：`https://mineru.net/OpenSourceTools/Extractor/ecosystem`
-- v3-admin-vite：`https://github.com/un-pany/v3-admin-vite`
+- Ant Design Pro：`https://github.com/ant-design/ant-design-pro/tree/v6.0.2`
+- Ant Design Pro Simple Mode：`https://github.com/ant-design/ant-design-pro/blob/v6.0.2/docs/cheatsheet.en-US.md`
 
 第三方文档会变化；实现必须锁定依赖/协议版本并保存契约测试，不能只凭网页当前内容运行。

@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 从当前只有文档和低保真展示的仓库建立第一条可运行闭环：固定依赖、启动 PostgreSQL/Redis/Chroma、迁移数据库、运行 FastAPI/Celery/Vue、完成管理员认证、健康检查、Operation/Outbox 幂等证明、OpenAPI 客户端生成和 CI。
+**Goal:** 从当前只有文档和低保真展示的仓库建立第一条可运行闭环：固定依赖、启动 PostgreSQL/Redis/Chroma、迁移数据库、运行 FastAPI/Celery/React、完成管理员认证、健康检查、Operation/Outbox 幂等证明、Umi OpenAPI service 生成和 CI。
 
-**Architecture:** 后端保持模块化单体，FastAPI 路由和 Celery task 只调用 application service；PostgreSQL 是认证和任务状态真源，Redis 只作 broker/限流，Chroma 在本阶段只建立连接与契约，文件通过 LocalStorageAdapter。前端从 v3-admin-vite 固定 commit 导入可复用基座，删除 demo 业务，所有 API 类型由后端 OpenAPI 生成。
+**Architecture:** 后端保持模块化单体，FastAPI 路由和 Celery task 只调用 application service；PostgreSQL 是认证和任务状态真源，Redis 只作 broker/限流，Chroma 在本阶段只建立连接与契约，文件通过 LocalStorageAdapter。前端在独立阶段 worktree 导入 Ant Design Pro v6.0.2 固定 commit，先保留完整应用基线提交，再执行并审查官方 Simple Mode，最后删除剩余 demo 并建立产品壳；所有 API 类型和调用函数由后端 OpenAPI 通过 Umi 插件生成。
 
-**Tech Stack:** Python 3.13.9、uv 0.11.28、FastAPI 0.139.0、SQLAlchemy 2.0.51、Alembic 1.18.5、Celery 5.6.3、PostgreSQL 17.10、Redis 7.4.9、Chroma 1.5.9、Node 24.16.0、pnpm 11.12.0、Vue 3.5.39、Vite 7.3.6、TypeScript 5.9.3、Element Plus 2.14.2。
+**Tech Stack:** Python 3.13.9、uv 0.11.28、FastAPI 0.139.0、SQLAlchemy 2.0.51、Alembic 1.18.5、Celery 5.6.3、PostgreSQL 17.10、Redis 7.4.9、Chroma 1.5.9、Node 24.16.0、npm 11.13.0、Ant Design Pro 6.0.2、React 19.2.5、Umi Max 4.6.51、Ant Design 6.4.3、TypeScript 6.0.3。
 
 ---
 
@@ -20,7 +20,7 @@
 2. 初始管理员只初始化一次，登录/首次改密/logout/CSRF/authVersion/限流行为有测试。
 3. `/api/v1/health/live`、`ready`、`dependencies` 返回稳定 DTO 和 traceId，并正确区分依赖状态。
 4. 一个测试业务命令能在同一事务创建 Operation 和 Outbox；重复投递只有一次副作用。
-5. 前端通过 generated client 完成登录、读取管理员、读取健康和查看最小任务列表。
+5. 前端通过 generated service 完成登录、读取管理员、读取健康和查看最小任务列表。
 6. 后端 lint/typecheck/unit/integration、前端 lint/typecheck/unit/build、OpenAPI 漂移检查和 Playwright smoke 在 CI 通过。
 7. 工作区没有真实 secret、浮动依赖、未归类生成物或生产占位实现。
 
@@ -32,7 +32,7 @@
 README.md                              根启动、检查和目录说明
 .python-version                       Python 3.13.9
 .node-version                         Node 24.16.0
-package.json                          根命令和 pnpm 版本
+package.json                          根命令和 npm 版本
 
 backend/
   pyproject.toml                      后端直接依赖和工具配置
@@ -74,17 +74,20 @@ backend/
     api/
 
 frontend/
-  TEMPLATE_UPSTREAM.md                模板版本、commit、许可证和改动边界
-  package.json / pnpm-lock.yaml        精确前端依赖
-  openapi-ts.config.ts                generated client 配置
-  src/api/generated/                  生成代码，禁止手改
-  src/api/client/                     Cookie/CSRF/traceId/错误适配
-  src/features/auth/                  登录和管理员状态
-  src/features/health/                基础运行状态
-  src/features/tasks/                 最小任务列表/详情
-  src/layouts/                         沿用并收敛模板布局
-  src/router/                          第一阶段真实可达路由
-  tests/                               Vitest
+  TEMPLATE_UPSTREAM.md                模板版本、commit、许可证、Simple Mode 和改动边界
+  LICENSE.ant-design-pro              上游 MIT License
+  package.json / package-lock.json     精确前端依赖
+  biome.json                           format/lint 唯一配置
+  config/config.ts                     Umi 插件、OpenAPI、代理和构建配置
+  config/routes.ts                     第一阶段真实路由和菜单
+  src/app.tsx                          initialState、ProLayout、request/CSRF/错误适配
+  src/access.ts                        登录和强制改密守卫
+  src/services/ragApi/                 Umi OpenAPI 生成代码，禁止手改
+  src/features/auth/                   登录和管理员会话逻辑
+  src/features/health/                 基础运行状态
+  src/features/tasks/                  最小任务列表/详情和 React Query hooks
+  src/pages/                            薄路由页面
+  tests/                               Jest + React Testing Library
   e2e/                                Playwright smoke
 
 deploy/
@@ -110,11 +113,11 @@ uv run --project backend pytest backend/tests -m "not integration"
 uv run --project backend ruff check backend/app backend/tests
 uv run --project backend mypy backend/app
 
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend run lint
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test:unit
-pnpm --dir frontend run build
+npm --prefix frontend ci
+npm --prefix frontend run biome:check
+npm --prefix frontend run typecheck
+npm --prefix frontend run test:unit
+npm --prefix frontend run build
 
 docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml up -d --wait
 . ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
@@ -172,6 +175,9 @@ if ((Get-Content -Raw -LiteralPath ".python-version").Trim() -ne "3.13.9") {
 if ((Get-Content -Raw -LiteralPath ".node-version").Trim() -ne "24.16.0") {
   throw ".node-version must be 24.16.0"
 }
+if ((npm --version).Trim() -ne "11.13.0") {
+  throw "npm must be 11.13.0"
+}
 ```
 
 Run:
@@ -196,26 +202,26 @@ Expected: FAIL，至少报告 `backend/pyproject.toml` 等路径缺失。
 24.16.0
 ```
 
-根 `package.json` 只代理唯一的 Node 包，不建立 pnpm workspace，避免锁文件位置产生双重真源：
+根 `package.json` 只代理唯一的 Node 包，不建立 npm workspace，也不生成第二份根锁文件，避免锁文件位置产生双重真源：
 
 ```json
 {
   "name": "enterprise-rag-knowledge-base",
   "private": true,
-  "packageManager": "pnpm@11.12.0",
+  "packageManager": "npm@11.13.0",
   "engines": {
     "node": "24.16.0",
-    "pnpm": "11.12.0"
+    "npm": "11.13.0"
   },
   "scripts": {
-    "frontend:dev": "pnpm --dir frontend dev",
-    "frontend:check": "pnpm --dir frontend check",
-    "frontend:generate-api": "pnpm --dir frontend generate:api"
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:check": "npm --prefix frontend run check",
+    "frontend:generate-api": "npm --prefix frontend run generate:api"
   }
 }
 ```
 
-扩充 `.gitignore`，保留 generated client 和锁文件，但忽略本机配置与运行数据：
+扩充 `.gitignore`，保留 generated service 和锁文件，但忽略本机配置与运行数据：
 
 ```gitignore
 /deploy/env/.env.development
@@ -232,7 +238,7 @@ Expected: FAIL，至少报告 `backend/pyproject.toml` 等路径缺失。
 
 - [ ] **Step 4: 写根 README 的可执行入口**
 
-`README.md` 必须包含：项目边界、`docs/requirements` 真源声明、目录树、Windows 前置条件、复制 example env、启动依赖、迁移、API/Worker/前端命令、检查命令和“不把 MinerU/模型密钥写入 env”的说明。所有命令使用本计划第 2 节的根目录形式。
+`README.md` 必须包含：项目边界、`docs/requirements` 真源声明、目录树、Windows 前置条件、Node 24.16.0/npm 11.13.0 安装与版本验证、复制 example env、启动依赖、迁移、API/Worker/前端命令、检查命令和“不把 MinerU/模型密钥写入 env”的说明。所有命令使用本计划第 2 节的根目录形式。
 
 - [ ] **Step 5: 暂时验证预期仍失败并提交原子变更**
 
@@ -1564,106 +1570,124 @@ git add backend/app/modules/capabilities backend/app/bootstrap backend/tests/uni
 git commit -m "feat: add explicit capability registry"
 ```
 
-### Task 12: 导入并记录 v3-admin-vite 基座
+### Task 12: 导入固定 Ant Design Pro 并形成 Simple Mode 基线
 
 **Files:**
-- Create: `frontend/` from upstream v5.2.0
+- Create: `frontend/` from Ant Design Pro v6.0.2
 - Create: `frontend/TEMPLATE_UPSTREAM.md`
-- Create: `frontend/LICENSE.v3-admin-vite`
+- Create: `frontend/LICENSE.ant-design-pro`
 - Modify: `frontend/package.json`
-- Modify: `frontend/.npmrc`
+- Modify: `frontend/package-lock.json`
 
-- [ ] **Step 1: 在工作区外获取并验证模板 commit**
+- [ ] **Step 1: 确认只在阶段 worktree 导入模板**
+
+Task 1 创建的 worktree 必须仍位于 `codex/phase-01-foundation`；禁止在 `main` 或现有用户工作区直接执行模板脚本：
 
 ```powershell
-$templateRoot = Join-Path ([IO.Path]::GetTempPath()) "v3-admin-vite-v5.2.0"
+git branch --show-current
+git status --short --branch
+```
+
+Expected: 分支为 `codex/phase-01-foundation`，状态干净，`frontend` 尚不存在。
+
+- [ ] **Step 2: 在系统临时目录获取并验证固定 commit**
+
+```powershell
+$templateRoot = Join-Path ([IO.Path]::GetTempPath()) "ant-design-pro-v6.0.2"
 if (Test-Path -LiteralPath $templateRoot) {
   throw "Temporary template directory already exists: $templateRoot"
 }
-git clone --depth 1 --branch v5.2.0 https://github.com/un-pany/v3-admin-vite.git $templateRoot
+git clone --depth 1 --branch v6.0.2 https://github.com/ant-design/ant-design-pro.git $templateRoot
 $actualCommit = git -C $templateRoot rev-parse HEAD
-if ($actualCommit -ne "a079b069f9fa6b92b0946d36cf28b50d8655c457") {
-  throw "Unexpected v3-admin-vite commit: $actualCommit"
+if ($actualCommit -ne "2b453c67b535b76f5f95d6542397a4b987b61de2") {
+  throw "Unexpected Ant Design Pro commit: $actualCommit"
 }
 ```
 
-Expected: commit 精确匹配；不接受 main 或另一个同名本地目录。
+Expected: commit 精确匹配；不接受 `master`、浮动 release 或另一个同名本地目录。
 
-- [ ] **Step 2: 复制明确的模板工程文件**
+- [ ] **Step 3: 复制完整可运行应用基线并记录来源**
 
-只复制这些入口，不复制上游 `.git/.github/.vscode/docs/skills`：
+复制运行、构建、测试和 Simple Mode 所需文件；上游 `.git/.github/.husky/docs/.agents/.claude`、Cloudflare 部署目录和仓库说明不是应用基线，不复制到本 Monorepo：
 
 ```powershell
 $items = @(
-  "src", "public", "tests", "types", ".editorconfig", ".npmrc", "eslint.config.js", "index.html", "package.json",
-  "pnpm-lock.yaml", "tsconfig.json", "uno.config.ts", "vite.config.ts"
+  ".editorconfig", ".gitignore", ".npmrc", "biome.json", "config", "jest.config.ts", "mock",
+  "package.json", "package-lock.json", "postcss.config.js", "public", "react-doctor.config.json",
+  "scripts", "src", "tailwind.config.js", "tests", "tsconfig.json", "types"
 )
 New-Item -ItemType Directory -Path frontend -ErrorAction Stop | Out-Null
 foreach ($item in $items) {
   Copy-Item -LiteralPath (Join-Path $templateRoot $item) -Destination frontend -Recurse
 }
-Copy-Item -LiteralPath (Join-Path $templateRoot "LICENSE") -Destination "frontend/LICENSE.v3-admin-vite"
+Copy-Item -LiteralPath (Join-Path $templateRoot "LICENSE") -Destination "frontend/LICENSE.ant-design-pro"
 ```
-
-删除临时目录前先验证其 resolved path 以系统 temp 开头且目录名完全匹配，再使用 PowerShell `Remove-Item -LiteralPath $templateRoot -Recurse`。不能在工作区内执行计算路径的递归删除。
-
-- [ ] **Step 3: 记录模板来源和沿用/替换边界**
 
 `frontend/TEMPLATE_UPSTREAM.md` 固定：
 
 ```markdown
-# v3-admin-vite 上游记录
+# Ant Design Pro 上游记录
 
-- Repository: https://github.com/un-pany/v3-admin-vite
-- Release: v5.2.0
-- Commit: a079b069f9fa6b92b0946d36cf28b50d8655c457
-- License: MIT，见 `LICENSE.v3-admin-vite`
+- Repository: https://github.com/ant-design/ant-design-pro
+- Release: v6.0.2
+- Commit: 2b453c67b535b76f5f95d6542397a4b987b61de2
+- License: MIT，见 `LICENSE.ant-design-pro`
+- Package manager: npm，传递依赖以 `package-lock.json` 为准
 
-沿用：Vue/Vite/TypeScript/Element Plus、布局骨架、主题基础、Router、Pinia、构建配置。
-替换：mock API、localStorage Token、验证码、demo/权限演示/外链菜单、上游产品品牌和业务页面。
-约束：后端 OpenAPI 生成 client，Cookie + CSRF 认证，中文产品导航，业务功能按本项目真源实现。
+导入顺序：完整应用基线提交 -> 官方 `npm run simple` 提交 -> 本项目产品壳提交。
+沿用：React、Umi Max、Ant Design、ProLayout/ProComponents、Router、request、initialState/model、React Query、OpenAPI 和测试基础。
+替换：Mock、演示业务、上游品牌/外链/分析、Token 认证和无后端对应的静态 DTO。
+约束：Cookie + CSRF、全中文产品文案、后端 OpenAPI 生成唯一 service，业务功能按本项目真源实现。
 ```
 
-- [ ] **Step 4: 固定 pnpm 和官方 registry**
+复制完成后，先验证 resolved path 位于系统 temp 且目录名完全匹配，再使用 `Remove-Item -LiteralPath $templateRoot -Recurse` 清理；不得对工作区内的计算路径执行递归删除。
 
-在 `frontend/package.json` 增加：
-
-```json
-"packageManager": "pnpm@11.12.0",
-"engines": {
-  "node": "24.16.0",
-  "pnpm": "11.12.0"
-}
-```
-
-删除上游 `prepare` script、`lint-staged` 配置以及 `husky/lint-staged` devDependencies，避免子目录模板擅自改写 Monorepo 根 Git hooks；项目级 hooks 只有在根工程明确设计后才加入。
-
-`frontend/.npmrc`：
-
-```ini
-registry=https://registry.npmjs.org/
-save-exact=true
-```
-
-保留其余上游 package 精确版本，不在导入提交中升级依赖。运行 `pnpm --dir frontend install --lockfile-only` 使删除 hooks 后的 importer 与 lockfile 一致。
-
-- [ ] **Step 5: 验证未修改模板可复现**
+- [ ] **Step 4: 验证并提交未精简上游应用基线**
 
 ```powershell
-pnpm --dir frontend install --lockfile-only
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend run test
-pnpm --dir frontend run build
-```
-
-Expected: 上游单元测试和 build 通过。若上游固定版本在当前 Node 24.16.0 失败，记录真实错误并先评估 Node 兼容补丁；禁止直接升级 Vite/TypeScript 逃避。
-
-- [ ] **Step 6: 提交模板来源基线**
-
-```powershell
+npm --prefix frontend ci --ignore-scripts
+npm --prefix frontend run tsc
+npm --prefix frontend test -- --runInBand
+npm --prefix frontend run build
+git diff --check
 git add frontend
-git commit -m "chore: import pinned admin template"
+git commit -m "chore: import pinned ant design pro baseline"
 ```
+
+Expected: 上游 typecheck、Jest 和 build 通过；该提交尚未执行 Simple Mode，便于以后区分上游问题和精简问题。若固定版本与 Node 24.16.0 不兼容，记录真实失败并先做最小兼容性评估，不能切换 `master` 或升级整套依赖逃避。
+
+- [ ] **Step 5: 执行官方 Simple Mode 并审查删除范围**
+
+```powershell
+Push-Location frontend
+npm run simple
+Pop-Location
+npm --prefix frontend install --package-lock-only --ignore-scripts
+git diff --name-status HEAD -- frontend
+git diff HEAD -- frontend/package.json frontend/config/routes.ts
+```
+
+审查必须确认：
+
+- 删除 dashboard/form/profile/result/account 和大部分 list 页面。
+- `config/routes.simple.ts` 替换 `config/routes.ts` 后被删除。
+- `@ant-design/plots`、D3、TopoJSON 及对应类型依赖被删除。
+- Welcome、Admin 和查询表格示例仍存在，这是官方脚本的已知结果，留到 Task 14 明确删除。
+- 不允许脚本删除登录布局、Umi request/OpenAPI、测试配置或产品后续需要的 ProLayout 基础。
+
+- [ ] **Step 6: 验证并提交 Simple Mode 基线**
+
+```powershell
+npm --prefix frontend ci --ignore-scripts
+npm --prefix frontend run tsc
+npm --prefix frontend test -- --runInBand
+npm --prefix frontend run build
+git diff --check
+git add frontend
+git commit -m "chore: apply ant design pro simple mode"
+```
+
+Expected: typecheck、Jest 和 build 通过；`package-lock.json` 已与 Simple Mode 的删除一致；图表依赖不在第一阶段提前加回。
 
 ### Task 13: 导出 OpenAPI 并生成唯一前端 client
 
@@ -1671,11 +1695,11 @@ git commit -m "chore: import pinned admin template"
 - Create: `backend/scripts/export_openapi.py`
 - Create: `backend/tests/api/test_openapi_contract.py`
 - Create: `docs/api/openapi.json` (generated)
-- Create: `frontend/openapi-ts.config.ts`
-- Create: `frontend/src/api/runtime-config.ts`
-- Create: `frontend/src/api/generated/` (generated)
+- Create: `frontend/src/services/ragApi/` (generated)
+- Delete: `frontend/config/oneapi.json`
+- Modify: `frontend/config/config.ts`
 - Modify: `frontend/package.json`
-- Modify: `frontend/pnpm-lock.yaml` (generated)
+- Modify: `frontend/package-lock.json` (generated)
 
 - [ ] **Step 1: 写 OpenAPI 稳定性失败测试**
 
@@ -1747,244 +1771,241 @@ if __name__ == "__main__":
 
 导出脚本只构造无真实 secret 的内存配置；app factory 在 schema 导出时不得连接数据库/Redis/Chroma 或创建管理员。这些固定字符串只用于 schema 构造，不能被部署代码读取。
 
-- [ ] **Step 3: 安装固定生成器并配置 Runtime API**
+- [ ] **Step 3: 配置 Ant Design Pro 原生 OpenAPI 生成器**
 
-```powershell
-pnpm --dir frontend add --save-dev @hey-api/openapi-ts@0.99.0
-pnpm --dir frontend add @hey-api/client-axios@0.9.1
-```
-
-`frontend/openapi-ts.config.ts`：
+不安装 Hey API 或第二套 Axios client。`@umijs/max-plugin-openapi@2.0.3` 已在固定模板锁文件中，`frontend/config/config.ts` 只保留一个后端契约配置：
 
 ```typescript
-import { defineConfig, type UserConfig } from "@hey-api/openapi-ts"
+import { join } from 'node:path';
 
-const config: Promise<UserConfig> = defineConfig({
-  input: "../docs/api/openapi.json",
-  output: {
-    path: "./src/api/generated"
-  },
-  plugins: [
-    {
-      name: "@hey-api/client-axios",
-      runtimeConfigPath: "./src/api/runtime-config.ts"
-    },
-    "@hey-api/sdk",
-    {
-      enums: "javascript",
-      name: "@hey-api/typescript"
-    }
-  ]
-})
-
-export default config
+openAPI: {
+  requestLibPath: "import { request } from '@umijs/max'",
+  schemaPath: join(__dirname, '../../docs/api/openapi.json'),
+  projectName: 'ragApi',
+  mock: false,
+},
 ```
 
-`runtime-config.ts`：
+删除模板 `config/oneapi.json` 和默认演示 schema。`schemaPath` 指向版本控制中的后端导出文件；`projectName` 固定为 `ragApi`，生成目录固定为 `frontend/src/services/ragApi`。OpenAPI 路径已经包含 `/api/v1`，Umi request 不得再添加同名 baseURL 前缀导致 `/api/v1/api/v1`。
 
-```typescript
-import type { CreateClientConfig } from "./generated/client.gen"
-
-export const createClientConfig: CreateClientConfig = config => ({
-  ...config,
-  baseURL: "/api/v1",
-  withCredentials: true
-})
-```
-
-- [ ] **Step 4: 增加生成和漂移检查命令**
+- [ ] **Step 4: 增加唯一生成和漂移检查命令**
 
 `frontend/package.json` scripts：
 
 ```json
-"generate:api": "openapi-ts",
-"check:generated": "pnpm generate:api && git diff --exit-code -- ../docs/api/openapi.json src/api/generated"
+"generate:api": "max openapi",
+"check:generated": "npm run generate:api && git diff --exit-code -- ../docs/api/openapi.json src/services/ragApi"
 ```
 
 导出和生成：
 
 ```powershell
 uv run --project backend python backend/scripts/export_openapi.py
-pnpm --dir frontend run generate:api
+npm --prefix frontend run generate:api
 ```
 
-- [ ] **Step 5: 验证后端 schema 和前端生成物无漂移**
+Expected: 插件从 `docs/api/openapi.json` 生成 TypeScript 类型和 service functions；页面后续只导入该目录，不复制 DTO 或 URL。
+
+- [ ] **Step 5: 验证 schema 和生成物确定性**
 
 ```powershell
 uv run --project backend pytest backend/tests/api/test_openapi_contract.py -v
 uv run --project backend python backend/scripts/export_openapi.py
-pnpm --dir frontend run generate:api
-git diff --exit-code -- docs/api/openapi.json frontend/src/api/generated
+npm --prefix frontend run generate:api
+git diff --exit-code -- docs/api/openapi.json frontend/src/services/ragApi
 ```
 
-Expected: 测试通过，重复生成无 diff。`frontend/src/api/generated` 中不存在手写文件。
+Expected: 测试通过，重复生成无 diff。`frontend/src/services/ragApi` 中不存在手写文件，生成函数统一从 `@umijs/max` 导入 `request`。
 
 - [ ] **Step 6: 提交契约生成链**
 
 ```powershell
-git add backend/scripts/export_openapi.py backend/tests/api/test_openapi_contract.py docs/api/openapi.json frontend/openapi-ts.config.ts frontend/src/api/runtime-config.ts frontend/src/api/generated frontend/package.json frontend/pnpm-lock.yaml
-git commit -m "chore: generate frontend api client"
+git add backend/scripts/export_openapi.py backend/tests/api/test_openapi_contract.py docs/api/openapi.json frontend/config/config.ts frontend/config/oneapi.json frontend/src/services/ragApi frontend/package.json frontend/package-lock.json
+git commit -m "chore: generate umi api services"
 ```
 
-### Task 14: 把模板认证改为 Cookie/CSRF 并建立真实管理壳
+### Task 14: 将 Simple Mode 收敛为 Cookie/CSRF 真实管理壳
 
 **Files:**
-- Delete: `frontend/src/pages/demo/`
-- Delete: `frontend/src/common/apis/tables/`
-- Delete: `frontend/src/common/apis/users/`
-- Delete: `frontend/src/pages/login/apis/`
-- Delete: `frontend/src/http/axios.ts`
-- Delete: `frontend/src/common/composables/usePany.ts`
-- Delete: template demo tests and demo-only assets
-- Create: `frontend/src/api/client/cookies.ts`
-- Create: `frontend/src/api/client/errors.ts`
-- Create: `frontend/src/api/client/setup.ts`
-- Create: `frontend/src/features/auth/store.ts`
-- Create: `frontend/src/features/auth/LoginPage.vue`
-- Create: `frontend/src/features/auth/ChangePasswordPage.vue`
-- Create: `frontend/src/features/health/HealthSummary.vue`
-- Create: `frontend/src/features/tasks/TaskListPage.vue`
-- Create: `frontend/tests/api/client.test.ts`
-- Create: `frontend/tests/features/auth-store.test.ts`
-- Create: `frontend/tests/router/guard.test.ts`
+- Delete: `frontend/src/pages/Welcome/`
+- Delete: `frontend/src/pages/Admin/`
+- Delete: `frontend/src/pages/table-list/`
+- Delete: `frontend/mock/`
+- Delete: `frontend/src/services/ant-design-pro/`
+- Delete: remaining template demo tests and demo-only assets/components
+- Create: `frontend/src/features/auth/cookies.ts`
+- Create: `frontend/src/features/auth/session.ts`
+- Create: `frontend/src/features/api/errors.ts`
+- Create: `frontend/src/features/health/queries.ts`
+- Create: `frontend/src/features/tasks/queries.ts`
+- Create: `frontend/src/pages/login/index.tsx`
+- Create: `frontend/src/pages/change-password/index.tsx`
+- Create: `frontend/src/pages/dashboard/index.tsx`
+- Create: `frontend/src/pages/tasks/index.tsx`
+- Create: `frontend/tests/features/request.test.ts`
+- Create: `frontend/tests/features/session.test.tsx`
+- Create: `frontend/tests/features/access.test.ts`
 - Create: `frontend/e2e/auth-smoke.spec.ts`
 - Create: `frontend/playwright.config.ts`
 - Create: `frontend/.env.example`
-- Modify: `frontend/src/router/index.ts`
-- Modify: `frontend/src/router/guard.ts`
-- Modify: `frontend/src/pinia/stores/user.ts` or replace all imports with `features/auth/store.ts`
-- Modify: `frontend/src/pages/dashboard/index.vue`
-- Modify: `frontend/src/App.vue`
-- Modify: `frontend/src/main.ts`
-- Modify: `frontend/vite.config.ts`
+- Modify: `frontend/config/config.ts`
+- Modify: `frontend/config/proxy.ts`
+- Modify: `frontend/config/routes.ts`
+- Modify: `frontend/jest.config.ts`
+- Modify: `frontend/src/app.tsx`
+- Modify: `frontend/src/access.ts`
+- Modify: `frontend/src/requestErrorConfig.ts`
 - Modify: `frontend/package.json`
-- Modify: `frontend/pnpm-lock.yaml` (generated)
+- Modify: `frontend/package-lock.json` (generated)
 
-- [ ] **Step 1: 先写 Cookie 认证和路由失败测试**
+- [ ] **Step 1: 先写 Cookie、会话和守卫失败测试**
 
-关键断言：
+Jest/React Testing Library 测试名称必须表达业务行为：
 
 ```typescript
-it("never reads or writes an access token in localStorage", async () => { /* spy + assert */ })
-it("adds X-CSRF-Token only to unsafe methods when csrf cookie exists", async () => { /* assert */ })
-it("maps ApiError traceId without replacing backend message", async () => { /* assert */ })
-it("loads authMe once when auth state is unknown", async () => { /* assert */ })
-it("redirects password-change-required users to /change-password", async () => { /* assert */ })
-it("redirects unauthenticated users to /login with encoded redirect", async () => { /* assert */ })
+it('never reads or writes an access token in localStorage', async () => {});
+it('adds X-CSRF-Token only to unsafe methods when rag_csrf exists', async () => {});
+it('preserves backend message, code, details and traceId in ApiClientError', async () => {});
+it('loads authMe once when initial session state is unknown', async () => {});
+it('allows password-change-required administrators to open only change-password', () => {});
+it('redirects unauthenticated users to login with an encoded full return URL', () => {});
+it('does not treat Umi access as a business RBAC source', () => {});
 ```
 
 Run:
 
 ```powershell
-pnpm --dir frontend run test -- tests/api/client.test.ts tests/features/auth-store.test.ts tests/router/guard.test.ts
+npm --prefix frontend test -- --runInBand tests/features/request.test.ts tests/features/session.test.tsx tests/features/access.test.ts
 ```
 
-Expected: FAIL，新模块尚不存在。
+Expected: FAIL，新模块或行为尚不存在；不通过删除断言使模板测试变绿。
 
-- [ ] **Step 2: 配置 generated Axios client**
+- [ ] **Step 2: 删除剩余演示面并锁定精确前端依赖**
 
-`cookies.ts` 只读取精确 cookie 名 `rag_csrf`，使用分号分割和 `decodeURIComponent`，不提供 access token helper。
+删除 Simple Mode 仍保留的 Welcome、Admin、查询表格、Mock、演示 API、上游品牌/外链、Analytics、request-record、SettingDrawer 和演示背景。保留 ProLayout、登录布局、404、Ant Design/ProComponents、React Query 和 OpenAPI。
 
-`setup.ts`：
+从 `package.json` 删除 `prepare`、Husky/lint-staged/commitlint、Mock/request-record 和确认无引用的 demo-only 依赖，防止子目录模板修改 Monorepo Git hooks 或携带无关运行代码。通过结构化 JSON 读取 `package-lock.json` 的 `packages["node_modules/<name>"].version`，把每个保留的直接 dependency/devDependency 写成精确版本；缺少 lock entry 立即失败，禁止简单删除 `^` 后猜版本。
 
-```typescript
-import { client } from "@/api/generated/client.gen"
-import { readCookie } from "./cookies"
-import { toApiClientError } from "./errors"
+同时固定：
 
-const unsafeMethods = new Set(["post", "put", "patch", "delete"])
-
-client.setConfig({ baseURL: "/api/v1", withCredentials: true })
-
-client.instance.interceptors.request.use(config => {
-  if (unsafeMethods.has(config.method?.toLowerCase() ?? "")) {
-    const csrf = readCookie("rag_csrf")
-    if (csrf) config.headers.set("X-CSRF-Token", csrf)
-  }
-  return config
-})
-
-client.instance.interceptors.response.use(
-  response => response,
-  error => Promise.reject(toApiClientError(error))
-)
+```json
+"packageManager": "npm@11.13.0",
+"engines": {
+  "node": "24.16.0",
+  "npm": "11.13.0"
+}
 ```
 
-`ApiClientError` 保存 HTTP status、后端 code/message/traceId/details；401 由 auth store 清状态，409/422/429/503/504 保留给页面专用 UI，不能全部弹同一个 toast。
+`frontend/.npmrc` 固定：
 
-- [ ] **Step 3: 替换 localStorage Token auth store 和 guard**
-
-store 状态固定：`unknown/authenticated/unauthenticated/password_change_required`。刷新页面时调用 generated `authMe()`；HttpOnly Cookie 不可见，不通过猜 cookie 判断。login 成功保存返回 AdminProfile/CSRF（CSRF 的真源仍是 cookie），logout 无论响应成功与否都清内存状态并跳登录。
-
-guard 公开白名单仅 `/login`；`/change-password` 需要有效管理员但允许 first login。首次改密限制由后端硬校验，前端 guard 只改善体验。
-
-- [ ] **Step 4: 创建第一阶段真实页面并收敛路由**
-
-保留真实可用页面：
-
-```text
-/login             中文登录表单
-/change-password   强制改密表单
-/dashboard         调用 healthDependencies 的运行摘要
-/tasks             调用 operationsList 的最小任务列表，详情抽屉调用 operationsGet
+```ini
+registry=https://registry.npmjs.org/
+save-exact=true
+legacy-peer-deps=true
 ```
 
-删除 demo、权限演示和外链路由。第一阶段不为尚未实现的数据解析/模型/知识库/机器人/渠道创建“即将上线”假页面；完整固定导航在阶段 6 与真实页面一起落地。
+`legacy-peer-deps=true` 是固定上游锁文件的安装条件，不能在未完成 peer dependency 审计和全量测试前擅自删除。
 
-登录表单只包含用户名、密码、提交；不保留模板验证码、Owl 动画、admin/editor 提示或 mock 账号。所有界面文案中文，API 专业 code 保持英文。
-
-- [ ] **Step 5: 收敛 Vite 和 package scripts**
-
-Vite dev server：host `127.0.0.1`、port `5173`、strictPort true、open false；`/api/v1` proxy 到 `http://127.0.0.1:8001`，不使用 Apifox mock。
-
-`frontend/.env.example` 只包含会公开到浏览器的 `VITE_APP_TITLE=企业 RAG 知识库` 和 `VITE_PUBLIC_PATH=/`；任何 Provider/MinerU/API secret 禁止使用 `VITE_` 前缀。
-
-同时从 `vite.config.ts` 和 package 中删除 `vite-plugin-mcp`，从 `App.vue` 删除模板作者通知逻辑；Open Design/Stitch 等设计工具连接不应被打包进业务前端 dev server。
-
-安装 Playwright：
+更新并验证锁文件：
 
 ```powershell
-pnpm --dir frontend add --save-dev @playwright/test@1.61.1
+npm --prefix frontend install --package-lock-only --ignore-scripts
+npm --prefix frontend ci --ignore-scripts
+git diff -- frontend/package.json frontend/package-lock.json
+```
+
+Expected: package/lock 同步，直接依赖无 `^`/`~`，`@ant-design/plots`/D3/TopoJSON 不被加回。`@ant-design/x` 系列保留供后续机器人问答界面使用，但本阶段不创建假聊天业务。
+
+- [ ] **Step 3: 建立唯一 Umi request、CSRF 和错误入口**
+
+`cookies.ts` 只读取精确 cookie 名 `rag_csrf`，按分号拆分、trim 并安全 `decodeURIComponent`；不提供 access token helper。JWT 只存在 HttpOnly Cookie，前端不能读取。
+
+`src/app.tsx` 导出的 `RequestConfig` 固定：
+
+- `withCredentials: true`，默认超时 30 秒；同步聊天的 60 秒超时在后续调用处显式覆盖。
+- `POST/PUT/PATCH/DELETE` 有 `rag_csrf` 时添加 `X-CSRF-Token`；GET/HEAD/OPTIONS 不添加。
+- 保留后端 `ApiError.code/message/traceId/details`，不把全部失败压成同一 toast。
+- 401 清管理员内存状态并跳 `/login?redirect=...`；409/422/429/503/504 交给页面专用 UI。
+- 不设置 `/api/v1` baseURL；generated service 已包含该路径，开发代理只转发同源 `/api/v1`。
+
+所有业务页面只调用 `src/services/ragApi`。全仓检查不得出现另一个 Axios instance、手写 API URL 表或复制的 DTO。
+
+- [ ] **Step 4: 用 initialState/model 和 access 实现真实管理员会话**
+
+会话状态固定为 `unknown/authenticated/unauthenticated/password_change_required`。`getInitialState()` 在非公开路由调用 generated `authMe()`，刷新时不通过猜测 Cookie 判断登录；登录成功更新 currentAdmin，logout 无论网络结果都清内存状态并跳登录。
+
+`src/access.ts` 只暴露 `authenticated` 和 `passwordChangeAllowed` 两个登录守卫。第一版没有角色、菜单或资源权限，不保留模板 `canAdmin` 演示，也不将 access 结果保存为后端权限真源。首次改密仍由后端硬校验，前端只限制导航改善体验。
+
+- [ ] **Step 5: 创建第一阶段真实页面并收敛路由/布局**
+
+`config/routes.ts` 只保留：
+
+```text
+/login             中文登录表单，layout=false
+/change-password   强制改密表单
+/dashboard         healthDependencies 运行摘要
+/tasks             operationsList；详情抽屉调用 operationsGet
+/                  redirect 到 /dashboard
+/*                 404
+```
+
+登录表单只包含用户名、密码和提交，不保留注册、验证码、示例账号或第三方登录。ProLayout 删除上游 Docs/Version/Lang 操作、动态 SettingDrawer、演示背景和远程素材；Umi locale 固定 `default: 'zh-CN'`、`baseNavigator: false`。产品标题与所有普通界面文案使用中文，API code、模型名等专业标识保持原值。
+
+第一阶段不为尚未实现的数据解析、模型、知识库、机器人或渠道创建“即将上线”路由。阶段 6 在真实页面存在时一次性落实固定导航、知识库/机器人 `+` 与下拉、底部系统设置。
+
+- [ ] **Step 6: 用 React Query 实现健康和最小任务状态**
+
+`config/config.ts` 保持 `reactQuery: {}`。健康摘要 query key 固定为 `['health', 'dependencies']`；任务列表 key 包含分页/筛选；operation detail key 固定为 `['operations', operationId]`。同一 operation 在页面和抽屉共享 cache，不建立全局任务 store。
+
+任务轮询遵循前端真源：终态/卸载停止，后台降频，网络错误不改写业务 status。管理员和布局放 initialState；服务端状态放 React Query；表单局部状态留在 feature/page。
+
+- [ ] **Step 7: 收敛 Umi 开发配置和质量 scripts**
+
+Umi Max dev server 固定 host `127.0.0.1`、port `5173`；`/api/v1` 代理到 `http://127.0.0.1:8001`，关闭 Mock 和自动打开浏览器。Jest 的 jsdom URL 和 Playwright `baseURL` 同步为 `http://127.0.0.1:5173`。`frontend/.env.example` 只包含可公开的 `UMI_APP_TITLE=企业 RAG 知识库`；Provider、MinerU、JWT、数据库或渠道 secret 禁止使用浏览器环境变量。
+
+安装固定 Playwright：
+
+```powershell
+npm --prefix frontend install --save-dev --save-exact @playwright/test@1.61.1
 ```
 
 scripts 固定：
 
 ```json
-"lint": "eslint .",
-"lint:fix": "eslint . --fix",
-"typecheck": "vue-tsc --noEmit",
-"test:unit": "vitest run",
+"biome:check": "biome check .",
+"biome:fix": "biome check --write .",
+"lint": "biome lint .",
+"typecheck": "tsc --noEmit",
+"test:unit": "jest --runInBand",
 "test:e2e": "playwright test",
-"check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build"
+"check": "npm run biome:check && npm run typecheck && npm run test:unit && npm run build"
 ```
 
-- [ ] **Step 6: 运行前端静态、单元和 build**
+- [ ] **Step 8: 运行静态、单元和 build 门禁**
 
 ```powershell
-pnpm --dir frontend run lint
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test:unit
-pnpm --dir frontend run build
+npm --prefix frontend run biome:check
+npm --prefix frontend run typecheck
+npm --prefix frontend run test:unit
+npm --prefix frontend run build
 ```
 
-Expected: 全部通过；全仓前端搜索不存在 `localStorage` access token、mock API URL、`/demo` 路由和上游账号提示。
+Expected: 全部通过；全仓前端不存在 localStorage access token、Mock API、Welcome/Admin/table-list 路由、上游账号提示、手写 DTO 或第二套 request client。
 
-- [ ] **Step 7: 运行真实认证 E2E**
+- [ ] **Step 9: 运行真实认证 E2E 并提交产品壳**
 
-启动 API 和前端后：
+启动 API 和 Umi dev server 后：
 
 ```powershell
-pnpm --dir frontend exec playwright install chromium
-pnpm --dir frontend run test:e2e
+npm --prefix frontend exec -- playwright install chromium
+npm --prefix frontend run test:e2e
 ```
 
-`auth-smoke.spec.ts` 覆盖：未登录跳转、初始账号登录、强制改密、dashboard health 可见、刷新仍通过 Cookie 登录、logout 后旧 Cookie 不可访问 dashboard。测试使用专用 test admin，不复用开发密码。
-
-- [ ] **Step 8: 提交前端产品壳**
+`auth-smoke.spec.ts` 覆盖：未登录跳转、初始账号登录、强制改密、dashboard health 可见、刷新仍通过 Cookie 登录、任务列表可读、logout 后旧 Cookie 不可访问 dashboard。测试使用专用 test admin，不复用开发密码。
 
 ```powershell
-git add -A -- frontend
-git commit -m "feat: add authenticated admin shell"
+git add frontend
+git commit -m "feat: add authenticated ant design pro shell"
 ```
 
 ### Task 15: 建立根检查、CI 和第一阶段运行文档
@@ -2013,11 +2034,11 @@ uv run --project backend ruff format --check backend/app backend/tests
 uv run --project backend ruff check backend/app backend/tests
 uv run --project backend mypy backend/app
 uv run --project backend pytest backend/tests -m "not integration"
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend run check
+npm --prefix frontend ci
+npm --prefix frontend run check
 uv run --project backend python backend/scripts/export_openapi.py
-pnpm --dir frontend run generate:api
-git diff --exit-code -- docs/api/openapi.json frontend/src/api/generated
+npm --prefix frontend run generate:api
+git diff --exit-code -- docs/api/openapi.json frontend/src/services/ragApi
 ```
 
 Run before CI exists. Expected: 若前面任务还有任何遗漏，本脚本在第一个失败门禁停止并返回非零。
@@ -2058,9 +2079,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.16.0
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
-        with:
-          version: 11.12.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Pin npm
+        run: npm install --global npm@11.13.0 && npm --version
       - name: Static and unit checks
         shell: pwsh
         run: ./scripts/check.ps1
@@ -2074,7 +2096,7 @@ CI 在 lock 安装后执行：
 
 ```powershell
 uvx --from pip-audit==2.10.1 pip-audit --locked backend
-pnpm --dir frontend audit --audit-level high
+npm --prefix frontend audit --audit-level=high
 pwsh -NoProfile -File scripts/check-docs.ps1
 docker compose --env-file deploy/env/.env.development.example -f deploy/compose/compose.deps.yml config --quiet
 ```
@@ -2085,7 +2107,7 @@ docker compose --env-file deploy/env/.env.development.example -f deploy/compose/
 
 `windows-development.md` 包含：Docker Desktop 启动、env 创建、依赖启动、测试库、migration、API、四队列 Worker 命令、前端、健康、停止但保留卷、显式清卷风险说明。
 
-`troubleshooting.md` 按症状列：Docker pipe 不存在、端口占用、migration 非 head、Cookie/CSRF 403、Redis/Chroma unhealthy、Worker heartbeat 缺失、pnpm/uv 锁漂移。每项给检查命令和非破坏修复；不建议 reset/delete volumes 作为第一步。
+`troubleshooting.md` 按症状列：Docker pipe 不存在、端口占用、migration 非 head、Cookie/CSRF 403、Redis/Chroma unhealthy、Worker heartbeat 缺失、npm/package-lock/uv 锁漂移。每项给检查命令和非破坏修复；不建议 reset/delete volumes 作为第一步。
 
 - [ ] **Step 6: 在计划获批执行时更新开发门禁状态**
 
@@ -2108,7 +2130,7 @@ pwsh -NoProfile -File scripts/check.ps1
 docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml up -d --wait
 $env:RAG_TEST_DATABASE_URL="postgresql+psycopg://rag_app:local-dev-only-change-before-sharing@127.0.0.1:5432/rag_kb_test"
 uv run --project backend pytest backend/tests/integration -v -m integration
-pnpm --dir frontend run test:e2e
+npm --prefix frontend run test:e2e
 git status --short
 ```
 
@@ -2125,14 +2147,14 @@ git commit -m "ci: enforce foundation quality gates"
 
 - [ ] `git diff main...HEAD --check` 无新增空白错误。
 - [ ] `git diff main...HEAD --name-only` 中没有 MinerU、模型、知识库、机器人或渠道假实现。
-- [ ] `backend/uv.lock` 和 `frontend/pnpm-lock.yaml` 均已提交，重复 frozen install 成功。
+- [ ] `backend/uv.lock` 和 `frontend/package-lock.json` 均已提交，重复 frozen install/`npm ci` 成功。
 - [ ] Compose 三个镜像都有版本和 digest，不含 `latest`。
 - [ ] Alembic 从空库到 head、重复 check、数据库约束反例全部通过。
 - [ ] 管理员 bootstrap、Argon2id、Cookie、CSRF、authVersion、限流和审计全部通过。
 - [ ] liveness 不查询依赖；ready/dependencies 的状态和 HTTP code 可复现。
 - [ ] Operation/Outbox 同事务、Redis 故障恢复和重复 delivery 单副作用通过。
-- [ ] OpenAPI operationId/错误/DTO 稳定，generated client 重生成无 diff。
-- [ ] 前端不存在 localStorage access token、mock API、demo 菜单或手写重复 DTO。
+- [ ] OpenAPI operationId/错误/DTO 稳定，generated service 重生成无 diff。
+- [ ] 前端不存在 localStorage access token、Mock API、demo 菜单、手写重复 DTO 或第二套 request client。
 - [ ] 根检查、integration、E2E 和 GitHub Actions 全部通过。
 - [ ] 文档明确 Docker Desktop 当前必须由用户启动；没有谎称未运行的服务已验证。
 
@@ -2152,9 +2174,10 @@ feat: add dependency health checks
 feat: add operation state management
 feat: add transactional outbox workers
 feat: add explicit capability registry
-chore: import pinned admin template
-chore: generate frontend api client
-feat: add authenticated admin shell
+chore: import pinned ant design pro baseline
+chore: apply ant design pro simple mode
+chore: generate umi api services
+feat: add authenticated ant design pro shell
 ci: enforce foundation quality gates
 ```
 

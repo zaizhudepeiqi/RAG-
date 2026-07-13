@@ -41,11 +41,12 @@
 
 以下不需要重新讨论产品行为，但在创建工程时必须固定：
 
-- Python、Node、FastAPI、SQLAlchemy、Celery、PostgreSQL、Redis、Chroma 的精确版本。
+- Python、Node、npm、FastAPI、SQLAlchemy、Celery、PostgreSQL、Redis、Chroma、React、Umi Max 和 Ant Design 的精确版本。
 - Chroma 锁定版本支持的 HNSW 配置字段和 score contract fixture。
 - MinerU 批次查询精确路径/item 字段和删除能力通过官方真实响应 fixture 锁定；内部只依赖 batchId/dataId 映射，不假设 taskId 必然存在。
-- OpenAPI TypeScript 生成器及命令。
-- Ruff/typecheck/pytest/Vitest/Playwright/Bruno 的具体配置。
+- Ant Design Pro v6.0.2 固定 commit、完整基线/Simple Mode 双提交及精简删除审计。
+- `@umijs/max-plugin-openapi` 的 schema、projectName、requestLibPath 和确定性生成命令。
+- Ruff/mypy/pytest/Biome/Jest/React Testing Library/Playwright/Bruno 的具体配置。
 - Docker image digest、Compose healthcheck 命令和开发端口。
 - 标准 RAG 测试文件的许可证、内容和 SHA-256。
 
@@ -59,7 +60,7 @@
 2. FastAPI bootstrap、配置、错误、traceId、健康接口。
 3. PostgreSQL/Alembic、Redis、Chroma、Storage 基础 Adapter。
 4. Operation/outbox/Celery Worker 骨架和幂等测试。
-5. Vue/v3-admin-vite 基座、OpenAPI 生成和登录壳。
+5. Ant Design Pro v6.0.2 Simple Mode 基座、Umi OpenAPI 生成和登录壳。
 6. CI 的 lint/typecheck/unit/integration 最小闭环。
 
 通过该阶段验收后，再按模块实现模型/解析、知识库/检索、机器人/渠道和前端业务。

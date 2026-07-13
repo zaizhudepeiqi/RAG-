@@ -1,28 +1,39 @@
 # 前端产品与交互阶段性真源
 
-> 文档职责：定义 v3-admin-vite 使用边界、导航、页面归属、长页面交互、动态能力、状态展示、错误反馈和前后端契约。
+> 文档职责：定义 Ant Design Pro 使用边界、导航、页面归属、长页面交互、动态能力、状态展示、错误反馈和前后端契约。
 > 本文件不重复业务规则；具体字段和状态必须引用对应业务真源及后续页面/API 对照表。
 
 ## 1. 工程基座
 
-沿用 v3-admin-vite：
+采用 Ant Design Pro v6.0.2 的 Simple Mode，固定 release `v6.0.2` 和 commit `2b453c67b535b76f5f95d6542397a4b987b61de2`，不跟随 `master`。底层基线为 React 19、TypeScript、Umi Max 4 和 Ant Design 6。
 
-- Vue 3、Vite、TypeScript、Element Plus。
-- Router、Pinia、Layout、登录骨架。
-- 左侧菜单、顶部栏、表格/表单/弹窗/抽屉基础能力。
+沿用：
 
-替换/删除模板内容：
+- ProLayout、ProComponents、Ant Design、官方图标、登录布局和基础异常页。
+- Umi Router、initialState/model、request、React Query 和 OpenAPI 插件。
+- 表格、表单、Tabs、弹窗、抽屉、通知、主题 token 和构建配置。
 
-- 示例 Dashboard、业务页面、Mock API、示例权限和演示菜单。
-- 与后端无对应资源的静态业务 DTO、枚举和菜单。
-- 默认品牌和无关素材。
+模板导入和精简必须可审计：
 
-新增代码按 `features/<domain>` 组织，不建立一个包含所有 API 和页面状态的巨大 store。
+1. 在独立阶段 worktree 导入固定 commit 的完整可运行应用基线，保留 MIT License，并先提交未精简基线。
+2. 执行官方 `npm run simple`，审查其删除页面、路由和依赖的实际 diff，再提交 Simple Mode 基线。
+3. 官方 Simple Mode 仍保留 Welcome、Admin 和查询表格示例；继续删除这些示例、Mock、注册页、上游品牌、分析脚本和与产品无关的外链，并在导入边界排除 Cloudflare Worker。
+4. Simple Mode 会移除 `@ant-design/plots`、D3 和 TopoJSON；第一阶段不保留无用图表依赖，质量仪表盘阶段按真实图表需求重新引入精确版本并补测试。
+
+状态职责固定：
+
+- 服务端列表、详情、轮询和缓存状态使用 React Query，query key 必须包含资源 ID、筛选和配置修订。
+- 当前管理员和全局布局使用 Umi initialState/model；第一版 Umi access 只实现登录/强制改密守卫，不定义虚假 RBAC。
+- 最近访问等纯客户端偏好可使用小型 Umi model/local persistence，只保存 ID、时间和显示偏好，不保存业务快照。
+- 表单草稿默认留在页面/feature 内；不建立包含所有 API、业务实体和页面状态的巨大 store。
+
+新增代码按 `features/<domain>` 组织，`src/pages` 只做路由入口和页面编排。Ant Design Pro 默认视觉不是最终视觉真源；最终模板未提供时先保证业务骨架，后续通过 Ant Design token、CSS Modules 或 `antd-style` 调整，不改变页面/API 契约。
 
 ## 2. 前端强制原则
 
 - 页面、字段、按钮、状态、错误码和下拉都能追溯到后端资源/API。
-- OpenAPI generated 类型/client 是接口结构真源，禁止手写重复 DTO。
+- `@umijs/max-plugin-openapi` 读取版本控制中的后端 OpenAPI，生成 `src/services/ragApi` 类型/client；该目录是接口结构真源，禁止手写或复制重复 DTO。
+- 所有生成请求统一经过 Umi `request` 配置处理 Cookie、CSRF、traceId、超时和错误映射；页面不得另建第二套 Axios/fetch client。
 - capability 下拉在前端真实显示，但选项从后端获取；前端保存 code/ID，不保存中文展示名作为关系。
 - 所有写操作后端校验，前端校验只为体验。
 - 任务状态来自业务 task API，不依赖 Celery 内部状态。
@@ -160,7 +171,7 @@
 - 创建解析、构建、异步问答后立即返回 operationId。
 - 详情页前 60 秒每 2 秒轮询，之后每 5 秒；页面后台时降为 15 秒。
 - 任务进入终态、页面离开或组件卸载时停止轮询并取消请求。
-- 同一 operation 在多个组件中通过单一 query cache 共享，不重复轮询。
+- 同一 operation 在多个组件中通过 React Query 的单一 query cache 共享，不重复轮询。
 - 网络断开指数退避，恢复后继续，不把临时网络失败改成业务任务失败。
 - 第一版不用 WebSocket/SSE。
 - 任务进度只作展示；最终状态由 operation.status 决定。
@@ -231,7 +242,7 @@
 - 导航顺序、顶部数据解析、知识库/机器人 `+` 和下拉、底部系统设置在所有页面一致。
 - 长页面只有一个主滚动容器，sticky 操作栏不遮挡字段。
 - 每个可见控件在页面/API 对照表中有后端对应。
-- OpenAPI 重新生成后无手写 DTO 冲突。
+- Umi OpenAPI 重新生成后无手写 DTO 冲突，重复生成无 Git diff。
 - 动态下拉只保存真实 enabled 能力，disabled 不能提交。
 - 页面刷新能恢复资源、Tab、筛选和 operation 状态。
 - 并发保存冲突不会覆盖别人的修改。

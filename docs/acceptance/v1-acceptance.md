@@ -185,7 +185,9 @@
 - [ ] 409 revision、422 fieldErrors、429、503、504 有专用 UI。
 - [ ] URL 可恢复列表筛选、分页、Tab 和资源深链。
 - [ ] operation polling 在终态/卸载停止，后台降频，无旧响应覆盖新状态。
-- [ ] generated API client 无手写重复 DTO。
+- [ ] Ant Design Pro 来源固定为 v6.0.2 commit `2b453c67b535b76f5f95d6542397a4b987b61de2`，MIT License 和完整基线/Simple Mode 两次提交可审计。
+- [ ] Welcome/Admin/查询表格/Mock/上游品牌等演示内容已删除，Simple Mode 删除范围与依赖变化有审查记录。
+- [ ] Umi OpenAPI generated service 重复生成无 diff，且无手写重复 DTO 或第二套 API client。
 
 ## 15. 数据库和迁移
 
@@ -217,7 +219,7 @@
 ## 17. 工程质量
 
 - [ ] Backend Ruff/typecheck/pytest 全通过。
-- [ ] Frontend lint/typecheck/Vitest/Playwright 全通过。
+- [ ] Frontend Biome/typecheck/Jest/React Testing Library/Playwright/build 全通过。
 - [ ] 核心 domain/algorithm line+branch coverage >=90%。
 - [ ] 后端总体 line >=80%，前端业务逻辑/组件 >=75%。
 - [ ] Adapter contract、故障注入、API状态码和OpenAPI breaking diff通过。
