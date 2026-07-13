@@ -28,6 +28,7 @@ coverage/
 /storage/
 /logs/
 /tmp/
+.worktrees/
 *.log
 
 # Editors and operating systems
