@@ -12,8 +12,17 @@ from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
 from app.infrastructure.database.session import create_engine_from_settings, create_session_factory
+from app.infrastructure.health.celery import CeleryHealthProbe
+from app.infrastructure.health.chroma import ChromaHealthProbe
+from app.infrastructure.health.postgresql import PostgreSQLHealthProbe
+from app.infrastructure.health.redis import RedisHealthProbe
+from app.infrastructure.health.storage import StorageHealthProbe
+from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
+from app.infrastructure.storage.local import LocalStorageAdapter
+from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
+from app.modules.observability.service import HealthService, NotConfiguredProbe
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,6 +33,7 @@ class ApplicationDependencies:
     session_factory: sessionmaker[Session]
     redis_client: Redis
     auth_service: AuthService
+    health_service: HealthService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -43,7 +53,7 @@ class ApplicationDependencies:
 def build_application_dependencies(settings: Settings) -> ApplicationDependencies:
     engine = create_engine_from_settings(settings)
     session_factory = create_session_factory(engine)
-    redis_client = Redis.from_url(settings.redis_url)
+    redis_client = create_redis_client(settings.redis_url)
     auth_service = AuthService(
         session_factory=session_factory,
         administrators=SqlAlchemyAdministratorRepository(),
@@ -54,9 +64,22 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         signing_key=settings.jwt_signing_key_bytes,
         access_token_expire_minutes=settings.access_token_expire_minutes,
     )
+    health_service = HealthService(
+        version=settings.app_version,
+        probes=[
+            PostgreSQLHealthProbe(engine, BACKEND_ROOT / "alembic.ini"),
+            RedisHealthProbe(redis_client),
+            ChromaHealthProbe(ChromaAdapter(settings.chroma_host, settings.chroma_port)),
+            StorageHealthProbe(LocalStorageAdapter(settings.storage_root)),
+            CeleryHealthProbe(redis_client),
+            NotConfiguredProbe("mineru"),
+            NotConfiguredProbe("models"),
+        ],
+    )
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,
         redis_client=redis_client,
         auth_service=auth_service,
+        health_service=health_service,
     )

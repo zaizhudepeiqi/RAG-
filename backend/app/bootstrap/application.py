@@ -11,6 +11,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import TraceIdMiddleware
 from app.modules.auth.api import router as auth_router
+from app.modules.observability.api import router as health_router
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -54,4 +55,5 @@ def create_app(settings: Settings) -> FastAPI:
     )
     app.add_middleware(TraceIdMiddleware)
     app.include_router(auth_router)
+    app.include_router(health_router)
     return app
