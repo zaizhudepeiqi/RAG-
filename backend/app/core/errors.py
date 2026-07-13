@@ -27,12 +27,14 @@ class AppError(Exception):
         message: str,
         status_code: int,
         details: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status_code = status_code
         self.details = dict(details) if details is not None else None
+        self.headers = dict(headers) if headers is not None else None
 
 
 def _request_trace_id(request: Request) -> UUID:
@@ -59,13 +61,16 @@ def _error_response(
 
 
 async def app_error_handler(request: Request, error: AppError) -> JSONResponse:
-    return _error_response(
+    response = _error_response(
         trace_id=_request_trace_id(request),
         status_code=error.status_code,
         code=error.code,
         message=error.message,
         details=error.details,
     )
+    if error.headers is not None:
+        response.headers.update(error.headers)
+    return response
 
 
 async def validation_error_handler(request: Request, error: RequestValidationError) -> JSONResponse:
