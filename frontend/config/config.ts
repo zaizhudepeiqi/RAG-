@@ -9,23 +9,6 @@ import routes from './routes';
 
 const { UMI_ENV = 'dev' } = process.env;
 
-// Compute commit hash: env vars take precedence, fall back to git at build time
-const commitHash =
-  process.env.COMMIT_HASH ||
-  process.env.CF_PAGES_COMMIT_SHA ||
-  (() => {
-    try {
-      return require('node:child_process')
-        .execSync('git rev-parse HEAD', {
-          stdio: ['ignore', 'pipe', 'ignore'],
-          encoding: 'utf-8',
-        })
-        .trim();
-    } catch {
-      return '';
-    }
-  })();
-
 /**
  * @name 使用公共路径
  * @description 部署时的路径，如果部署在非根目录下，需要配置这个变量
@@ -34,9 +17,6 @@ const commitHash =
 const PUBLIC_PATH: string = '/';
 
 export default defineConfig({
-  alias: {
-    '@root': join(__dirname, '..'),
-  },
   /**
    * @name 开启 hash 模式
    * @description 让 build 之后的产物包含 hash 后缀。通常用于增量发布和避免浏览器加载缓存。
@@ -114,19 +94,10 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: 'Ant Design Pro',
+  title: '企业 RAG 知识库',
   layout: {
     locale: true,
     ...defaultSettings,
-  },
-  /**
-   * @name moment2dayjs 插件
-   * @description 将项目中的 moment 替换为 dayjs
-   * @doc https://umijs.org/docs/max/moment2dayjs
-   */
-  moment2dayjs: {
-    preset: 'antd',
-    plugins: ['duration', 'relativeTime'],
   },
   /**
    * @name 国际化插件
@@ -137,7 +108,7 @@ export default defineConfig({
     default: 'zh-CN',
     antd: true,
     // default true, when it is true, will use `navigator.language` overwrite default
-    baseNavigator: true,
+    baseNavigator: false,
   },
   /**
    * @name antd 插件
@@ -150,7 +121,8 @@ export default defineConfig({
       variant: 'filled',
       theme: {
         token: {
-          fontFamily: 'AlibabaSans, sans-serif',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         },
       },
     },
@@ -173,25 +145,8 @@ export default defineConfig({
    * @doc https://umijs.org/docs/max/access
    */
   access: {},
-  /**
-   * @name Google Analytics
-   * @description 使用 GA4 (gtag.js) 进行站点分析
-   * @doc https://umijs.org/docs/max/analytics
-   */
-  analytics: {
-    ga_v2: 'G-59NF1VHHPF',
-  },
-  /**
-   * @name <head> 中额外的 script
-   * @description 配置 <head> 中额外的 script
-   */
-  headScripts: [
-    // 解决首次加载时白屏的问题
-    { src: join(PUBLIC_PATH, 'scripts/loading.js'), async: true },
-  ],
-
   //================ pro 插件配置 =================
-  plugins: ['@umijs/max-plugin-openapi', '@umijs/request-record'],
+  plugins: ['@umijs/max-plugin-openapi'],
 
   /**
    * @name openAPI 插件的配置
@@ -213,7 +168,9 @@ export default defineConfig({
           throw new Error('OpenAPI operation metadata is missing');
         }
         if (!data.operationId) {
-          throw new Error(`OpenAPI operationId is missing: ${data.method} ${data.path}`);
+          throw new Error(
+            `OpenAPI operationId is missing: ${data.method} ${data.path}`,
+          );
         }
         // @umijs/openapi 1.14.1 treats literal colon suffixes as path parameters.
         data.path = data.path.replace(
@@ -225,20 +182,7 @@ export default defineConfig({
     },
   },
 
-  mock: {
-    include: ['src/pages/**/_mock.ts'],
-    exclude: ['mock/requestRecord.mock.js'],
-  },
   // Utoopack 1.4.3 panics on non-ASCII Windows workspace paths.
   utoopack: false,
   esbuildMinifyIIFE: true,
-  requestRecord: {},
-  exportStatic: {},
-  define: {
-    'process.env.CI': process.env.CI,
-    'process.env.COMMIT_HASH': commitHash,
-    __APP_VERSION__: require('./../package.json').version,
-    __UMI_VERSION__: require('@umijs/max/package.json').version,
-    __UTOO_VERSION__: require('@utoo/pack/package.json').version,
-  },
 });

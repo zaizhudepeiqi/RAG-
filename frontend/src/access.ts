@@ -1,11 +1,10 @@
-/**
- * @see https://umijs.org/docs/max/access#access
- * */
-export default function access(
-  initialState: { currentUser?: API.CurrentUser } | undefined,
-) {
-  const { currentUser } = initialState ?? {};
+import type { SessionState } from '@/features/auth/session';
+
+export default function access(initialState?: { session: SessionState }) {
+  const status = initialState?.session.status ?? 'unknown';
   return {
-    canAdmin: currentUser && currentUser.access === 'admin',
+    authenticated: status === 'authenticated',
+    passwordChangeAllowed:
+      status === 'authenticated' || status === 'password_change_required',
   };
 }

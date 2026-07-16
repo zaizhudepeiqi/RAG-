@@ -1,51 +1,37 @@
 export default [
   {
-    path: '/user',
+    path: '/login',
     layout: false,
-    routes: [
-      {
-        name: '登录',
-        path: '/user/login',
-        component: './user/login',
-      },
-    ],
+    component: './login',
   },
   {
-    path: '/welcome',
-    name: '欢迎',
-    icon: 'smile',
-    component: './Welcome',
+    path: '/change-password',
+    name: '修改密码',
+    icon: 'key',
+    access: 'passwordChangeAllowed',
+    component: './change-password',
   },
   {
-    path: '/admin',
-    name: '管理页',
-    icon: 'crown',
-    access: 'canAdmin',
-    routes: [
-      {
-        path: '/admin',
-        redirect: '/admin/sub-page',
-      },
-      {
-        path: '/admin/sub-page',
-        name: '二级管理页',
-        component: './Admin',
-      },
-    ],
+    path: '/dashboard',
+    name: '运行状态',
+    icon: 'dashboard',
+    access: 'authenticated',
+    component: './dashboard',
   },
   {
-    name: '查询表格',
-    icon: 'table',
-    path: '/list',
-    component: './table-list',
+    path: '/tasks',
+    name: '任务',
+    icon: 'unorderedList',
+    access: 'authenticated',
+    component: './tasks',
   },
   {
     path: '/',
-    redirect: '/welcome',
+    redirect: '/dashboard',
   },
   {
     component: './exception/404',
     layout: false,
-    path: './*',
+    path: '/*',
   },
 ];
