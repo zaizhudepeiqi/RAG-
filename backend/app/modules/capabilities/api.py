@@ -24,7 +24,7 @@ def get_capability_dependencies(request: Request) -> CapabilityDependencies:
     return cast(CapabilityDependencies, request.app.state.dependencies)
 
 
-@router.get("", response_model=list[CapabilityOptionResponse])
+@router.get("", response_model=list[CapabilityOptionResponse], operation_id="capabilitiesList")
 def list_capabilities(
     dependencies: Annotated[CapabilityDependencies, Depends(get_capability_dependencies)],
     category: str | None = None,
@@ -37,7 +37,11 @@ def list_capabilities(
     return [capability_response(option) for option in options]
 
 
-@router.get("/{code}/versions/{version}", response_model=CapabilityOptionResponse)
+@router.get(
+    "/{code}/versions/{version}",
+    response_model=CapabilityOptionResponse,
+    operation_id="capabilitiesGetVersion",
+)
 def get_capability(
     code: str,
     version: str,

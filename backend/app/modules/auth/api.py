@@ -32,7 +32,7 @@ from app.modules.auth.service import (
 router = APIRouter(prefix="/api/v1/auth", tags=["管理员认证"])
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginResponse, operation_id="authLogin")
 def login(
     payload: LoginRequest,
     request: Request,
@@ -73,6 +73,7 @@ def login(
 @router.post(
     "/logout",
     response_model=SuccessResponse,
+    operation_id="authLogout",
     dependencies=[Depends(require_csrf)],
 )
 def logout(
@@ -95,7 +96,7 @@ def logout(
     return SuccessResponse()
 
 
-@router.get("/me", response_model=AdminProfile)
+@router.get("/me", response_model=AdminProfile, operation_id="authMe")
 def me(
     administrator: Annotated[Administrator, Depends(require_admin)],
 ) -> AdminProfile:
@@ -105,6 +106,7 @@ def me(
 @router.post(
     "/change-password",
     response_model=SuccessResponse,
+    operation_id="authChangePassword",
     dependencies=[Depends(require_csrf)],
 )
 def change_password(

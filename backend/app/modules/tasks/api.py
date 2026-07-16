@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal, Protocol, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Path, Query, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.errors import AppError
@@ -38,7 +38,7 @@ def get_task_dependencies(request: Request) -> TaskDependencies:
     return cast(TaskDependencies, request.app.state.dependencies)
 
 
-@router.get("", response_model=OperationPage)
+@router.get("", response_model=OperationPage, operation_id="operationsList")
 def list_operations(
     dependencies: Annotated[TaskDependencies, Depends(get_task_dependencies)],
     status: str | None = None,
@@ -68,9 +68,9 @@ def list_operations(
     )
 
 
-@router.get("/{operation_id}", response_model=OperationDetail)
+@router.get("/{operationId}", response_model=OperationDetail, operation_id="operationsGet")
 def get_operation(
-    operation_id: UUID,
+    operation_id: Annotated[UUID, Path(alias="operationId")],
     dependencies: Annotated[TaskDependencies, Depends(get_task_dependencies)],
 ) -> OperationDetail:
     try:
@@ -82,12 +82,13 @@ def get_operation(
 
 
 @router.post(
-    "/{operation_id}:cancel",
+    "/{operationId}:cancel",
     response_model=OperationDetail,
+    operation_id="operationsCancel",
     dependencies=[Depends(require_csrf)],
 )
 def cancel_operation(
-    operation_id: UUID,
+    operation_id: Annotated[UUID, Path(alias="operationId")],
     dependencies: Annotated[TaskDependencies, Depends(get_task_dependencies)],
 ) -> OperationDetail:
     try:
@@ -106,12 +107,13 @@ def cancel_operation(
 
 
 @router.post(
-    "/{operation_id}:retry",
+    "/{operationId}:retry",
     response_model=OperationDetail,
+    operation_id="operationsRetry",
     dependencies=[Depends(require_csrf)],
 )
 def retry_operation(
-    operation_id: UUID,
+    operation_id: Annotated[UUID, Path(alias="operationId")],
     dependencies: Annotated[TaskDependencies, Depends(get_task_dependencies)],
     administrator: Annotated[Administrator, Depends(require_admin)],
     idempotency_key: Annotated[

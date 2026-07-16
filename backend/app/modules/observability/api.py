@@ -8,7 +8,7 @@ from app.modules.observability.schemas import DependencyHealthResponse, HealthRe
 router = APIRouter(prefix="/api/v1/health", tags=["系统健康"])
 
 
-@router.get("/live", response_model=HealthResponse)
+@router.get("/live", response_model=HealthResponse, operation_id="healthLive")
 def live(request: Request) -> HealthResponse:
     return request.app.state.dependencies.health_service.liveness(
         trace_id=_trace_id(request),
@@ -16,7 +16,7 @@ def live(request: Request) -> HealthResponse:
     )
 
 
-@router.get("/ready", response_model=DependencyHealthResponse)
+@router.get("/ready", response_model=DependencyHealthResponse, operation_id="healthReady")
 def ready(request: Request, response: Response) -> DependencyHealthResponse:
     result = request.app.state.dependencies.health_service.readiness(
         trace_id=_trace_id(request),
@@ -27,7 +27,11 @@ def ready(request: Request, response: Response) -> DependencyHealthResponse:
     return result
 
 
-@router.get("/dependencies", response_model=DependencyHealthResponse)
+@router.get(
+    "/dependencies",
+    response_model=DependencyHealthResponse,
+    operation_id="healthDependencies",
+)
 def dependencies(request: Request, response: Response) -> DependencyHealthResponse:
     result = request.app.state.dependencies.health_service.dependencies(
         trace_id=_trace_id(request),

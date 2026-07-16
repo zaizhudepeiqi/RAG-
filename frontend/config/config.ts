@@ -198,15 +198,32 @@ export default defineConfig({
    * @description 基于 openapi 的规范生成serve 和mock，能减少很多样板代码
    * @doc https://pro.ant.design/zh-cn/docs/openapi/
    */
-  openAPI: [
-    {
-      requestLibPath: "import { request } from '@umijs/max'",
-      // 或者使用在线的版本
-      // schemaPath: "https://gw.alipayobjects.com/os/antfincdn/M%24jrzTTYJN/oneapi.json"
-      schemaPath: join(__dirname, 'oneapi.json'),
-      mock: false,
+  openAPI: {
+    requestLibPath: "import { request } from '@umijs/max'",
+    schemaPath: join(__dirname, '../../docs/api/openapi.json'),
+    projectName: 'ragApi',
+    mock: false,
+    hook: {
+      customFunctionName(data?: {
+        method: string;
+        operationId?: string;
+        path: string;
+      }) {
+        if (!data) {
+          throw new Error('OpenAPI operation metadata is missing');
+        }
+        if (!data.operationId) {
+          throw new Error(`OpenAPI operationId is missing: ${data.method} ${data.path}`);
+        }
+        // @umijs/openapi 1.14.1 treats literal colon suffixes as path parameters.
+        data.path = data.path.replace(
+          /^\/api\/v1\/operations\/\{operationId\}:(cancel|retry)$/u,
+          '/api/v1/operations/{operationId}%3A$1',
+        );
+        return data.operationId;
+      },
     },
-  ],
+  },
 
   mock: {
     include: ['src/pages/**/_mock.ts'],
