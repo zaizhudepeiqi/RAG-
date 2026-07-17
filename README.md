@@ -41,6 +41,13 @@ docker version
 
 版本不一致时先修正本机工具，不修改项目锁文件规避失败。
 
+相关文档：
+
+- [Windows 开发说明](deploy/docs/windows-development.md)
+- [故障排查](deploy/docs/troubleshooting.md)
+- [前端工具链安全审计例外](docs/security/frontend-toolchain-audit-exception.md)
+- [ChromaDB Python 客户端安全审计例外](docs/security/chromadb-python-client-audit-exception.md)
+
 ## 开发启动
 
 创建本机开发配置，该文件被 Git 忽略：
@@ -58,19 +65,40 @@ uv sync --project backend --frozen --all-groups
 uv run --project backend alembic -c backend/alembic.ini upgrade head
 ```
 
-分别启动 API、Worker 和前端：
+分别启动 API、四个队列的 Worker 副本、Celery Beat 和前端。以下每组命令都在独立的 PowerShell 终端中从仓库根目录执行；Worker 示例是各队列的第一个副本，所有 Windows `solo` Worker 都使用 `--concurrency=1`。完整的 2/2/4/1 副本矩阵和编号方式见 [Windows 开发说明](deploy/docs/windows-development.md#8-启动四个队列的-worker-副本)。
 
 ```powershell
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
 uv run --project backend uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8001
-uv run --project backend celery -A app.bootstrap.celery_app:celery_app worker --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
+uv run --project backend celery --workdir backend -A app.bootstrap.celery_app:celery_app worker --pool=solo --queues parsing --concurrency=1 --hostname=parsing-1@%h --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
+uv run --project backend celery --workdir backend -A app.bootstrap.celery_app:celery_app worker --pool=solo --queues indexing --concurrency=1 --hostname=indexing-1@%h --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
+uv run --project backend celery --workdir backend -A app.bootstrap.celery_app:celery_app worker --pool=solo --queues chat --concurrency=1 --hostname=chat-1@%h --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
+uv run --project backend celery --workdir backend -A app.bootstrap.celery_app:celery_app worker --pool=solo --queues maintenance --concurrency=1 --hostname=maintenance-1@%h --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
+uv run --project backend celery --workdir backend -A app.bootstrap.celery_app:celery_app beat --loglevel=INFO
+
+. ./deploy/scripts/import-env.ps1 -Path deploy/env/.env.development
 npm --prefix frontend run dev
 ```
+
+Beat 必须保持运行，定时 outbox 分发、reconciliation 和 Worker heartbeat 才会持续投递。
 
 ## 检查
 
 ```powershell
 pwsh -NoProfile -File scripts/check.ps1
 ```
+
+开发服务状态可通过 `scripts/dev-status.ps1` 检查；仓库级完整检查统一使用根目录的 `scripts/check.ps1`。
 
 第一阶段尚未完成前，可按 `docs/implementation/01-foundation-implementation-plan.md` 运行对应任务的局部检查。
 

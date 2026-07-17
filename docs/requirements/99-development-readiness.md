@@ -1,8 +1,8 @@
 # 开发就绪审计
 
-审计时间：2026-07-13
+审计时间：2026-07-18
 
-当前结论：**IMPLEMENTATION PLAN IN REVIEW**。需求和开发契约基线已形成，分阶段路线图和第一阶段详细计划已提交审阅；尚未开始生产代码。计划确认前不得创建生产工程骨架，也不重新询问已收口默认值。
+当前结论：**IMPLEMENTATION IN PROGRESS (PHASE 1)**。用户基线审阅已完成，分阶段路线图和第一阶段详细计划已完成并确认；生产代码正在 `codex/phase-01-foundation` 分支按第一阶段边界实施。第一阶段和 CI 尚未完成，不重新询问已收口默认值。
 
 ## 1. 文档门禁
 
@@ -16,9 +16,9 @@
 | 状态机 | 完成 | `docs/state-machines/state-machines.md` |
 | 页面/API 对照 | 完成 | `docs/frontend-api-map/page-api-map.md` |
 | 第一版验收清单 | 完成 | `docs/acceptance/v1-acceptance.md` |
-| 用户基线审阅 | 已进入实施计划审阅 | 用户已要求按既定顺序编写计划 |
-| 分阶段实施计划 | 待确认 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md` |
-| 生产代码 | 未开始 | 实施计划确认后 |
+| 用户基线审阅 | 完成 | 用户已完成基线审阅 |
+| 分阶段实施计划 | 完成并确认 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md` |
+| 生产代码 | 第一阶段实施中 | `codex/phase-01-foundation` |
 
 ## 2. 已消除的高风险冲突
 
@@ -54,7 +54,7 @@
 
 ## 4. 首个实施阶段边界
 
-实施计划确认后，第一阶段只做工程和基础设施，不直接跳到 RAG 页面：
+当前第一阶段只做工程和基础设施，不直接跳到 RAG 页面：
 
 1. Monorepo 目录和依赖锁。
 2. FastAPI bootstrap、配置、错误、traceId、健康接口。
@@ -65,9 +65,9 @@
 
 通过该阶段验收后，再按模块实现模型/解析、知识库/检索、机器人/渠道和前端业务。
 
-## 5. 审阅重点
+## 5. 基线审阅重点（已完成）
 
-用户审阅不需要检查每个 SQL 类型，优先确认：
+用户基线审阅已完成，审阅时优先确认以下内容，不需要检查每个 SQL 类型：
 
 - 数据解析和知识库的业务顺序是否完全符合预期。
 - 第一版功能范围是否接受，包括附件、质量评测、安全和生产部署。
@@ -78,4 +78,4 @@
 
 ## 6. Git 状态说明
 
-`D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；生产代码开始后使用独立阶段分支，不直接在 `main` 开发。
+`D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；生产代码当前在独立阶段分支 `codex/phase-01-foundation` 开发，不直接在 `main` 开发。

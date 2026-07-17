@@ -1,0 +1,322 @@
+name: ci
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Quality and security
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.13.9"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: "0.11.28"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@11.13.0
+
+      - name: Run repository quality checks
+        shell: pwsh
+        run: ./scripts/check.ps1
+
+      - name: Export locked backend requirements
+        run: >-
+          uv export --project backend --frozen --no-dev --no-emit-project
+          --output-file "${{ runner.temp }}/backend-requirements.txt"
+
+      - name: Enforce ChromaDB audit exception expiry
+        shell: pwsh
+        run: |
+          $expiry = [DateTime]::new(2026, 8, 31, 0, 0, 0, [DateTimeKind]::Utc)
+          if ([DateTime]::UtcNow.Date -gt $expiry) {
+            throw "ChromaDB Python client audit exception expired after 2026-08-31. See docs/security/chromadb-python-client-audit-exception.md."
+          }
+
+      - name: Audit locked backend dependencies
+        run: >-
+          uvx --from pip-audit==2.10.1 pip-audit
+          --ignore-vuln PYSEC-2026-311
+          -r "${{ runner.temp }}/backend-requirements.txt"
+
+      - name: Audit frontend production dependencies
+        run: npm --prefix frontend audit --omit=dev --audit-level=high
+
+      - name: Enforce frontend audit exception expiry
+        shell: pwsh
+        run: |
+          $expiry = [DateTime]::new(2026, 8, 31, 0, 0, 0, [DateTimeKind]::Utc)
+          if ([DateTime]::UtcNow.Date -gt $expiry) {
+            throw "Frontend toolchain audit exception expired after 2026-08-31. See docs/security/frontend-toolchain-audit-exception.md."
+          }
+
+      # Non-blocking only under docs/security/frontend-toolchain-audit-exception.md.
+      - name: Report full frontend toolchain audit (temporary exception)
+        continue-on-error: true
+        run: npm --prefix frontend audit --audit-level=high
+
+      - name: Check documentation and repository secrets
+        shell: pwsh
+        run: ./scripts/check-docs.ps1
+
+      - name: Validate development Compose configuration
+        run: >-
+          docker compose
+          --env-file deploy/env/.env.development.example
+          -f deploy/compose/compose.deps.yml
+          config --quiet
+
+  integration:
+    name: Integration and end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.13.9"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: "0.11.28"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24.16.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Pin npm
+        run: npm install --global npm@11.13.0
+
+      - name: Generate integration credentials
+        shell: pwsh
+        run: |
+          function New-RandomBytes([int] $count) {
+            $bytes = [byte[]]::new($count)
+            [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+            return $bytes
+          }
+
+          function New-HexSecret([int] $count) {
+            return [Convert]::ToHexString((New-RandomBytes $count)).ToLowerInvariant()
+          }
+
+          $pgEntropy = New-HexSecret 32
+          Write-Output "::add-mask::$pgEntropy"
+          $jwtEntropy = [Convert]::ToBase64String((New-RandomBytes 48))
+          Write-Output "::add-mask::$jwtEntropy"
+          $credentialEntropy = [Convert]::ToBase64String((New-RandomBytes 32))
+          Write-Output "::add-mask::$credentialEntropy"
+          $adminInitial = "Aa1!$(New-HexSecret 24)"
+          Write-Output "::add-mask::$adminInitial"
+          $adminReplacement = "Bb2@$(New-HexSecret 24)"
+          Write-Output "::add-mask::$adminReplacement"
+          $databaseUrl = "postgresql+psycopg://rag_app:${pgEntropy}@127.0.0.1:5432/rag_kb"
+          $testDatabaseUrl = "postgresql+psycopg://rag_app:${pgEntropy}@127.0.0.1:5432/rag_kb_test"
+          $storageRoot = [IO.Path]::Combine($env:RUNNER_TEMP, "rag-storage")
+
+          $environment = @(
+            "APP_ENV=test"
+            "API_BASE_URL=http://127.0.0.1:8001"
+            "FRONTEND_ORIGIN=http://127.0.0.1:5173"
+            "POSTGRES_DB=rag_kb"
+            "POSTGRES_USER=rag_app"
+            ("{0}={1}" -f "POSTGRES_PASSWORD", $pgEntropy)
+            "POSTGRES_PORT=5432"
+            "DATABASE_URL=$databaseUrl"
+            "RAG_TEST_DATABASE_URL=$testDatabaseUrl"
+            "REDIS_PORT=6379"
+            "REDIS_URL=redis://127.0.0.1:6379/0"
+            "CHROMA_PORT=8000"
+            "CHROMA_HOST=127.0.0.1"
+            "STORAGE_ROOT=$storageRoot"
+            ("{0}={1}" -f "JWT_SIGNING_KEY", $jwtEntropy)
+            ("{0}={1}" -f "CREDENTIAL_ENCRYPTION_KEY", $credentialEntropy)
+            "INITIAL_ADMIN_USERNAME=ci-admin"
+            ("{0}={1}" -f "INITIAL_ADMIN_PASSWORD", $adminInitial)
+            "RAG_E2E_USERNAME=ci-admin"
+            ("{0}={1}" -f "RAG_E2E_PASSWORD", $adminInitial)
+            ("{0}={1}" -f "RAG_E2E_NEW_PASSWORD", $adminReplacement)
+          )
+          [IO.File]::AppendAllLines($env:GITHUB_ENV, $environment)
+
+      - name: Prepare integration environment
+        shell: pwsh
+        run: |
+          Copy-Item deploy/env/.env.development.example deploy/env/.env.development
+          New-Item -ItemType Directory -Force -Path $env:STORAGE_ROOT | Out-Null
+
+      - name: Install locked dependencies
+        run: |
+          uv sync --project backend --frozen --all-groups
+          npm --prefix frontend ci
+
+      - name: Start Compose dependencies
+        run: >-
+          docker compose
+          --env-file deploy/env/.env.development
+          -f deploy/compose/compose.deps.yml
+          up -d --wait
+
+      - name: Create isolated test database
+        shell: pwsh
+        run: |
+          docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml exec -T postgres psql --set ON_ERROR_STOP=1 --username $env:POSTGRES_USER --dbname postgres --command 'DROP DATABASE IF EXISTS rag_kb_test'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to drop the integration test database."
+          }
+          docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml exec -T postgres psql --set ON_ERROR_STOP=1 --username $env:POSTGRES_USER --dbname postgres --command 'CREATE DATABASE rag_kb_test'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to create the integration test database."
+          }
+
+      - name: Apply API database migrations
+        run: uv run --project backend alembic -c backend/alembic.ini upgrade head
+
+      - name: Run backend integration tests
+        shell: pwsh
+        run: |
+          $env:DATABASE_URL = $env:RAG_TEST_DATABASE_URL
+          uv run --project backend pytest backend/tests -v -m integration
+
+      - name: Start application services
+        shell: pwsh
+        run: |
+          $apiOut = Join-Path $env:RUNNER_TEMP "rag-api.out.log"
+          $apiErr = Join-Path $env:RUNNER_TEMP "rag-api.err.log"
+          $frontendOut = Join-Path $env:RUNNER_TEMP "rag-frontend.out.log"
+          $frontendErr = Join-Path $env:RUNNER_TEMP "rag-frontend.err.log"
+          $apiPgid = Join-Path $env:RUNNER_TEMP "rag-api.pgid"
+          $frontendPgid = Join-Path $env:RUNNER_TEMP "rag-frontend.pgid"
+
+          function Save-ProcessGroup([Diagnostics.Process] $process, [string] $path) {
+            if ($process.Id -le 1) {
+              throw "Service process has an invalid process ID."
+            }
+            $groupOutput = & /usr/bin/ps -o pgid= -p $process.Id
+            if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string] $groupOutput)) {
+              throw "Could not inspect the service process group."
+            }
+            $groupText = ([string] $groupOutput).Trim()
+            $groupId = 0
+            if (-not [int]::TryParse($groupText, [ref] $groupId) -or $groupId -le 1 -or $groupId -ne $process.Id) {
+              throw "Service process is not a valid process-group leader."
+            }
+            [IO.File]::WriteAllText($path, [string] $groupId)
+          }
+
+          function Wait-ForUrl([string] $url) {
+            foreach ($attempt in 1..60) {
+              try {
+                $response = Invoke-WebRequest -Uri $url -TimeoutSec 5
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+                  return
+                }
+              } catch {
+                Start-Sleep -Seconds 2
+              }
+            }
+            throw "Service readiness timed out."
+          }
+
+          try {
+            $api = Start-Process -FilePath "/usr/bin/setsid" -ArgumentList @((Get-Command uv).Source, "run", "--project", "backend", "uvicorn", "app.main:app", "--app-dir", "backend", "--host", "127.0.0.1", "--port", "8001") -RedirectStandardOutput $apiOut -RedirectStandardError $apiErr -PassThru
+            Save-ProcessGroup $api $apiPgid
+
+            $frontend = Start-Process -FilePath "/usr/bin/setsid" -ArgumentList @((Get-Command npm).Source, "--prefix", "frontend", "run", "dev") -RedirectStandardOutput $frontendOut -RedirectStandardError $frontendErr -PassThru
+            Save-ProcessGroup $frontend $frontendPgid
+
+            Wait-ForUrl "http://127.0.0.1:8001/api/v1/health/ready"
+            Wait-ForUrl "http://127.0.0.1:5173"
+          } catch {
+            Get-Content $apiOut, $apiErr, $frontendOut, $frontendErr -ErrorAction SilentlyContinue
+            throw "Application services did not become ready."
+          }
+
+      - name: Install Playwright Chromium
+        run: npm --prefix frontend exec -- playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm --prefix frontend run test:e2e
+
+      - name: Clean up integration services
+        if: always()
+        shell: pwsh
+        run: |
+          $runnerGroupOutput = & /usr/bin/ps -o pgid= -p $PID
+          $runnerGroupId = 0
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string] $runnerGroupOutput)) {
+            Write-Warning "Could not inspect the runner process group; service group termination will be skipped."
+          } else {
+            $runnerGroupText = ([string] $runnerGroupOutput).Trim()
+            if (-not [int]::TryParse($runnerGroupText, [ref] $runnerGroupId) -or $runnerGroupId -le 1) {
+              $runnerGroupId = 0
+              Write-Warning "Could not validate the runner process group; service group termination will be skipped."
+            }
+          }
+
+          foreach ($name in "rag-api", "rag-frontend") {
+            $groupPath = Join-Path $env:RUNNER_TEMP "$name.pgid"
+            if (Test-Path $groupPath) {
+              if ($runnerGroupId -le 1) {
+                Write-Warning "Skipping service process-group termination because the runner group is unknown."
+                continue
+              }
+              $groupId = 0
+              $groupText = [IO.File]::ReadAllText($groupPath).Trim()
+              if (-not [int]::TryParse($groupText, [ref] $groupId) -or $groupId -le 1 -or $groupId -eq $runnerGroupId) {
+                Write-Warning "Ignoring an invalid service process-group ID."
+                continue
+              }
+
+              & /usr/bin/kill -TERM -- "-$groupId" 2>$null
+              foreach ($attempt in 1..10) {
+                & /usr/bin/kill -0 -- "-$groupId" 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                  break
+                }
+                Start-Sleep -Seconds 1
+              }
+              & /usr/bin/kill -0 -- "-$groupId" 2>$null
+              if ($LASTEXITCODE -eq 0) {
+                & /usr/bin/kill -KILL -- "-$groupId" 2>$null
+              }
+            }
+          }
+
+          if (Test-Path deploy/env/.env.development) {
+            docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml logs --no-color
+            docker compose --env-file deploy/env/.env.development -f deploy/compose/compose.deps.yml down
+          }

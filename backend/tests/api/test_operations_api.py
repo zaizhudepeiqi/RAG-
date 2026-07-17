@@ -10,6 +10,8 @@ from redis import Redis
 from sqlalchemy import Engine, text
 from starlette.testclient import TestClient
 
+pytestmark = pytest.mark.integration
+
 INITIAL_CREDENTIAL = "Initial-Admin-Password-01!"
 CURRENT_CREDENTIAL = "Current-Admin-Password-02!"
 
