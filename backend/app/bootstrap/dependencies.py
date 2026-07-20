@@ -29,7 +29,7 @@ from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
 from app.infrastructure.storage.local import LocalStorageAdapter
 from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
-from app.modules.capabilities.registry import CapabilityRegistry
+from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
@@ -98,7 +98,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     admin_idempotency_service = AdminIdempotencyService(SqlAlchemyAdminIdempotencyRepository())
     outbox_dispatch_store = SqlAlchemyOutboxDispatchStore(session_factory)
     operation_execution_store = SqlAlchemyOperationExecutionStore(session_factory)
-    capability_service = CapabilityService(CapabilityRegistry())
+    capability_service = CapabilityService(build_capability_registry())
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,

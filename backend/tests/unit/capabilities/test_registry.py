@@ -1,6 +1,8 @@
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+from app.modules.capabilities import registry as registry_module
 from app.modules.capabilities.domain import CapabilityOption
 from app.modules.capabilities.errors import CapabilityNotFoundError
 from app.modules.capabilities.registry import CapabilityRegistry
@@ -98,3 +100,26 @@ def test_registered_schema_is_deeply_immutable() -> None:
         stored.config_schema["type"] = "array"  # type: ignore[index]
     properties = stored.config_schema["properties"]
     assert isinstance(properties, dict) is False
+
+
+def test_builtin_catalog_registers_supported_model_providers_and_types() -> None:
+    builder = getattr(registry_module, "build_capability_registry", None)
+    assert callable(builder), "build_capability_registry must define the production catalog"
+
+    registry = builder()
+    providers = registry.list(category="model_provider", include_disabled=False)
+    model_types = registry.list(category="model_type", include_disabled=False)
+
+    assert {item.code for item in providers} == {
+        "openai",
+        "openai_compatible",
+        "deepseek",
+        "qwen",
+    }
+    assert {item.code for item in model_types} == {"llm", "embedding", "rerank", "vision"}
+
+    compatible = registry.get("openai_compatible", "1")
+    assert compatible.config_schema is not None
+    properties = compatible.config_schema["properties"]
+    assert isinstance(properties, Mapping)
+    assert "supportedModelTypes" in properties
