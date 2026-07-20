@@ -35,4 +35,9 @@ if ($rootPackage.packageManager -ne "npm@11.13.0") {
   throw "Root packageManager must be npm@11.13.0"
 }
 
+$jsxEol = (git check-attr eol -- "frontend/tests/setupTests.jsx").Trim()
+if ($LASTEXITCODE -ne 0 -or $jsxEol -notmatch ": eol: lf$") {
+  throw "Tracked JSX files must be checked out with LF line endings; found '$jsxEol'"
+}
+
 Write-Output "Repository structure and runtime locks are valid."
