@@ -3,7 +3,7 @@ import {
   ProForm,
   ProFormText,
 } from '@ant-design/pro-components';
-import { history, useModel } from '@umijs/max';
+import { useModel } from '@umijs/max';
 import { Card, message } from 'antd';
 import { toApiClientError } from '@/features/api/errors';
 import {
@@ -30,7 +30,7 @@ export default function ChangePasswordPage() {
                 session: { status: 'authenticated', currentAdmin },
               }));
               message.success('密码已更新');
-              history.replace('/dashboard');
+              window.location.replace('/dashboard');
               return true;
             } catch (error) {
               message.error(toApiClientError(error).message);

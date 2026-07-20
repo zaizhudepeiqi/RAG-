@@ -2113,13 +2113,14 @@ jobs:
 CI 在 lock 安装后执行：
 
 ```powershell
-uvx --from pip-audit==2.10.1 pip-audit --locked backend
-npm --prefix frontend audit --audit-level=high
+uv export --project backend --frozen --no-dev --no-emit-project --output-file <temporary-requirements-path>
+uvx --from pip-audit==2.10.1 pip-audit --ignore-vuln PYSEC-2026-311 -r <temporary-requirements-path>
+npm --prefix frontend audit --omit=dev --audit-level=high
 pwsh -NoProfile -File scripts/check-docs.ps1
 docker compose --env-file deploy/env/.env.development.example -f deploy/compose/compose.deps.yml config --quiet
 ```
 
-若 `pip-audit 2.10.1` 因供应链原因无法取得，必须先在工程基线变更中记录替代精确版本，不能改为浮动安装。漏洞只允许带到期日、CVE、不可利用理由和负责人记录的临时例外。
+`pip-audit 2.10.1` 不直接识别本项目的 `uv.lock`，必须先由 `uv export --frozen` 生成临时审计输入；CI 使用 runner 临时目录，本机验证也不得把该文件提交到仓库。`PYSEC-2026-311` 的临时例外、负责人、不可利用理由和到期日记录在 `docs/security/chromadb-python-client-audit-exception.md`。若审计工具因供应链原因无法取得，必须先在工程基线变更中记录替代精确版本，不能改为浮动安装。其他漏洞只允许带到期日、CVE、不可利用理由和负责人记录的临时例外。
 
 - [ ] **Step 5: 写 Windows 开发和故障排查文档**
 

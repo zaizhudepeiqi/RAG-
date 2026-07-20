@@ -128,7 +128,13 @@ export default function TasksPage() {
   ];
 
   return (
-    <PageContainer title="任务">
+    <PageContainer
+      title={
+        <Typography.Title level={2} style={{ fontSize: 20, margin: 0 }}>
+          任务
+        </Typography.Title>
+      }
+    >
       <Space orientation="vertical" size={16} style={{ width: '100%' }}>
         <Select
           allowClear

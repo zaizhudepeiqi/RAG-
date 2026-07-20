@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from enum import IntEnum
 from typing import Annotated, Literal, Protocol, cast
 from uuid import UUID
 
@@ -27,6 +28,12 @@ class TaskDependencies(Protocol):
     admin_idempotency_service: AdminIdempotencyService
 
 
+class OperationPageSize(IntEnum):
+    DEFAULT = 20
+    MEDIUM = 50
+    LARGE = 100
+
+
 router = APIRouter(
     prefix="/api/v1/operations",
     tags=["异步任务"],
@@ -46,7 +53,7 @@ def list_operations(
     target_type: Annotated[str | None, Query(alias="targetType")] = None,
     target_id: Annotated[UUID | None, Query(alias="targetId")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[Literal[20, 50, 100], Query(alias="pageSize")] = 20,
+    page_size: Annotated[OperationPageSize, Query(alias="pageSize")] = OperationPageSize.DEFAULT,
     sort: Literal["queued_at", "-queued_at", "created_at", "-created_at"] = "-queued_at",
 ) -> OperationPage:
     query = OperationListQuery(

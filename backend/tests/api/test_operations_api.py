@@ -113,6 +113,19 @@ def test_operations_list_detail_and_cancel(operations_client: tuple[TestClient, 
     assert cancelled.json()["status"] == "cancelled"
 
 
+def test_operations_accepts_generated_client_defaults(
+    operations_client: tuple[TestClient, Engine],
+) -> None:
+    client, _engine = operations_client
+
+    response = client.get(
+        "/api/v1/operations",
+        params={"page": "1", "pageSize": "20", "sort": "-queued_at"},
+    )
+
+    assert response.status_code == 200, response.json()
+
+
 def test_retry_rejects_unregistered_task_type(
     operations_client: tuple[TestClient, Engine],
 ) -> None:

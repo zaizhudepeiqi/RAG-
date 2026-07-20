@@ -2,7 +2,7 @@
 
 审计时间：2026-07-18
 
-当前结论：**IMPLEMENTATION IN PROGRESS (PHASE 1)**。用户基线审阅已完成，分阶段路线图和第一阶段详细计划已完成并确认；生产代码正在 `codex/phase-01-foundation` 分支按第一阶段边界实施。第一阶段和 CI 尚未完成，不重新询问已收口默认值。
+当前结论：**READY FOR BASELINE REVIEW (PHASE 1)**。第一阶段代码、CI、本地集成验证和核心认证 E2E 已完成；生产代码位于 `codex/phase-01-foundation` 分支。MinerU、模型配置、解析业务、知识库、检索、机器人和渠道仍按计划留在后续阶段，不在本阶段伪实现。
 
 ## 1. 文档门禁
 
@@ -18,7 +18,7 @@
 | 第一版验收清单 | 完成 | `docs/acceptance/v1-acceptance.md` |
 | 用户基线审阅 | 完成 | 用户已完成基线审阅 |
 | 分阶段实施计划 | 完成并确认 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md` |
-| 生产代码 | 第一阶段实施中 | `codex/phase-01-foundation` |
+| 生产代码 | 第一阶段已实现，待基线审阅 | `codex/phase-01-foundation` |
 
 ## 2. 已消除的高风险冲突
 
@@ -65,7 +65,17 @@
 
 通过该阶段验收后，再按模块实现模型/解析、知识库/检索、机器人/渠道和前端业务。
 
-## 5. 基线审阅重点（已完成）
+## 5.1 第一阶段验证证据（2026-07-20）
+
+- 根质量门禁：`scripts/check.ps1` exit 0；后端非集成测试 67 passed，前端 Jest 7 suites/14 tests passed，Ruff、strict mypy、Biome、TypeScript、生产构建和 OpenAPI 生成漂移检查通过。
+- PostgreSQL/Redis/Chroma 集成组：28 passed，覆盖认证、迁移、数据库约束、依赖健康、Celery/Redis、Operation/outbox 幂等和恢复。
+- 依赖审计：导出 `uv.lock` 后运行固定版本 `pip-audit 2.10.1`，无未豁免已知漏洞；ChromaDB 例外有单独到期门禁。前端生产依赖 `npm audit --omit=dev --audit-level=high` 通过，报告 1 项已知 moderate `dompurify` 上游问题。
+- 本机 Edge E2E：1 passed；覆盖未登录拦截、管理员登录、首次改密、HttpOnly Cookie 重载、健康页、任务页、退出和再次拦截。
+- Docker Desktop：PostgreSQL、Redis、Chroma 均为 healthy；E2E 临时数据库和 API/前端进程已回收。
+
+本地 Chromium 下载未完成，因此本次本机浏览器证据使用系统 Edge；CI 仍安装并使用 Playwright Chromium。代理代码审查因服务端 429 未返回结果，提交前已完成同范围人工代码和需求复核。
+
+## 6. 基线审阅重点（已完成）
 
 用户基线审阅已完成，审阅时优先确认以下内容，不需要检查每个 SQL 类型：
 
@@ -76,6 +86,6 @@
 
 技术字段若发现歧义，先修正文档再写实施计划。
 
-## 6. Git 状态说明
+## 7. Git 状态说明
 
 `D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；生产代码当前在独立阶段分支 `codex/phase-01-foundation` 开发，不直接在 `main` 开发。

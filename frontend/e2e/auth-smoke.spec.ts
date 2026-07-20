@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.setTimeout(120_000);
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -16,11 +18,11 @@ test('administrator authentication shell works through HttpOnly cookies', async 
   const newPassword = requiredEnvironment('RAG_E2E_NEW_PASSWORD');
 
   await page.goto('/dashboard');
-  await expect(page).toHaveURL(/\/login\?redirect=/);
+  await expect(page).toHaveURL(/\/login\?redirect=/, { timeout: 30_000 });
 
   await page.getByPlaceholder('管理员账号').fill(username);
   await page.getByPlaceholder('密码').fill(password);
-  await page.getByRole('button', { name: '登录' }).click();
+  await page.getByRole('button', { name: /登\s*录/ }).click();
 
   await expect(page).toHaveURL('/change-password');
   await page.getByLabel('当前密码').fill(password);

@@ -556,6 +556,15 @@
         "title": "OperationPage",
         "type": "object"
       },
+      "OperationPageSize": {
+        "enum": [
+          20,
+          50,
+          100
+        ],
+        "title": "OperationPageSize",
+        "type": "integer"
+      },
       "OperationStatus": {
         "enum": [
           "queued",
@@ -1184,14 +1193,8 @@
             "name": "pageSize",
             "required": false,
             "schema": {
-              "default": 20,
-              "enum": [
-                20,
-                50,
-                100
-              ],
-              "title": "Pagesize",
-              "type": "integer"
+              "$ref": "#/components/schemas/OperationPageSize",
+              "default": 20
             }
           },
           {

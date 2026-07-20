@@ -189,6 +189,8 @@ declare namespace API {
     total: number;
   };
 
+  type OperationPageSize = 20 | 50 | 100;
+
   type operationsCancelParams = {
     operationId: string;
     rag_admin_access?: string | null;
@@ -206,7 +208,7 @@ declare namespace API {
     targetType?: string | null;
     targetId?: string | null;
     page?: number;
-    pageSize?: 20 | 50 | 100;
+    pageSize?: OperationPageSize;
     sort?: "queued_at" | "-queued_at" | "created_at" | "-created_at";
     rag_admin_access?: string | null;
   };
