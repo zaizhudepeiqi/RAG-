@@ -1,8 +1,8 @@
 # 开发就绪审计
 
-审计时间：2026-07-18
+审计时间：2026-07-20
 
-当前结论：**READY FOR BASELINE REVIEW (PHASE 1)**。第一阶段代码、CI、本地集成验证和核心认证 E2E 已完成；生产代码位于 `codex/phase-01-foundation` 分支。MinerU、模型配置、解析业务、知识库、检索、机器人和渠道仍按计划留在后续阶段，不在本阶段伪实现。
+当前结论：**IMPLEMENTATION IN PROGRESS (PHASE 2A)**。第一阶段已合并并推送到 `main`；第二阶段在 `codex/phase-02-models-parsing` 分支按“02A 模型注册与 MinerU 设置 -> 02B 数据上传与解析”顺序实施。知识库、检索、机器人和渠道仍留在后续阶段，不提前创建假实现。
 
 ## 1. 文档门禁
 
@@ -17,8 +17,8 @@
 | 页面/API 对照 | 完成 | `docs/frontend-api-map/page-api-map.md` |
 | 第一版验收清单 | 完成 | `docs/acceptance/v1-acceptance.md` |
 | 用户基线审阅 | 完成 | 用户已完成基线审阅 |
-| 分阶段实施计划 | 完成并确认 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md` |
-| 生产代码 | 第一阶段已实现，待基线审阅 | `codex/phase-01-foundation` |
+| 分阶段实施计划 | Phase 01 完成，Phase 02A 已锁定 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md`、`02a-model-registry-implementation-plan.md` |
+| 生产代码 | 第二阶段 A 实施中 | `codex/phase-02-models-parsing` |
 
 ## 2. 已消除的高风险冲突
 

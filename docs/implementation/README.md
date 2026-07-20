@@ -198,6 +198,11 @@
 - 新解析版本不自动影响知识库；`succeeded/degraded` 才可选择。
 - 对应验收清单第 3、4、5 节通过。
 
+详细步骤：
+
+- 02A：`docs/implementation/02a-model-registry-implementation-plan.md`。
+- 02B：`docs/implementation/02b-data-parsing-implementation-plan.md`（02A 完成后按同一需求真源创建）。
+
 ## 8. 阶段 3：知识库构建与检索
 
 ### 入口门禁
