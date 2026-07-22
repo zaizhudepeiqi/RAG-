@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -14,6 +16,26 @@ class VerificationStatus(StrEnum):
     PASSED = "passed"
     FAILED = "failed"
     STALE = "stale"
+
+
+@dataclass
+class ModelProvider:
+    id: UUID
+    provider_type: str
+    display_name: str
+    base_url: str
+    supported_model_types: tuple[ModelType, ...]
+    credential_ciphertext: bytes
+    credential_nonce: bytes
+    credential_key_version: str
+    credential_prefix: str | None
+    credential_revision: int
+    enabled: bool
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+    model_count: int
 
 
 def provider_credential_aad(provider_id: UUID) -> bytes:

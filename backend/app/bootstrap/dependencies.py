@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
+from app.infrastructure.database.repositories.models import (
+    SqlAlchemyModelAuditRepository,
+    SqlAlchemyModelProviderRepository,
+)
 from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyAdminIdempotencyRepository,
     SqlAlchemyOperationExecutionStore,
@@ -31,6 +35,7 @@ from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
+from app.modules.models.service import ModelProviderService
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchRegistry
@@ -52,6 +57,7 @@ class ApplicationDependencies:
     operation_execution_store: SqlAlchemyOperationExecutionStore
     task_dispatch_registry: TaskDispatchRegistry
     capability_service: CapabilityService
+    model_provider_service: ModelProviderService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -99,6 +105,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     outbox_dispatch_store = SqlAlchemyOutboxDispatchStore(session_factory)
     operation_execution_store = SqlAlchemyOperationExecutionStore(session_factory)
     capability_service = CapabilityService(build_capability_registry())
+    model_provider_service = ModelProviderService(
+        providers=SqlAlchemyModelProviderRepository(),
+        audits=SqlAlchemyModelAuditRepository(),
+        capabilities=capability_service,
+        encryption_key=settings.credential_encryption_key_bytes,
+        app_env=settings.app_env,
+        allow_local_http=settings.allow_local_provider_http,
+    )
     return ApplicationDependencies(
         engine=engine,
         session_factory=session_factory,
@@ -111,4 +125,5 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         operation_execution_store=operation_execution_store,
         task_dispatch_registry=TaskDispatchRegistry(),
         capability_service=capability_service,
+        model_provider_service=model_provider_service,
     )

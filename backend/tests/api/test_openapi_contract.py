@@ -23,6 +23,11 @@ EXPECTED_OPERATIONS = {
     ("get", "/api/v1/operations/{operationId}", "operationsGet"),
     ("post", "/api/v1/operations/{operationId}:cancel", "operationsCancel"),
     ("post", "/api/v1/operations/{operationId}:retry", "operationsRetry"),
+    ("get", "/api/v1/model-providers", "modelProvidersList"),
+    ("post", "/api/v1/model-providers", "modelProvidersCreate"),
+    ("get", "/api/v1/model-providers/{providerId}", "modelProvidersGet"),
+    ("patch", "/api/v1/model-providers/{providerId}", "modelProvidersUpdate"),
+    ("delete", "/api/v1/model-providers/{providerId}", "modelProvidersDelete"),
 }
 
 
