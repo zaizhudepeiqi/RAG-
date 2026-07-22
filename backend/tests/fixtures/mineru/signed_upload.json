@@ -1,0 +1,9 @@
+{
+  "code": 0,
+  "data": {
+    "batch_id": "batch-fixture-001",
+    "file_urls": ["https://upload.example.com/api-upload/redacted?signature=fixture"]
+  },
+  "msg": "ok",
+  "trace_id": "trace-fixture-submit"
+}

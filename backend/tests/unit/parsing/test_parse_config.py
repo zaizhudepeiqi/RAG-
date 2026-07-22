@@ -48,13 +48,13 @@ def test_mineru_document_config_is_canonical_and_force_new_sets_no_cache() -> No
     requested = replace(
         DEFAULT_PARSE_CONFIG,
         page_ranges=" 1-3, 5 ",
-        extra_formats=("json", "markdown", "json"),
+        extra_formats=("latex", "docx", "latex"),
     )
 
     normalized = normalize_parse_config("pdf", requested, force_new=True)
 
     assert normalized.snapshot["pageRanges"] == "1-3,5"
-    assert normalized.snapshot["extraFormats"] == ["json", "markdown"]
+    assert normalized.snapshot["extraFormats"] == ["docx", "latex"]
     assert normalized.snapshot["forceProviderRefresh"] is True
     assert len(normalized.config_hash) == 64
 
@@ -77,3 +77,12 @@ def test_invalid_effective_config_is_rejected(
                 extra_formats=extra_formats,
             ),
         )
+
+
+def test_page_ranges_support_official_relative_end_syntax() -> None:
+    normalized = normalize_parse_config(
+        "pdf",
+        replace(DEFAULT_PARSE_CONFIG, page_ranges="2--2"),
+    )
+
+    assert normalized.snapshot["pageRanges"] == "2--2"

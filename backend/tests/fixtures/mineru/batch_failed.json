@@ -1,0 +1,16 @@
+{
+  "code": 0,
+  "data": {
+    "batch_id": "batch-fixture-001",
+    "extract_result": [
+      {
+        "file_name": "document.pdf",
+        "data_id": "version-fixture-001",
+        "state": "failed",
+        "err_msg": "Unsupported file format"
+      }
+    ]
+  },
+  "msg": "ok",
+  "trace_id": "trace-fixture-failed"
+}

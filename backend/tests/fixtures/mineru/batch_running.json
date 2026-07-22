@@ -1,0 +1,27 @@
+{
+  "code": 0,
+  "data": {
+    "batch_id": "batch-fixture-001",
+    "extract_result": [
+      {
+        "file_name": "example.pdf",
+        "data_id": "other-data-id",
+        "state": "done",
+        "full_zip_url": "https://download.example.com/other.zip"
+      },
+      {
+        "file_name": "document.pdf",
+        "data_id": "version-fixture-001",
+        "state": "running",
+        "err_msg": "",
+        "extract_progress": {
+          "extracted_pages": 1,
+          "total_pages": 2,
+          "start_time": "2025-01-20 11:43:20"
+        }
+      }
+    ]
+  },
+  "msg": "ok",
+  "trace_id": "trace-fixture-running"
+}

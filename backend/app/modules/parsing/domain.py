@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -11,7 +12,8 @@ from app.modules.parsing.settings_domain import ParseConfig
 
 PARSER_VERSION = "1"
 NORMALIZER_VERSION = "1"
-ALLOWED_EXTRA_FORMATS = frozenset({"json", "markdown"})
+ALLOWED_EXTRA_FORMATS = frozenset({"docx", "html", "latex"})
+PAGE_RANGE_PART = re.compile(r"^(?P<start>\d+)(?:-(?P<end>-?\d+))?$")
 
 
 @dataclass
@@ -177,12 +179,15 @@ def _normalize_page_ranges(value: str) -> str:
     normalized: list[str] = []
     for raw_part in value.split(","):
         part = raw_part.strip()
-        bounds = part.split("-", 1)
-        if not all(bound.isdigit() and int(bound) >= 1 for bound in bounds):
+        match = PAGE_RANGE_PART.fullmatch(part)
+        if match is None:
             raise ValueError("invalid page range")
-        if len(bounds) == 2 and int(bounds[0]) > int(bounds[1]):
+        start = int(match.group("start"))
+        end_value = match.group("end")
+        end = int(end_value) if end_value is not None else None
+        if start < 1 or end == 0 or (end is not None and end > 0 and start > end):
             raise ValueError("invalid page range")
-        normalized.append("-".join(str(int(bound)) for bound in bounds))
+        normalized.append(str(start) if end is None else f"{start}-{end}")
     if not normalized:
         raise ValueError("invalid page range")
     return ",".join(normalized)
