@@ -37,7 +37,7 @@ class ProviderHttpTransport:
         self._resolver = resolver
         self._sleeper = sleeper
         self._jitter = jitter
-        self._client = client or httpx.Client(timeout=60.0, follow_redirects=False)
+        self._client = client
 
     def request_json(
         self,
@@ -60,7 +60,7 @@ class ProviderHttpTransport:
             self._validate_base_url(base_url)
             started = time.perf_counter()
             try:
-                response = self._client.request(
+                response = self._http_client().request(
                     method,
                     url,
                     headers=headers,
@@ -99,6 +99,11 @@ class ProviderHttpTransport:
             )
 
         raise AssertionError("provider request retry loop exhausted")
+
+    def _http_client(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(timeout=60.0, follow_redirects=False)
+        return self._client
 
     def _validate_base_url(self, base_url: str) -> None:
         if self._resolver is None:

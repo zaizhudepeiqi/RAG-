@@ -1,10 +1,13 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, Protocol
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.modules.models.domain import ModelProvider
+from app.modules.models.domain import DiscoveredModelCandidate, ModelProvider, ModelType
 
 ProviderSort = Literal["display_name", "-display_name", "created_at", "-created_at"]
 
@@ -54,3 +57,12 @@ class ModelProviderRepository(Protocol):
     def has_models(self, session: Session, provider_id: UUID) -> bool: ...
 
     def mark_models_stale(self, session: Session, provider_id: UUID) -> None: ...
+
+    def list_discovered_candidates(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        model_type: ModelType | None,
+        provider_status: str | None,
+    ) -> Sequence[DiscoveredModelCandidate]: ...

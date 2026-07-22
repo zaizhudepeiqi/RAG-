@@ -1,19 +1,39 @@
+from __future__ import annotations
+
 import ipaddress
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Select, asc, desc, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.infrastructure.database.models.auth import AuditLogModel
-from app.infrastructure.database.models.models import ModelConfigModel, ModelProviderModel
-from app.modules.models.domain import ModelProvider, ModelType, VerificationStatus
+from app.infrastructure.database.models.models import (
+    ModelConfigModel,
+    ModelDiscoveredCandidateModel,
+    ModelProviderModel,
+)
+from app.infrastructure.database.models.tasks import OperationModel
+from app.infrastructure.database.session import transaction
+from app.modules.models.adapters import DiscoveredModel
+from app.modules.models.domain import (
+    DiscoveredModelCandidate,
+    ModelProvider,
+    ModelType,
+    VerificationStatus,
+)
 from app.modules.models.repository import (
     ModelProviderListQuery,
     ModelProviderPage,
 )
+from app.modules.models.tasks import (
+    MODEL_PROVIDER_DISCOVERY_TASK,
+    ProviderTaskSnapshot,
+)
+from app.modules.tasks.domain import OperationStatus
 
 
 class SqlAlchemyModelProviderRepository:
@@ -126,6 +146,66 @@ class SqlAlchemyModelProviderRepository:
             .values(verification_status=VerificationStatus.STALE.value)
         )
 
+    def list_discovered_candidates(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        model_type: ModelType | None,
+        provider_status: str | None,
+    ) -> Sequence[DiscoveredModelCandidate]:
+        latest_operation_id = session.scalar(
+            select(OperationModel.id)
+            .where(
+                OperationModel.task_type == MODEL_PROVIDER_DISCOVERY_TASK,
+                OperationModel.target_type == "model_provider",
+                OperationModel.target_id == provider_id,
+                OperationModel.status == OperationStatus.SUCCEEDED.value,
+            )
+            .order_by(OperationModel.finished_at.desc(), OperationModel.created_at.desc())
+            .limit(1)
+        )
+        if latest_operation_id is None:
+            return []
+        conditions = [
+            ModelDiscoveredCandidateModel.provider_id == provider_id,
+            ModelDiscoveredCandidateModel.discovery_operation_id == latest_operation_id,
+        ]
+        if model_type is not None:
+            conditions.append(
+                ModelDiscoveredCandidateModel.suggested_types.contains([model_type.value])
+            )
+        if provider_status is not None:
+            conditions.append(ModelDiscoveredCandidateModel.provider_status == provider_status)
+        models = session.scalars(
+            select(ModelDiscoveredCandidateModel)
+            .where(*conditions)
+            .order_by(ModelDiscoveredCandidateModel.model_name)
+        ).all()
+        candidates = []
+        for model in models:
+            configured_ids = tuple(
+                session.scalars(
+                    select(ModelConfigModel.id)
+                    .where(
+                        ModelConfigModel.provider_id == provider_id,
+                        ModelConfigModel.model_name == model.model_name,
+                        ModelConfigModel.deleted_at.is_(None),
+                    )
+                    .order_by(ModelConfigModel.id)
+                ).all()
+            )
+            candidates.append(
+                DiscoveredModelCandidate(
+                    model_name=model.model_name,
+                    suggested_types=tuple(ModelType(item) for item in model.suggested_types),
+                    provider_status=model.provider_status,
+                    metadata_summary=dict(model.raw_metadata_summary),
+                    configured_model_ids=configured_ids,
+                )
+            )
+        return candidates
+
     @staticmethod
     def _model_count(session: Session, provider_id: UUID) -> int:
         return (
@@ -223,3 +303,74 @@ class SqlAlchemyModelAuditRepository:
             return ipaddress.ip_address(source_ip).compressed
         except ValueError:
             return None
+
+
+class SqlAlchemyProviderTaskStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+        self._providers = SqlAlchemyModelProviderRepository()
+
+    def load(
+        self,
+        operation_id: UUID,
+        expected_task_type: str,
+    ) -> ProviderTaskSnapshot | None:
+        with transaction(self._session_factory) as session:
+            operation = session.get(OperationModel, operation_id)
+            if (
+                operation is None
+                or operation.task_type != expected_task_type
+                or operation.target_type != "model_provider"
+            ):
+                return None
+            provider = self._providers.get(session, operation.target_id)
+            if provider is None:
+                return None
+            return ProviderTaskSnapshot(operation_id=operation.id, provider=provider)
+
+    def provider_revision_matches(self, provider_id: UUID, revision: int) -> bool:
+        with transaction(self._session_factory) as session:
+            current = session.scalar(
+                select(ModelProviderModel.revision).where(
+                    ModelProviderModel.id == provider_id,
+                    ModelProviderModel.deleted_at.is_(None),
+                )
+            )
+        return current == revision
+
+    def save_discovered_candidates(
+        self,
+        snapshot: ProviderTaskSnapshot,
+        candidates: tuple[DiscoveredModel, ...],
+        discovered_at: datetime,
+    ) -> bool:
+        with transaction(self._session_factory) as session:
+            current_revision = session.scalar(
+                select(ModelProviderModel.revision).where(
+                    ModelProviderModel.id == snapshot.provider.id,
+                    ModelProviderModel.deleted_at.is_(None),
+                )
+            )
+            for candidate in candidates:
+                statement = insert(ModelDiscoveredCandidateModel).values(
+                    id=uuid4(),
+                    provider_id=snapshot.provider.id,
+                    discovery_operation_id=snapshot.operation_id,
+                    model_name=candidate.model_name,
+                    suggested_types=[item.value for item in candidate.suggested_types],
+                    provider_status=candidate.provider_status,
+                    raw_metadata_summary=dict(candidate.metadata_summary),
+                    discovered_at=discovered_at,
+                )
+                session.execute(
+                    statement.on_conflict_do_update(
+                        constraint="model_discovered_candidates_operation_model_uq",
+                        set_={
+                            "suggested_types": statement.excluded.suggested_types,
+                            "provider_status": statement.excluded.provider_status,
+                            "raw_metadata_summary": statement.excluded.raw_metadata_summary,
+                            "discovered_at": statement.excluded.discovered_at,
+                        },
+                    )
+                )
+        return current_revision != snapshot.provider.revision

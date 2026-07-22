@@ -26,18 +26,15 @@ class AdminIdempotencyService:
         operation_id: UUID | None,
         now: datetime,
     ) -> AdminIdempotencyRecord:
-        key_hash = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
-        canonical = json.dumps(
-            request_body,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=True,
+        key_hash, request_hash = self._hashes(idempotency_key, request_body)
+        existing = self.find(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code=endpoint_code,
+            idempotency_key=idempotency_key,
+            request_body=request_body,
         )
-        request_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        existing = self._repository.find(session, administrator_id, endpoint_code, key_hash)
         if existing is not None:
-            if existing.request_hash != request_hash:
-                raise IdempotencyKeyReusedError
             return existing
         record = AdminIdempotencyRecord(
             id=uuid4(),
@@ -68,3 +65,33 @@ class AdminIdempotencyService:
                 raise IdempotencyKeyReusedError from None
             return concurrent
         return record
+
+    def find(
+        self,
+        session: Session,
+        *,
+        administrator_id: UUID,
+        endpoint_code: str,
+        idempotency_key: str,
+        request_body: dict[str, object],
+    ) -> AdminIdempotencyRecord | None:
+        key_hash, request_hash = self._hashes(idempotency_key, request_body)
+        existing = self._repository.find(session, administrator_id, endpoint_code, key_hash)
+        if existing is not None and existing.request_hash != request_hash:
+            raise IdempotencyKeyReusedError
+        return existing
+
+    @staticmethod
+    def _hashes(
+        idempotency_key: str,
+        request_body: dict[str, object],
+    ) -> tuple[str, str]:
+        key_hash = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
+        canonical = json.dumps(
+            request_body,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        request_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return key_hash, request_hash

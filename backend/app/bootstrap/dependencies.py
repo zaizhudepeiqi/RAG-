@@ -14,6 +14,7 @@ from app.infrastructure.database.repositories.auth import SqlAlchemyAdministrato
 from app.infrastructure.database.repositories.models import (
     SqlAlchemyModelAuditRepository,
     SqlAlchemyModelProviderRepository,
+    SqlAlchemyProviderTaskStore,
 )
 from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyAdminIdempotencyRepository,
@@ -28,6 +29,10 @@ from app.infrastructure.health.chroma import ChromaHealthProbe
 from app.infrastructure.health.postgresql import PostgreSQLHealthProbe
 from app.infrastructure.health.redis import RedisHealthProbe
 from app.infrastructure.health.storage import StorageHealthProbe
+from app.infrastructure.model_providers.registry import (
+    ModelProviderAdapterRegistry,
+    build_model_provider_adapter_registry,
+)
 from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
 from app.infrastructure.storage.local import LocalStorageAdapter
@@ -36,9 +41,10 @@ from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
 from app.modules.models.service import ModelProviderService
+from app.modules.models.tasks import ProviderDiscoveryHandler, ProviderTestHandler
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
-from app.modules.tasks.ports import TaskDispatchRegistry
+from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
 from app.modules.tasks.service import TaskService
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -58,6 +64,9 @@ class ApplicationDependencies:
     task_dispatch_registry: TaskDispatchRegistry
     capability_service: CapabilityService
     model_provider_service: ModelProviderService
+    model_provider_adapter_registry: ModelProviderAdapterRegistry
+    provider_test_handler: ProviderTestHandler
+    provider_discovery_handler: ProviderDiscoveryHandler
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -105,6 +114,18 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     outbox_dispatch_store = SqlAlchemyOutboxDispatchStore(session_factory)
     operation_execution_store = SqlAlchemyOperationExecutionStore(session_factory)
     capability_service = CapabilityService(build_capability_registry())
+    model_provider_adapter_registry = build_model_provider_adapter_registry()
+    provider_task_store = SqlAlchemyProviderTaskStore(session_factory)
+    provider_test_handler = ProviderTestHandler(
+        provider_task_store,
+        model_provider_adapter_registry,
+        settings.credential_encryption_key_bytes,
+    )
+    provider_discovery_handler = ProviderDiscoveryHandler(
+        provider_task_store,
+        model_provider_adapter_registry,
+        settings.credential_encryption_key_bytes,
+    )
     model_provider_service = ModelProviderService(
         providers=SqlAlchemyModelProviderRepository(),
         audits=SqlAlchemyModelAuditRepository(),
@@ -112,6 +133,26 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         encryption_key=settings.credential_encryption_key_bytes,
         app_env=settings.app_env,
         allow_local_http=settings.allow_local_provider_http,
+        tasks=task_service,
+        idempotency=admin_idempotency_service,
+        operation_retention_days=settings.operation_retention_days,
+    )
+    task_dispatch_registry = TaskDispatchRegistry()
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="model.provider.test.requested",
+            schema_version="1",
+            celery_task_name="app.tasks.maintenance.test_model_provider",
+            queue="maintenance",
+        )
+    )
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="model.provider.discovery.requested",
+            schema_version="1",
+            celery_task_name="app.tasks.maintenance.discover_provider_models",
+            queue="maintenance",
+        )
     )
     return ApplicationDependencies(
         engine=engine,
@@ -123,7 +164,10 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         admin_idempotency_service=admin_idempotency_service,
         outbox_dispatch_store=outbox_dispatch_store,
         operation_execution_store=operation_execution_store,
-        task_dispatch_registry=TaskDispatchRegistry(),
+        task_dispatch_registry=task_dispatch_registry,
         capability_service=capability_service,
         model_provider_service=model_provider_service,
+        model_provider_adapter_registry=model_provider_adapter_registry,
+        provider_test_handler=provider_test_handler,
+        provider_discovery_handler=provider_discovery_handler,
     )

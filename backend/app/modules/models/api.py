@@ -1,8 +1,9 @@
+from datetime import UTC, datetime
 from enum import IntEnum
 from typing import Annotated, Literal, Protocol, TypedDict, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -11,12 +12,16 @@ from app.core.network_security import OutboundUrlPolicyError
 from app.infrastructure.database.session import transaction
 from app.modules.auth.dependencies import require_admin, require_csrf
 from app.modules.auth.domain import Administrator
+from app.modules.models.domain import ModelType
 from app.modules.models.repository import ModelProviderListQuery
 from app.modules.models.schemas import (
     CreateModelProviderRequest,
+    DiscoveredModelView,
     ModelProviderPageView,
     ModelProviderView,
+    ProviderOperationRequest,
     UpdateModelProviderRequest,
+    discovered_model_view,
     model_provider_view,
 )
 from app.modules.models.service import (
@@ -27,6 +32,9 @@ from app.modules.models.service import (
     ModelProviderRevisionConflictError,
     ModelProviderService,
 )
+from app.modules.tasks.domain import Operation
+from app.modules.tasks.errors import IdempotencyKeyReusedError
+from app.modules.tasks.schemas import OperationRef
 
 
 class ModelDependencies(Protocol):
@@ -129,6 +137,78 @@ def create_model_provider(
     return model_provider_view(provider)
 
 
+@router.post(
+    "/{providerId}:test",
+    response_model=OperationRef,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="modelProvidersTest",
+    dependencies=[Depends(require_csrf)],
+)
+def test_model_provider(
+    payload: ProviderOperationRequest,
+    provider_id: Annotated[UUID, Path(alias="providerId")],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.model_provider_service.request_provider_test(
+                session,
+                provider_id,
+                expected_revision=payload.expected_revision,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+                now=datetime.now(UTC),
+            )
+    except ModelProviderNotFoundError as error:
+        raise _not_found() from error
+    except ModelProviderRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except IdempotencyKeyReusedError as error:
+        raise _idempotency_reused() from error
+    return _operation_ref(operation)
+
+
+@router.post(
+    "/{providerId}:discover-models",
+    response_model=OperationRef,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="modelProvidersDiscover",
+    dependencies=[Depends(require_csrf)],
+)
+def discover_provider_models(
+    payload: ProviderOperationRequest,
+    provider_id: Annotated[UUID, Path(alias="providerId")],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.model_provider_service.request_provider_discovery(
+                session,
+                provider_id,
+                expected_revision=payload.expected_revision,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+                now=datetime.now(UTC),
+            )
+    except ModelProviderNotFoundError as error:
+        raise _not_found() from error
+    except ModelProviderRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except IdempotencyKeyReusedError as error:
+        raise _idempotency_reused() from error
+    return _operation_ref(operation)
+
+
 @router.get(
     "/{providerId}",
     response_model=ModelProviderView,
@@ -144,6 +224,36 @@ def get_model_provider(
     except ModelProviderNotFoundError as error:
         raise _not_found() from error
     return model_provider_view(provider)
+
+
+@router.get(
+    "/{providerId}/discovered-models",
+    response_model=list[DiscoveredModelView],
+    operation_id="modelProvidersDiscoveredModelsList",
+)
+def list_discovered_models(
+    provider_id: Annotated[UUID, Path(alias="providerId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+    model_type: Annotated[
+        ModelType | None,
+        Query(alias="modelType"),
+    ] = None,
+    provider_status: Annotated[
+        Literal["available", "unavailable", "unknown"] | None,
+        Query(alias="status"),
+    ] = None,
+) -> list[DiscoveredModelView]:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            candidates = dependencies.model_provider_service.list_discovered_candidates(
+                session,
+                provider_id,
+                model_type=model_type,
+                provider_status=provider_status,
+            )
+    except ModelProviderNotFoundError as error:
+        raise _not_found() from error
+    return [discovered_model_view(item) for item in candidates]
 
 
 @router.patch(
@@ -224,6 +334,16 @@ def _audit_arguments(request: Request, administrator: Administrator) -> AuditArg
     }
 
 
+def _operation_ref(operation: Operation) -> OperationRef:
+    return OperationRef(
+        operation_id=operation.id,
+        status=operation.status,
+        status_url=f"/api/v1/operations/{operation.id}",
+        target_type=operation.target_type,
+        target_id=operation.target_id,
+    )
+
+
 def _name_conflict() -> AppError:
     return AppError(
         code="MODEL_PROVIDER_NAME_CONFLICT",
@@ -244,5 +364,13 @@ def _revision_conflict() -> AppError:
     return AppError(
         code="REVISION_CONFLICT",
         message="资源已被其他请求更新",
+        status_code=409,
+    )
+
+
+def _idempotency_reused() -> AppError:
+    return AppError(
+        code="IDEMPOTENCY_KEY_REUSED",
+        message="幂等键已用于不同请求",
         status_code=409,
     )

@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import AnyHttpUrl, Field, SecretStr
 
 from app.core.schemas import ApiModel
-from app.modules.models.domain import ModelProvider, ModelType
+from app.modules.models.domain import DiscoveredModelCandidate, ModelProvider, ModelType
 
 
 class CreateModelProviderRequest(ApiModel):
@@ -19,6 +19,10 @@ class UpdateModelProviderRequest(ApiModel):
     expected_revision: int = Field(ge=1)
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     credential: SecretStr | None = Field(default=None, min_length=1)
+
+
+class ProviderOperationRequest(ApiModel):
+    expected_revision: int = Field(ge=1)
 
 
 class ModelProviderView(ApiModel):
@@ -42,6 +46,14 @@ class ModelProviderPageView(ApiModel):
     page_size: int
 
 
+class DiscoveredModelView(ApiModel):
+    provider_model_name: str
+    suggested_display_name: str
+    supported_model_types: list[ModelType]
+    already_configured_model_ids: list[UUID]
+    discovery_metadata: dict[str, object]
+
+
 def model_provider_view(provider: ModelProvider) -> ModelProviderView:
     return ModelProviderView(
         id=provider.id,
@@ -55,4 +67,19 @@ def model_provider_view(provider: ModelProvider) -> ModelProviderView:
         revision=provider.revision,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
+    )
+
+
+def discovered_model_view(candidate: DiscoveredModelCandidate) -> DiscoveredModelView:
+    allowed_metadata = {
+        key: value
+        for key, value in candidate.metadata_summary.items()
+        if key in {"ownedBy", "created"}
+    }
+    return DiscoveredModelView(
+        provider_model_name=candidate.model_name,
+        suggested_display_name=candidate.model_name,
+        supported_model_types=list(candidate.suggested_types),
+        already_configured_model_ids=list(candidate.configured_model_ids),
+        discovery_metadata=allowed_metadata,
     )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -12,6 +12,7 @@ from app.core.security import encrypt_secret
 from app.modules.capabilities.errors import CapabilityNotFoundError
 from app.modules.capabilities.service import CapabilityService
 from app.modules.models.domain import (
+    DiscoveredModelCandidate,
     ModelProvider,
     ModelType,
     mask_credential,
@@ -23,6 +24,13 @@ from app.modules.models.repository import (
     ModelProviderPage,
     ModelProviderRepository,
 )
+from app.modules.models.tasks import (
+    MODEL_PROVIDER_DISCOVERY_TASK,
+    MODEL_PROVIDER_TEST_TASK,
+)
+from app.modules.tasks.domain import Operation
+from app.modules.tasks.idempotency import AdminIdempotencyService
+from app.modules.tasks.service import TaskService
 
 
 class ModelProviderNotFoundError(LookupError):
@@ -55,6 +63,9 @@ class ModelProviderService:
         encryption_key: bytes,
         app_env: Literal["development", "test", "production"],
         allow_local_http: bool,
+        tasks: TaskService,
+        idempotency: AdminIdempotencyService,
+        operation_retention_days: int,
         url_resolver: AddressResolver | None = None,
     ) -> None:
         self._providers = providers
@@ -63,6 +74,9 @@ class ModelProviderService:
         self._encryption_key = encryption_key
         self._app_env = app_env
         self._allow_local_http = allow_local_http
+        self._tasks = tasks
+        self._idempotency = idempotency
+        self._operation_retention_days = operation_retention_days
         self._url_resolver = url_resolver
 
     def create(
@@ -148,6 +162,66 @@ class ModelProviderService:
         query: ModelProviderListQuery,
     ) -> ModelProviderPage:
         return self._providers.list(session, query)
+
+    def request_provider_test(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime,
+    ) -> Operation:
+        return self._request_operation(
+            session,
+            provider_id,
+            expected_revision=expected_revision,
+            administrator_id=administrator_id,
+            idempotency_key=idempotency_key,
+            endpoint_code="model_provider.test",
+            task_type=MODEL_PROVIDER_TEST_TASK,
+            event_type="model.provider.test.requested",
+            now=now,
+        )
+
+    def request_provider_discovery(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime,
+    ) -> Operation:
+        return self._request_operation(
+            session,
+            provider_id,
+            expected_revision=expected_revision,
+            administrator_id=administrator_id,
+            idempotency_key=idempotency_key,
+            endpoint_code="model_provider.discover",
+            task_type=MODEL_PROVIDER_DISCOVERY_TASK,
+            event_type="model.provider.discovery.requested",
+            now=now,
+        )
+
+    def list_discovered_candidates(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        model_type: ModelType | None,
+        provider_status: str | None,
+    ) -> Sequence[DiscoveredModelCandidate]:
+        self.get(session, provider_id)
+        return self._providers.list_discovered_candidates(
+            session,
+            provider_id,
+            model_type=model_type,
+            provider_status=provider_status,
+        )
 
     def update(
         self,
@@ -249,6 +323,62 @@ class ModelProviderService:
     def _ensure_name_available(self, session: Session, display_name: str) -> None:
         if self._providers.find_by_display_name(session, display_name) is not None:
             raise ModelProviderNameConflictError
+
+    def _request_operation(
+        self,
+        session: Session,
+        provider_id: UUID,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        idempotency_key: str,
+        endpoint_code: str,
+        task_type: str,
+        event_type: str,
+        now: datetime,
+    ) -> Operation:
+        request_body: dict[str, object] = {
+            "providerId": str(provider_id),
+            "expectedRevision": expected_revision,
+        }
+        existing = self._idempotency.find(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code=endpoint_code,
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+        )
+        if existing is not None and existing.operation_id is not None:
+            return self._tasks.get(session, existing.operation_id)
+
+        provider = self.get(session, provider_id)
+        if provider.revision != expected_revision:
+            raise ModelProviderRevisionConflictError
+        operation = self._tasks.create_operation(
+            session,
+            task_type=task_type,
+            target_type="model_provider",
+            target_id=provider.id,
+            target_revision=provider.revision,
+            business_key=(f"admin:{administrator_id}:{endpoint_code}:{idempotency_key}"),
+            event_type=event_type,
+            payload={
+                "providerId": str(provider.id),
+                "providerRevision": provider.revision,
+            },
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        self._idempotency.reserve(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code=endpoint_code,
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+            operation_id=operation.id,
+            now=now,
+        )
+        return operation
 
     def _provider_model_types(
         self,

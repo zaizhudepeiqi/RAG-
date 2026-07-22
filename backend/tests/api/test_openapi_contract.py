@@ -28,6 +28,17 @@ EXPECTED_OPERATIONS = {
     ("get", "/api/v1/model-providers/{providerId}", "modelProvidersGet"),
     ("patch", "/api/v1/model-providers/{providerId}", "modelProvidersUpdate"),
     ("delete", "/api/v1/model-providers/{providerId}", "modelProvidersDelete"),
+    ("post", "/api/v1/model-providers/{providerId}:test", "modelProvidersTest"),
+    (
+        "post",
+        "/api/v1/model-providers/{providerId}:discover-models",
+        "modelProvidersDiscover",
+    ),
+    (
+        "get",
+        "/api/v1/model-providers/{providerId}/discovered-models",
+        "modelProvidersDiscoveredModelsList",
+    ),
 }
 
 

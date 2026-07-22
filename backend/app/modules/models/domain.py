@@ -38,6 +38,15 @@ class ModelProvider:
     model_count: int
 
 
+@dataclass(frozen=True)
+class DiscoveredModelCandidate:
+    model_name: str
+    suggested_types: tuple[ModelType, ...]
+    provider_status: str
+    metadata_summary: dict[str, object]
+    configured_model_ids: tuple[UUID, ...]
+
+
 def provider_credential_aad(provider_id: UUID) -> bytes:
     return f"model-provider:{provider_id}:credential:v1".encode("ascii")
 
