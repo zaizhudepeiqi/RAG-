@@ -64,3 +64,18 @@ def test_secret_values_are_masked_in_repr(tmp_path: Path) -> None:
 
     assert "j" * 32 not in rendered
     assert base64.b64encode(b"c" * 32).decode() not in rendered
+
+
+def test_local_provider_http_is_disabled_by_default(tmp_path: Path) -> None:
+    settings = Settings(**settings_values(tmp_path))
+
+    assert settings.allow_local_provider_http is False
+
+
+def test_local_provider_http_can_be_enabled_explicitly_in_development(tmp_path: Path) -> None:
+    values = settings_values(tmp_path)
+    values.update(app_env="development", allow_local_provider_http=True)
+
+    settings = Settings(**values)
+
+    assert settings.allow_local_provider_http is True

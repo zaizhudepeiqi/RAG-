@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     audit_retention_days: int = Field(default=180, ge=1)
     temp_attachment_retention_hours: int = Field(default=24, ge=1)
 
+    allow_local_provider_http: bool = False
     allow_private_callbacks: bool = False
     enable_production_openapi: bool = False
 
