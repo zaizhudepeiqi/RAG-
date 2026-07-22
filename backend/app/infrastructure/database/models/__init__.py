@@ -5,6 +5,15 @@ from app.infrastructure.database.models.models import (
     ModelProviderModel,
     ModelVerificationModel,
 )
+from app.infrastructure.database.models.parsing import (
+    DataSourceModel,
+    ParsedArtifactModel,
+    ParsedAssetModel,
+    ParsedBlockAssetModel,
+    ParsedBlockModel,
+    ParsedSourceVersionModel,
+    SourceBlobModel,
+)
 from app.infrastructure.database.models.settings import MinerUSettingsModel, RetentionSettingsModel
 from app.infrastructure.database.models.tasks import (
     AdminApiIdempotencyRecordModel,
@@ -17,6 +26,7 @@ __all__ = [
     "AdminApiIdempotencyRecordModel",
     "AdministratorModel",
     "AuditLogModel",
+    "DataSourceModel",
     "MinerUSettingsModel",
     "ModelConfigModel",
     "ModelDiscoveredCandidateModel",
@@ -24,6 +34,12 @@ __all__ = [
     "ModelVerificationModel",
     "OperationItemModel",
     "OperationModel",
+    "ParsedArtifactModel",
+    "ParsedAssetModel",
+    "ParsedBlockAssetModel",
+    "ParsedBlockModel",
+    "ParsedSourceVersionModel",
     "RetentionSettingsModel",
+    "SourceBlobModel",
     "TaskOutboxModel",
 ]
