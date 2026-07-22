@@ -43,6 +43,7 @@ EXPECTED_OPERATIONS = {
     ("post", "/api/v1/models", "modelsCreate"),
     ("get", "/api/v1/models/{modelId}", "modelsGet"),
     ("patch", "/api/v1/models/{modelId}", "modelsUpdate"),
+    ("post", "/api/v1/models/{modelId}:verify", "modelsVerify"),
     ("post", "/api/v1/models/{modelId}:enable", "modelsEnable"),
     ("post", "/api/v1/models/{modelId}:disable", "modelsDisable"),
     ("get", "/api/v1/models/{modelId}/references", "modelsReferences"),

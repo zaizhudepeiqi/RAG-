@@ -80,14 +80,18 @@ class OpenAICompatibleAdapter:
             path=path,
             credential=request.credential,
             json_body={
+                **request.default_params,
                 "model": request.model_name,
                 "messages": [{"role": "user", "content": "请只回复 OK"}],
                 "temperature": 0,
                 "max_tokens": 8,
-                **request.default_params,
             },
         )
-        return self._text_result(response.payload, response.provider_request_id)
+        return self._text_result(
+            response.payload,
+            response.provider_request_id,
+            response.latency_ms,
+        )
 
     def verify_embedding(self, request: ModelVerificationRequest) -> VerificationResult:
         path = self._path(ModelType.EMBEDDING, self.descriptor.embedding_path)
@@ -97,9 +101,9 @@ class OpenAICompatibleAdapter:
             path=path,
             credential=request.credential,
             json_body={
+                **request.default_params,
                 "model": request.model_name,
                 "input": "RAG knowledge base embedding connection test",
-                **request.default_params,
             },
         )
         data = response.payload.get("data")
@@ -110,6 +114,7 @@ class OpenAICompatibleAdapter:
         return VerificationResult(
             embedding=embedding,
             provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
             usage_input_tokens=input_tokens,
             usage_output_tokens=output_tokens,
         )
@@ -122,15 +127,16 @@ class OpenAICompatibleAdapter:
             path=path,
             credential=request.credential,
             json_body={
+                **request.default_params,
                 "model": request.model_name,
                 "query": "企业知识库如何检索文档",
                 "documents": ["知识库可以检索文档", "今天的天气晴朗"],
-                **request.default_params,
             },
         )
         results = response.payload.get("results")
         if not isinstance(results, list) or not results:
             raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+        indices = []
         scores = []
         for item in results:
             if not isinstance(item, Mapping):
@@ -138,10 +144,16 @@ class OpenAICompatibleAdapter:
             score = item.get("relevance_score", item.get("score"))
             if isinstance(score, bool) or not isinstance(score, int | float):
                 raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            index = item.get("index")
+            if isinstance(index, bool) or not isinstance(index, int):
+                raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            indices.append(index)
             scores.append(float(score))
         return VerificationResult(
+            rerank_indices=tuple(indices),
             rerank_scores=tuple(scores),
             provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
         )
 
     def verify_vision(self, request: ModelVerificationRequest) -> VerificationResult:
@@ -152,6 +164,7 @@ class OpenAICompatibleAdapter:
             path=path,
             credential=request.credential,
             json_body={
+                **request.default_params,
                 "model": request.model_name,
                 "messages": [
                     {
@@ -163,10 +176,13 @@ class OpenAICompatibleAdapter:
                     }
                 ],
                 "max_tokens": 8,
-                **request.default_params,
             },
         )
-        return self._text_result(response.payload, response.provider_request_id)
+        return self._text_result(
+            response.payload,
+            response.provider_request_id,
+            response.latency_ms,
+        )
 
     def _models_response(self, base_url: str, credential: SecretStr) -> ProviderJsonResponse:
         path = self.descriptor.discovery_path
@@ -196,6 +212,7 @@ class OpenAICompatibleAdapter:
         cls,
         payload: Mapping[str, object],
         request_id: str | None,
+        latency_ms: int,
     ) -> VerificationResult:
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], Mapping):
@@ -208,6 +225,7 @@ class OpenAICompatibleAdapter:
         return VerificationResult(
             output_text=content,
             provider_request_id=request_id,
+            latency_ms=latency_ms,
             usage_input_tokens=input_tokens,
             usage_output_tokens=output_tokens,
         )
@@ -264,6 +282,7 @@ class QwenAdapter(OpenAICompatibleAdapter):
         return VerificationResult(
             embedding=self._number_tuple(embedding),
             provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
         )
 
     def verify_rerank(self, request: ModelVerificationRequest) -> VerificationResult:
@@ -286,13 +305,20 @@ class QwenAdapter(OpenAICompatibleAdapter):
         results = output.get("results") if isinstance(output, Mapping) else None
         if not isinstance(results, list) or not results:
             raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+        indices = []
         scores = []
         for item in results:
             score = item.get("relevance_score") if isinstance(item, Mapping) else None
             if isinstance(score, bool) or not isinstance(score, int | float):
                 raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            index = item.get("index") if isinstance(item, Mapping) else None
+            if isinstance(index, bool) or not isinstance(index, int):
+                raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            indices.append(index)
             scores.append(float(score))
         return VerificationResult(
+            rerank_indices=tuple(indices),
             rerank_scores=tuple(scores),
             provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
         )

@@ -425,6 +425,48 @@ def create_model(
 
 
 @models_router.post(
+    "/{modelId}:verify",
+    response_model=OperationRef,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="modelsVerify",
+    dependencies=[Depends(require_csrf)],
+)
+def verify_model(
+    payload: ModelStateRequest,
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.model_config_service.request_verification(
+                session,
+                model_id,
+                expected_revision=payload.expected_revision,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+                now=datetime.now(UTC),
+            )
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    except ModelConfigRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except ModelProviderDisabledError as error:
+        raise AppError(
+            code="MODEL_PROVIDER_DISABLED",
+            message="模型供应商已停用",
+            status_code=409,
+        ) from error
+    except IdempotencyKeyReusedError as error:
+        raise _idempotency_reused() from error
+    return _operation_ref(operation)
+
+
+@models_router.post(
     "/{modelId}:enable",
     response_model=ModelView,
     operation_id="modelsEnable",

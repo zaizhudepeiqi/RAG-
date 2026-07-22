@@ -536,10 +536,16 @@ class ModelConfigService:
         models: ModelConfigRepository,
         providers: ModelProviderRepository,
         capabilities: CapabilityService | None,
+        tasks: TaskService | None = None,
+        idempotency: AdminIdempotencyService | None = None,
+        operation_retention_days: int = 90,
     ) -> None:
         self._models = models
         self._providers = providers
         self._capabilities = capabilities
+        self._tasks = tasks
+        self._idempotency = idempotency
+        self._operation_retention_days = operation_retention_days
 
     def create(
         self,
@@ -736,6 +742,71 @@ class ModelConfigService:
     def references(self, session: Session, model_id: UUID) -> tuple[ModelReference, ...]:
         self._required_model(session, model_id)
         return self._models.references(session, model_id)
+
+    def request_verification(
+        self,
+        session: Session,
+        model_id: UUID,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime,
+    ) -> Operation:
+        if self._tasks is None or self._idempotency is None:
+            raise RuntimeError("model verification operations are not configured")
+        request_body: dict[str, object] = {
+            "modelId": str(model_id),
+            "expectedRevision": expected_revision,
+        }
+        existing = self._idempotency.find(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code="model.verify",
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+        )
+        if existing is not None and existing.operation_id is not None:
+            return self._tasks.get(session, existing.operation_id)
+        model = self._required_model(session, model_id)
+        if model.revision != expected_revision:
+            raise ModelConfigRevisionConflictError
+        provider = self._required_provider(
+            session,
+            model.provider_id,
+            require_enabled=True,
+        )
+        self._ensure_provider_accepts(provider, model.model_type)
+        operation = self._tasks.create_operation(
+            session,
+            task_type="model_verification",
+            target_type="model",
+            target_id=model.id,
+            target_revision=model.revision,
+            business_key=(
+                f"model.verify:{model.id}:{model.revision}:"
+                f"{provider.revision}:{provider.credential_revision}"
+            ),
+            event_type="model.verification.requested",
+            payload={
+                "modelId": str(model.id),
+                "modelRevision": model.revision,
+                "providerRevision": provider.revision,
+                "credentialRevision": provider.credential_revision,
+            },
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        self._idempotency.reserve(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code="model.verify",
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+            operation_id=operation.id,
+            now=now,
+        )
+        return operation
 
     def _required_model(
         self,

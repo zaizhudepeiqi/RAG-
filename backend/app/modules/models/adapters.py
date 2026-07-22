@@ -63,8 +63,10 @@ class ModelVerificationRequest:
 class VerificationResult:
     output_text: str | None = None
     embedding: tuple[float, ...] | None = None
+    rerank_indices: tuple[int, ...] | None = None
     rerank_scores: tuple[float, ...] | None = None
     provider_request_id: str | None = None
+    latency_ms: int | None = None
     usage_input_tokens: int | None = None
     usage_output_tokens: int | None = None
 
@@ -111,3 +113,5 @@ class ModelProviderAdapter(Protocol):
 
 class ModelProviderAdapterResolver(Protocol):
     def get(self, provider_type: str) -> ModelProviderAdapter: ...
+
+    def require(self, provider_type: str, model_type: ModelType) -> ModelProviderAdapter: ...

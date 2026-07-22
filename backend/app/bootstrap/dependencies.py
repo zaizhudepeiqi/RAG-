@@ -15,6 +15,7 @@ from app.infrastructure.database.repositories.models import (
     SqlAlchemyModelAuditRepository,
     SqlAlchemyModelProviderRepository,
     SqlAlchemyModelRepository,
+    SqlAlchemyModelVerificationTaskStore,
     SqlAlchemyProviderTaskStore,
 )
 from app.infrastructure.database.repositories.tasks import (
@@ -46,7 +47,11 @@ from app.modules.models.service import (
     ModelProviderService,
     ModelSelectionService,
 )
-from app.modules.models.tasks import ProviderDiscoveryHandler, ProviderTestHandler
+from app.modules.models.tasks import (
+    ModelVerificationHandler,
+    ProviderDiscoveryHandler,
+    ProviderTestHandler,
+)
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
@@ -74,6 +79,7 @@ class ApplicationDependencies:
     provider_discovery_handler: ProviderDiscoveryHandler
     model_config_service: ModelConfigService
     model_selection_service: ModelSelectionService
+    model_verification_handler: ModelVerificationHandler
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -133,6 +139,11 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_provider_adapter_registry,
         settings.credential_encryption_key_bytes,
     )
+    model_verification_handler = ModelVerificationHandler(
+        SqlAlchemyModelVerificationTaskStore(session_factory),
+        model_provider_adapter_registry,
+        settings.credential_encryption_key_bytes,
+    )
     model_provider_service = ModelProviderService(
         providers=SqlAlchemyModelProviderRepository(),
         audits=SqlAlchemyModelAuditRepository(),
@@ -150,6 +161,9 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_repository,
         provider_repository,
         capability_service,
+        tasks=task_service,
+        idempotency=admin_idempotency_service,
+        operation_retention_days=settings.operation_retention_days,
     )
     model_selection_service = ModelSelectionService(model_repository, provider_repository)
     task_dispatch_registry = TaskDispatchRegistry()
@@ -158,6 +172,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
             event_type="model.provider.test.requested",
             schema_version="1",
             celery_task_name="app.tasks.maintenance.test_model_provider",
+            queue="maintenance",
+        )
+    )
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="model.verification.requested",
+            schema_version="1",
+            celery_task_name="app.tasks.maintenance.verify_model",
             queue="maintenance",
         )
     )
@@ -187,4 +209,5 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         provider_discovery_handler=provider_discovery_handler,
         model_config_service=model_config_service,
         model_selection_service=model_selection_service,
+        model_verification_handler=model_verification_handler,
     )

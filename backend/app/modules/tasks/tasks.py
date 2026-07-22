@@ -84,3 +84,17 @@ def discover_provider_models(operationId: str, eventType: str, schemaVersion: st
         )
     finally:
         dependencies.close()
+
+
+@celery_app.task(name="app.tasks.maintenance.verify_model")
+def verify_model(operationId: str, eventType: str, schemaVersion: str) -> None:
+    dependencies = build_application_dependencies(get_settings())
+    try:
+        execute_operation(
+            UUID(operationId),
+            "model_verification",
+            dependencies.model_verification_handler,
+            ExecutionDependencies(dependencies.operation_execution_store),
+        )
+    finally:
+        dependencies.close()

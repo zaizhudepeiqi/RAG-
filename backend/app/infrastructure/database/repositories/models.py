@@ -37,8 +37,11 @@ from app.modules.models.repository import (
 )
 from app.modules.models.tasks import (
     MODEL_PROVIDER_DISCOVERY_TASK,
+    MODEL_VERIFICATION_TASK,
+    ModelVerificationTaskSnapshot,
     ProviderTaskSnapshot,
 )
+from app.modules.models.verification import ValidatedVerification
 from app.modules.tasks.domain import OperationStatus
 
 
@@ -550,3 +553,140 @@ class SqlAlchemyProviderTaskStore:
                     )
                 )
         return current_revision != snapshot.provider.revision
+
+
+class SqlAlchemyModelVerificationTaskStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+        self._models = SqlAlchemyModelRepository()
+        self._providers = SqlAlchemyModelProviderRepository()
+
+    def load(self, operation_id: UUID) -> ModelVerificationTaskSnapshot | None:
+        with transaction(self._session_factory) as session:
+            operation = session.get(OperationModel, operation_id)
+            if (
+                operation is None
+                or operation.task_type != MODEL_VERIFICATION_TASK
+                or operation.target_type != "model"
+            ):
+                return None
+            model = self._models.get(session, operation.target_id)
+            if model is None:
+                return None
+            provider = self._providers.get(session, model.provider_id)
+            if provider is None:
+                return None
+            return ModelVerificationTaskSnapshot(
+                operation_id=operation.id,
+                model=model,
+                provider=provider,
+            )
+
+    def save_succeeded(
+        self,
+        snapshot: ModelVerificationTaskSnapshot,
+        validated: ValidatedVerification,
+        provider_request_id: str | None,
+        latency_ms: int | None,
+        tested_at: datetime,
+    ) -> bool:
+        return self._save(
+            snapshot,
+            status="succeeded",
+            response_summary=validated.response_summary,
+            embedding_dimension=validated.embedding_dimension,
+            provider_request_id=provider_request_id,
+            latency_ms=latency_ms,
+            error_code=None,
+            tested_at=tested_at,
+        )
+
+    def save_failed(
+        self,
+        snapshot: ModelVerificationTaskSnapshot,
+        *,
+        status: str,
+        error_code: str,
+        tested_at: datetime,
+    ) -> bool:
+        return self._save(
+            snapshot,
+            status=status,
+            response_summary={},
+            embedding_dimension=None,
+            provider_request_id=None,
+            latency_ms=None,
+            error_code=error_code,
+            tested_at=tested_at,
+        )
+
+    def _save(
+        self,
+        snapshot: ModelVerificationTaskSnapshot,
+        *,
+        status: str,
+        response_summary: dict[str, object],
+        embedding_dimension: int | None,
+        provider_request_id: str | None,
+        latency_ms: int | None,
+        error_code: str | None,
+        tested_at: datetime,
+    ) -> bool:
+        with transaction(self._session_factory) as session:
+            current_provider = session.scalar(
+                select(ModelProviderModel)
+                .where(
+                    ModelProviderModel.id == snapshot.provider.id,
+                    ModelProviderModel.deleted_at.is_(None),
+                )
+                .with_for_update()
+            )
+            current_model = session.scalar(
+                select(ModelConfigModel)
+                .where(
+                    ModelConfigModel.id == snapshot.model.id,
+                    ModelConfigModel.deleted_at.is_(None),
+                )
+                .with_for_update()
+            )
+            stale = (
+                current_model is None
+                or current_provider is None
+                or current_model.revision != snapshot.model.revision
+                or current_provider.revision != snapshot.provider.revision
+                or current_provider.credential_revision != snapshot.provider.credential_revision
+            )
+            existing = session.scalar(
+                select(ModelVerificationModel.id).where(
+                    ModelVerificationModel.operation_id == snapshot.operation_id
+                )
+            )
+            if existing is None:
+                session.add(
+                    ModelVerificationModel(
+                        id=uuid4(),
+                        model_id=snapshot.model.id,
+                        operation_id=snapshot.operation_id,
+                        tested_model_revision=snapshot.model.revision,
+                        tested_provider_revision=snapshot.provider.revision,
+                        tested_credential_revision=snapshot.provider.credential_revision,
+                        status=status,
+                        latency_ms=latency_ms,
+                        provider_request_id=provider_request_id,
+                        response_summary=response_summary,
+                        error_code=error_code,
+                        error_message=error_code,
+                        tested_at=tested_at,
+                    )
+                )
+            if current_model is not None:
+                if stale:
+                    current_model.verification_status = VerificationStatus.STALE.value
+                elif status == "succeeded":
+                    current_model.verification_status = VerificationStatus.PASSED.value
+                    if embedding_dimension is not None:
+                        current_model.embedding_dimension = embedding_dimension
+                else:
+                    current_model.verification_status = VerificationStatus.FAILED.value
+                current_model.updated_at = tested_at
+        return stale
