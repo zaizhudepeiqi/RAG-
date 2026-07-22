@@ -44,25 +44,17 @@ Playwright Edge                             1 passed
 
 本机 Chromium 下载未完成，因此浏览器证据使用系统 Edge；CI 仍使用正式 Chromium。Docker PostgreSQL、Redis、Chroma 均已验证 healthy，临时 E2E 数据库已删除，8001/5173 服务已停止。
 
-## 4. 当前工作区变更
+## 4. 当前工作区状态
 
-预期提交的变更包括：
-
-- 后端 `pageSize` 参数类型和集成测试。
-- 前端工具链依赖、改密跳转、任务页标题和 E2E 稳定性修复。
-- `docs/api/openapi.json` 和 `frontend/src/services/ragApi/typings.d.ts` 生成产物。
-- `docs/requirements/99-development-readiness.md`、本交接文档和实施计划审计命令说明。
-
-本机专用的 `frontend/playwright.local-edge.config.ts` 只用于 Edge 验证，不应提交。`frontend/tests/features/toolchain.test.ts` 是应提交的回归测试。
+- Phase 01 实现修复、生成产物和回归测试已提交并推送。
+- 前端工具链审计例外已按 2026-07-22 的 npm advisory 数据库复核并推送。
+- 本机专用的 Edge 配置已删除，期望工作区无未提交变更。
 
 ## 5. 继续操作顺序
 
-1. 人工复核当前 diff、`git diff main...HEAD --check` 和提交文件边界。
-2. 只暂存上述项目变更，不暂存本机 Edge 配置。
-3. 重新确认 generated API 无漂移和文档门禁通过。
-4. 提交：`fix: complete foundation integration validation`。
-5. 推送 `codex/phase-01-foundation`。
-6. 等用户选择保留分支、创建 PR 或合并；不要自动删除 worktree。
+1. 等用户选择保留分支、创建 PR 或合并。
+2. 创建 PR 后以 GitHub Actions 的正式 Chromium integration job 作为 Linux CI 证据。
+3. 未经用户选择，不合并分支、不删除 worktree。
 
 ## 6. 下一阶段边界
 
