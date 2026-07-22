@@ -181,7 +181,6 @@ category 第一版包括：`parser/input_type/model_provider/model_type/vector_s
 |---|---|---|
 | GET | `/settings/mineru` | `MinerUSettingsView` |
 | PATCH | `/settings/mineru` | `UpdateMinerUSettingsRequest` -> view |
-| POST | `/settings/mineru:test` | 当前草稿参数 -> `OperationRef` |
 | GET | `/settings/retention` | `RetentionSettings` |
 | PATCH | `/settings/retention` | `expectedRevision + values` -> settings |
 | POST | `/retention-cleanups` | `RetentionCleanupRequest` -> `OperationRef`，202 |
@@ -194,7 +193,14 @@ type MinerUSettingsView = {
   tokenMasked?: string;
   defaultParseConfig: ParseConfig;
   pollTimeoutSeconds: number;
+  cloudProcessingConfirmedAt?: string;
+  termsVersion?: "mineru-cloud-v1";
   revision: number;
+};
+
+type CloudProcessingConsent = {
+  accepted: true;
+  termsVersion: "mineru-cloud-v1";
 };
 
 type UpdateMinerUSettingsRequest = {
@@ -203,10 +209,11 @@ type UpdateMinerUSettingsRequest = {
   token?: string;
   defaultParseConfig: ParseConfig;
   pollTimeoutSeconds: number;
+  cloudProcessingConsent?: CloudProcessingConsent;
 };
 ```
 
-Token 留空表示不替换；响应永不返回明文。
+Token 留空表示不替换；首次配置 Token 必须同时确认 `mineru-cloud-v1` 云处理条款，后续轮换沿用已保存的确认。响应永不返回明文或确认管理员 ID。真实连接测试在 MinerU Precision Adapter 完成后注册，本阶段不提供伪测试端点。
 
 ## 6. 模型供应商
 

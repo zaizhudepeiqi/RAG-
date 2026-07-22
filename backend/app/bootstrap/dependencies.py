@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
+from app.infrastructure.database.repositories.mineru_settings import (
+    SqlAlchemyMinerUSettingsAuditRepository,
+    SqlAlchemyMinerUSettingsRepository,
+)
 from app.infrastructure.database.repositories.models import (
     SqlAlchemyModelAuditRepository,
     SqlAlchemyModelProviderRepository,
@@ -53,6 +57,7 @@ from app.modules.models.tasks import (
     ProviderTestHandler,
 )
 from app.modules.observability.service import HealthService, NotConfiguredProbe
+from app.modules.parsing.settings_service import MinerUSettingsService
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
 from app.modules.tasks.service import TaskService
@@ -80,6 +85,7 @@ class ApplicationDependencies:
     model_config_service: ModelConfigService
     model_selection_service: ModelSelectionService
     model_verification_handler: ModelVerificationHandler
+    mineru_settings_service: MinerUSettingsService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -166,6 +172,11 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         operation_retention_days=settings.operation_retention_days,
     )
     model_selection_service = ModelSelectionService(model_repository, provider_repository)
+    mineru_settings_service = MinerUSettingsService(
+        SqlAlchemyMinerUSettingsRepository(),
+        SqlAlchemyMinerUSettingsAuditRepository(),
+        settings.credential_encryption_key_bytes,
+    )
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(
         TaskDispatchDefinition(
@@ -210,4 +221,5 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_config_service=model_config_service,
         model_selection_service=model_selection_service,
         model_verification_handler=model_verification_handler,
+        mineru_settings_service=mineru_settings_service,
     )

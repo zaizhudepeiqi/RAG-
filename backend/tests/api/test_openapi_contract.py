@@ -48,6 +48,8 @@ EXPECTED_OPERATIONS = {
     ("post", "/api/v1/models/{modelId}:disable", "modelsDisable"),
     ("get", "/api/v1/models/{modelId}/references", "modelsReferences"),
     ("delete", "/api/v1/models/{modelId}", "modelsDelete"),
+    ("get", "/api/v1/settings/mineru", "mineruSettingsGet"),
+    ("patch", "/api/v1/settings/mineru", "mineruSettingsUpdate"),
 }
 
 
@@ -73,6 +75,7 @@ def test_openapi_operations_are_explicit_and_stable(tmp_path: Path) -> None:
     }
 
     assert actual == EXPECTED_OPERATIONS
+    assert "/api/v1/settings/mineru:test" not in schema["paths"]
 
 
 def test_openapi_schema_does_not_expose_configuration_secrets(tmp_path: Path) -> None:
