@@ -102,7 +102,7 @@ def create_model(client: TestClient) -> tuple[UUID, UUID]:
             "providerType": "openai",
             "displayName": "Verification Provider",
             "baseUrl": "https://8.8.8.8/v1",
-            "credential": "sk-verification-secret-1234",
+            "credential": "verification-test-credential-1234",
         },
     ).json()
     model = client.post(

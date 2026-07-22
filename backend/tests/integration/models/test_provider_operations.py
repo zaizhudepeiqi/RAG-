@@ -81,7 +81,7 @@ def create_provider(client: TestClient) -> dict[str, object]:
             "providerType": "openai",
             "displayName": "Operation Provider",
             "baseUrl": "https://8.8.8.8/v1",
-            "credential": "sk-operation-secret-1234",
+            "credential": "operation-test-credential-1234",
         },
     )
     assert response.status_code == 201

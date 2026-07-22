@@ -14,7 +14,7 @@ pytestmark = pytest.mark.integration
 
 INITIAL_CREDENTIAL = "Initial-Admin-Password-01!"
 CURRENT_CREDENTIAL = "Current-Admin-Password-02!"
-PROVIDER_CREDENTIAL = "sk-provider-secret-1234"
+PROVIDER_CREDENTIAL = "provider-test-credential-1234"
 
 
 def make_settings(tmp_path: Path, database_url: str) -> Settings:
@@ -120,7 +120,7 @@ def test_create_list_and_get_provider_without_secret_material(
         "displayName": "Primary OpenAI",
         "baseUrl": "https://8.8.8.8/v1",
         "credentialConfigured": True,
-        "credentialMasked": "sk-p...1234",
+        "credentialMasked": "prov...1234",
         "enabled": True,
         "modelCount": 0,
         "revision": 1,
