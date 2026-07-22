@@ -4,6 +4,7 @@ from enum import IntEnum
 from typing import Annotated, BinaryIO, Literal, Protocol, cast
 from urllib.parse import quote
 from uuid import UUID
+from zipfile import BadZipFile
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Request, UploadFile
 from pydantic import ValidationError
@@ -15,6 +16,8 @@ from app.infrastructure.database.session import transaction
 from app.infrastructure.storage.local import EmptyStorageObjectError, StorageLimitExceededError
 from app.modules.auth.dependencies import require_admin, require_csrf
 from app.modules.auth.domain import Administrator
+from app.modules.capabilities.registry import INPUT_TYPE_MIME_TYPES
+from app.modules.parsing.archive import UnsafeArchiveError, open_safe_archive
 from app.modules.parsing.ports import SourceStorage
 from app.modules.parsing.repository import DataSourceListQuery
 from app.modules.parsing.schemas import (
@@ -23,6 +26,7 @@ from app.modules.parsing.schemas import (
     RejectedUploadView,
     UpdateDataSourceRequest,
     UploadBatchResult,
+    UploadedDataSourceView,
     UploadOptions,
     data_source_detail,
     data_source_summary,
@@ -94,7 +98,7 @@ def upload_data_sources(
             status_code=422,
         ) from error
 
-    accepted = []
+    accepted: list[UploadedDataSourceView] = []
     rejected: list[RejectedUploadView] = []
     for uploaded_file in files:
         file_name = uploaded_file.filename or ""
@@ -104,51 +108,45 @@ def upload_data_sources(
                 uploaded_file.content_type or "application/octet-stream",
                 uploaded_file.file,
             )
-            uploaded_file.file.seek(0)
-            stored = dependencies.source_storage.store_blob(
-                uploaded_file.file,
-                max_bytes=MAX_SOURCE_BYTES,
-            )
-            with transaction(dependencies.session_factory) as session:
-                registered = dependencies.data_source_service.register_upload(
-                    session,
-                    stored=stored,
-                    file_name=file_name,
-                    extension=inspected.extension,
-                    mime_type=inspected.mime_type,
-                    origin_type=parsed_options.origin_type,
-                    duplicate_action=parsed_options.duplicate_action,
-                    administrator_id=administrator.id,
-                    now=datetime.now(UTC),
-                    trace_id=_trace_id(request),
-                    source_ip=request.client.host if request.client is not None else None,
-                    user_agent=request.headers.get("User-Agent"),
+            if inspected.extension == "zip":
+                _expand_archive(
+                    uploaded_file.file,
+                    options=parsed_options,
+                    request=request,
+                    administrator=administrator,
+                    dependencies=dependencies,
+                    accepted=accepted,
+                    rejected=rejected,
                 )
-            accepted.append(uploaded_data_source_view(registered))
-        except (SourceTypeUnsupportedError, SourceTypeMismatchError):
+            else:
+                accepted.append(
+                    _store_source(
+                        uploaded_file.file,
+                        file_name=file_name,
+                        source_path=file_name,
+                        extension=inspected.extension,
+                        mime_type=inspected.mime_type,
+                        options=parsed_options,
+                        request=request,
+                        administrator=administrator,
+                        dependencies=dependencies,
+                    )
+                )
+        except UnsafeArchiveError:
             rejected.append(
                 RejectedUploadView(
                     file_name=file_name,
-                    code="SOURCE_TYPE_UNSUPPORTED",
-                    message="文件类型不受支持或与内容不匹配",
+                    code="SOURCE_ARCHIVE_UNSAFE",
+                    message="ZIP 文件未通过安全检查",
                 )
             )
-        except EmptyStorageObjectError:
-            rejected.append(
-                RejectedUploadView(
-                    file_name=file_name,
-                    code="SOURCE_FILE_EMPTY",
-                    message="文件不能为空",
-                )
-            )
-        except StorageLimitExceededError:
-            rejected.append(
-                RejectedUploadView(
-                    file_name=file_name,
-                    code="SOURCE_FILE_TOO_LARGE",
-                    message="单文件不能超过 200 MB",
-                )
-            )
+        except (
+            SourceTypeUnsupportedError,
+            SourceTypeMismatchError,
+            EmptyStorageObjectError,
+            StorageLimitExceededError,
+        ) as error:
+            rejected.append(_source_rejection(file_name, error))
         finally:
             uploaded_file.file.close()
 
@@ -161,6 +159,120 @@ def upload_data_sources(
             details={"rejected": [item.model_dump(mode="json") for item in rejected]},
         )
     return result
+
+
+def _expand_archive(
+    stream: BinaryIO,
+    *,
+    options: UploadOptions,
+    request: Request,
+    administrator: Administrator,
+    dependencies: DataSourceDependencies,
+    accepted: list[UploadedDataSourceView],
+    rejected: list[RejectedUploadView],
+) -> None:
+    with open_safe_archive(stream) as archive:
+        for entry in archive.entries:
+            try:
+                with archive.open_entry(entry) as entry_stream:
+                    inspected = inspect_source(
+                        entry.original_file_name,
+                        _archive_entry_mime(entry.original_file_name),
+                        entry_stream,
+                    )
+                    accepted.append(
+                        _store_source(
+                            entry_stream,
+                            file_name=entry.original_file_name,
+                            source_path=entry.source_path,
+                            extension=inspected.extension,
+                            mime_type=inspected.mime_type,
+                            options=options,
+                            request=request,
+                            administrator=administrator,
+                            dependencies=dependencies,
+                        )
+                    )
+            except (
+                SourceTypeUnsupportedError,
+                SourceTypeMismatchError,
+                EmptyStorageObjectError,
+                StorageLimitExceededError,
+            ) as error:
+                rejected.append(_source_rejection(entry.source_path, error))
+            except BadZipFile:
+                rejected.append(
+                    RejectedUploadView(
+                        file_name=entry.source_path,
+                        code="SOURCE_ARCHIVE_ENTRY_INVALID",
+                        message="ZIP 条目损坏或无法读取",
+                    )
+                )
+
+
+def _store_source(
+    stream: BinaryIO,
+    *,
+    file_name: str,
+    source_path: str,
+    extension: str,
+    mime_type: str,
+    options: UploadOptions,
+    request: Request,
+    administrator: Administrator,
+    dependencies: DataSourceDependencies,
+) -> UploadedDataSourceView:
+    stream.seek(0)
+    stored = dependencies.source_storage.store_blob(stream, max_bytes=MAX_SOURCE_BYTES)
+    with transaction(dependencies.session_factory) as session:
+        registered = dependencies.data_source_service.register_upload(
+            session,
+            stored=stored,
+            file_name=file_name,
+            extension=extension,
+            mime_type=mime_type,
+            origin_type=options.origin_type,
+            duplicate_action=options.duplicate_action,
+            administrator_id=administrator.id,
+            now=datetime.now(UTC),
+            trace_id=_trace_id(request),
+            source_ip=request.client.host if request.client is not None else None,
+            user_agent=request.headers.get("User-Agent"),
+            source_path=source_path,
+        )
+    return uploaded_data_source_view(registered)
+
+
+def _source_rejection(
+    file_name: str,
+    error: SourceTypeUnsupportedError
+    | SourceTypeMismatchError
+    | EmptyStorageObjectError
+    | StorageLimitExceededError,
+) -> RejectedUploadView:
+    if isinstance(error, (SourceTypeUnsupportedError, SourceTypeMismatchError)):
+        return RejectedUploadView(
+            file_name=file_name,
+            code="SOURCE_TYPE_UNSUPPORTED",
+            message="文件类型不受支持或与内容不匹配",
+        )
+    if isinstance(error, EmptyStorageObjectError):
+        return RejectedUploadView(
+            file_name=file_name,
+            code="SOURCE_FILE_EMPTY",
+            message="文件不能为空",
+        )
+    return RejectedUploadView(
+        file_name=file_name,
+        code="SOURCE_FILE_TOO_LARGE",
+        message="单文件不能超过 200 MB",
+    )
+
+
+def _archive_entry_mime(file_name: str) -> str:
+    extension = file_name.rpartition(".")[2].casefold()
+    mime_types = INPUT_TYPE_MIME_TYPES.get(extension)
+    return mime_types[0] if mime_types is not None else "application/octet-stream"
 
 
 @router.get("", response_model=DataSourcePageView, operation_id="dataSourcesList")

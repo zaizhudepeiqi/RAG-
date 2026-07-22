@@ -50,6 +50,7 @@ class DataSourceService:
         trace_id: UUID | None,
         source_ip: str | None,
         user_agent: str | None,
+        source_path: str | None = None,
     ) -> RegisteredUpload:
         blob, created = self._repository.acquire_blob(
             session,
@@ -81,7 +82,7 @@ class DataSourceService:
             id=uuid4(),
             source_blob_id=blob.id,
             display_name=file_name,
-            source_path=file_name,
+            source_path=source_path if source_path is not None else file_name,
             original_file_name=file_name,
             extension=extension,
             mime_type=mime_type,
