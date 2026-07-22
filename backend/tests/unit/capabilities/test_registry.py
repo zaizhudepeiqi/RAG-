@@ -123,3 +123,68 @@ def test_builtin_catalog_registers_supported_model_providers_and_types() -> None
     properties = compatible.config_schema["properties"]
     assert isinstance(properties, Mapping)
     assert "supportedModelTypes" in properties
+
+
+def test_builtin_catalog_registers_parser_routes_and_input_types() -> None:
+    registry = registry_module.build_capability_registry()
+
+    parsers = registry.list(category="parser", include_disabled=False)
+    input_types = registry.list(category="input_type", include_disabled=False)
+
+    assert {item.code for item in parsers} == {"builtin_text", "mineru_precision_api"}
+    assert {item.code for item in input_types} == {
+        "bmp",
+        "csv",
+        "doc",
+        "docx",
+        "gif",
+        "htm",
+        "html",
+        "jpeg",
+        "jp2",
+        "jpg",
+        "json",
+        "md",
+        "pdf",
+        "png",
+        "ppt",
+        "pptx",
+        "txt",
+        "webp",
+        "xls",
+        "xlsx",
+        "zip",
+    }
+
+    html = registry.get("html", "1")
+    assert html.config_schema is not None
+    assert html.config_schema["defaultParserCode"] == "mineru_precision_api"
+    assert html.config_schema["defaultModelVersion"] == "MinerU-HTML"
+
+    text = registry.get("txt", "1")
+    assert text.config_schema is not None
+    assert text.config_schema["defaultParserCode"] == "builtin_text"
+    assert text.config_schema["defaultModelVersion"] == "builtin"
+
+    archive = registry.get("zip", "1")
+    assert archive.config_schema is not None
+    assert archive.config_schema["inputKind"] == "container"
+    assert "defaultParserCode" not in archive.config_schema
+
+    mineru = registry.get("mineru_precision_api", "1")
+    assert mineru.config_schema is not None
+    assert mineru.config_schema["additionalProperties"] is False
+    assert "zip" not in mineru.config_schema["supportedExtensions"]
+    properties = mineru.config_schema["properties"]
+    assert isinstance(properties, Mapping)
+    assert set(properties) == {
+        "extraFormats",
+        "forceProviderRefresh",
+        "formulaEnabled",
+        "language",
+        "modelVersion",
+        "ocrEnabled",
+        "pageRanges",
+        "parserCode",
+        "tableEnabled",
+    }

@@ -6,6 +6,49 @@ from app.modules.capabilities.domain import CapabilityOption
 from app.modules.capabilities.errors import CapabilityNotFoundError
 
 MODEL_TYPES = ("llm", "embedding", "rerank", "vision")
+BUILTIN_TEXT_EXTENSIONS = ("csv", "json", "md", "txt")
+MINERU_EXTENSIONS = (
+    "bmp",
+    "doc",
+    "docx",
+    "gif",
+    "htm",
+    "html",
+    "jpeg",
+    "jp2",
+    "jpg",
+    "pdf",
+    "png",
+    "ppt",
+    "pptx",
+    "webp",
+    "xls",
+    "xlsx",
+)
+
+INPUT_TYPE_MIME_TYPES: dict[str, tuple[str, ...]] = {
+    "bmp": ("image/bmp", "image/x-ms-bmp"),
+    "csv": ("application/csv", "text/csv", "text/plain"),
+    "doc": ("application/msword",),
+    "docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document",),
+    "gif": ("image/gif",),
+    "htm": ("text/html",),
+    "html": ("text/html",),
+    "jpeg": ("image/jpeg",),
+    "jp2": ("image/jp2",),
+    "jpg": ("image/jpeg",),
+    "json": ("application/json", "text/json", "text/plain"),
+    "md": ("text/markdown", "text/plain"),
+    "pdf": ("application/pdf",),
+    "png": ("image/png",),
+    "ppt": ("application/vnd.ms-powerpoint",),
+    "pptx": ("application/vnd.openxmlformats-officedocument.presentationml.presentation",),
+    "txt": ("text/plain",),
+    "webp": ("image/webp",),
+    "xls": ("application/vnd.ms-excel",),
+    "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",),
+    "zip": ("application/x-zip-compressed", "application/zip"),
+}
 
 
 def _provider_schema(
@@ -127,6 +170,111 @@ MODEL_TYPE_CAPABILITIES = tuple(
 )
 
 
+def _parse_config_schema(
+    *,
+    parser_code: str,
+    model_versions: tuple[str, ...],
+    supported_extensions: tuple[str, ...],
+) -> dict[str, object]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "supportedExtensions": list(supported_extensions),
+        "required": [
+            "parserCode",
+            "modelVersion",
+            "language",
+            "ocrEnabled",
+            "tableEnabled",
+            "formulaEnabled",
+            "extraFormats",
+            "forceProviderRefresh",
+        ],
+        "properties": {
+            "parserCode": {"type": "string", "const": parser_code},
+            "modelVersion": {"type": "string", "enum": list(model_versions)},
+            "language": {"type": "string", "minLength": 1, "default": "ch"},
+            "ocrEnabled": {"type": "boolean", "default": False},
+            "tableEnabled": {"type": "boolean", "default": True},
+            "formulaEnabled": {"type": "boolean", "default": True},
+            "pageRanges": {"type": ["string", "null"], "default": None},
+            "extraFormats": {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": [],
+            },
+            "forceProviderRefresh": {"type": "boolean", "default": False},
+        },
+    }
+
+
+PARSER_CAPABILITIES = (
+    CapabilityOption(
+        code="builtin_text",
+        name="内置文本解析",
+        description="确定性解析 TXT、Markdown、CSV 和 JSON",
+        enabled=True,
+        visible=True,
+        version="1",
+        category="parser",
+        config_schema=_parse_config_schema(
+            parser_code="builtin_text",
+            model_versions=("builtin",),
+            supported_extensions=BUILTIN_TEXT_EXTENSIONS,
+        ),
+    ),
+    CapabilityOption(
+        code="mineru_precision_api",
+        name="MinerU Precision API",
+        description="通过 MinerU Cloud 解析文档、图片和 Office 文件",
+        enabled=True,
+        visible=True,
+        version="1",
+        category="parser",
+        config_schema=_parse_config_schema(
+            parser_code="mineru_precision_api",
+            model_versions=("pipeline", "vlm", "MinerU-HTML"),
+            supported_extensions=MINERU_EXTENSIONS,
+        ),
+        ui_schema={
+            "pageRanges": {"ui:placeholder": "例如 1-5,8"},
+            "extraFormats": {"ui:widget": "checkboxes"},
+        },
+    ),
+)
+
+
+def _input_type_capability(extension: str) -> CapabilityOption:
+    is_archive = extension == "zip"
+    is_builtin = extension in BUILTIN_TEXT_EXTENSIONS
+    is_html = extension in {"htm", "html"}
+    metadata: dict[str, object] = {
+        "inputKind": "container" if is_archive else "file",
+        "mimeTypes": list(INPUT_TYPE_MIME_TYPES[extension]),
+    }
+    if not is_archive:
+        metadata["defaultParserCode"] = "builtin_text" if is_builtin else "mineru_precision_api"
+        metadata["defaultModelVersion"] = (
+            "builtin" if is_builtin else "MinerU-HTML" if is_html else "pipeline"
+        )
+    return CapabilityOption(
+        code=extension,
+        name=extension.upper(),
+        description=("安全批量上传容器" if is_archive else f".{extension} 文件"),
+        enabled=True,
+        visible=True,
+        version="1",
+        category="input_type",
+        config_schema=metadata,
+    )
+
+
+INPUT_TYPE_CAPABILITIES = tuple(
+    _input_type_capability(extension)
+    for extension in sorted((*BUILTIN_TEXT_EXTENSIONS, *MINERU_EXTENSIONS, "zip"))
+)
+
+
 class CapabilityRegistry:
     def __init__(self) -> None:
         self._options: dict[tuple[str, str], CapabilityOption] = {}
@@ -167,7 +315,12 @@ class CapabilityRegistry:
 
 def build_capability_registry() -> CapabilityRegistry:
     registry = CapabilityRegistry()
-    for option in MODEL_PROVIDER_CAPABILITIES + MODEL_TYPE_CAPABILITIES:
+    for option in (
+        MODEL_PROVIDER_CAPABILITIES
+        + MODEL_TYPE_CAPABILITIES
+        + PARSER_CAPABILITIES
+        + INPUT_TYPE_CAPABILITIES
+    ):
         registry.register(option)
     return registry
 
