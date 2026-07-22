@@ -201,7 +201,7 @@
 详细步骤：
 
 - 02A：`docs/implementation/02a-model-registry-implementation-plan.md`。
-- 02B：`docs/implementation/02b-data-parsing-implementation-plan.md`（02A 完成后按同一需求真源创建）。
+- 02B：`docs/implementation/02b-data-parsing-implementation-plan.md`。
 
 ## 8. 阶段 3：知识库构建与检索
 

@@ -44,7 +44,7 @@ c83abff test: use scanner-safe credential fixtures
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 2B)**。
 
-02A 计划 `docs/implementation/02a-model-registry-implementation-plan.md` 已执行完成。Phase 02 尚未完成；02B 需要先依据解析需求真源创建详细计划，再实现数据上传与解析闭环。
+02A 计划 `docs/implementation/02a-model-registry-implementation-plan.md` 已执行完成。02B 计划 `docs/implementation/02b-data-parsing-implementation-plan.md` 已锁定；Phase 02 尚未完成。
 
 02A 最终验证（2026-07-23）：
 
@@ -58,9 +58,9 @@ MinerU 完整连接测试必须复用真实文件上传、轮询、下载和标�
 
 ## 4. 下一步
 
-1. 从 `docs/requirements/03-data-parsing-source.md` 和现有路线图创建 `docs/implementation/02b-data-parsing-implementation-plan.md`。
-2. 继续使用当前 `codex/phase-02-models-parsing` 分支和 worktree，不在 `main` 直接开发。
-3. 02B 实现真实 MinerUPrecisionAdapter 后再注册 `POST /settings/mineru:test`，并完成上传、ZIP 安全、ParsedSourceVersion、轮询、下载和标准化。
+1. 从 02B Task 2 注册 parser/input capability，并继续使用当前分支和 worktree。
+2. 按 0003 迁移、流式上传、ZIP 安全、ParsedSourceVersion、builtin_text、MinerU Adapter/Worker、标准化和恢复顺序实施。
+3. 实现真实 MinerUPrecisionAdapter 后再注册 `POST /settings/mineru:test`。
 4. 保持 TDD、每任务独立提交，以及根门禁/集成/安全审计闭环。
 
 ## 5. 保持不变的边界
