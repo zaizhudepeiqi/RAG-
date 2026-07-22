@@ -50,6 +50,15 @@ EXPECTED_OPERATIONS = {
     ("delete", "/api/v1/models/{modelId}", "modelsDelete"),
     ("get", "/api/v1/settings/mineru", "mineruSettingsGet"),
     ("patch", "/api/v1/settings/mineru", "mineruSettingsUpdate"),
+    ("get", "/api/v1/data-sources", "dataSourcesList"),
+    ("post", "/api/v1/data-sources/uploads", "dataSourcesUpload"),
+    ("get", "/api/v1/data-sources/{dataSourceId}", "dataSourcesGet"),
+    ("patch", "/api/v1/data-sources/{dataSourceId}", "dataSourcesUpdate"),
+    (
+        "get",
+        "/api/v1/data-sources/{dataSourceId}/original",
+        "dataSourcesOriginal",
+    ),
 }
 
 

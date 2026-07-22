@@ -22,6 +22,10 @@ from app.infrastructure.database.repositories.models import (
     SqlAlchemyModelVerificationTaskStore,
     SqlAlchemyProviderTaskStore,
 )
+from app.infrastructure.database.repositories.parsing import (
+    SqlAlchemyDataSourceAuditRepository,
+    SqlAlchemyDataSourceRepository,
+)
 from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyAdminIdempotencyRepository,
     SqlAlchemyOperationExecutionStore,
@@ -57,6 +61,7 @@ from app.modules.models.tasks import (
     ProviderTestHandler,
 )
 from app.modules.observability.service import HealthService, NotConfiguredProbe
+from app.modules.parsing.service import DataSourceService
 from app.modules.parsing.settings_service import MinerUSettingsService
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
@@ -86,6 +91,8 @@ class ApplicationDependencies:
     model_selection_service: ModelSelectionService
     model_verification_handler: ModelVerificationHandler
     mineru_settings_service: MinerUSettingsService
+    data_source_service: DataSourceService
+    source_storage: LocalStorageAdapter
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -116,13 +123,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         signing_key=settings.jwt_signing_key_bytes,
         access_token_expire_minutes=settings.access_token_expire_minutes,
     )
+    source_storage = LocalStorageAdapter(settings.storage_root)
     health_service = HealthService(
         version=settings.app_version,
         probes=[
             PostgreSQLHealthProbe(engine, BACKEND_ROOT / "alembic.ini"),
             RedisHealthProbe(redis_client),
             ChromaHealthProbe(ChromaAdapter(settings.chroma_host, settings.chroma_port)),
-            StorageHealthProbe(LocalStorageAdapter(settings.storage_root)),
+            StorageHealthProbe(source_storage),
             CeleryHealthProbe(redis_client),
             NotConfiguredProbe("mineru"),
             NotConfiguredProbe("models"),
@@ -177,6 +185,10 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         SqlAlchemyMinerUSettingsAuditRepository(),
         settings.credential_encryption_key_bytes,
     )
+    data_source_service = DataSourceService(
+        SqlAlchemyDataSourceRepository(),
+        SqlAlchemyDataSourceAuditRepository(),
+    )
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(
         TaskDispatchDefinition(
@@ -222,4 +234,6 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_selection_service=model_selection_service,
         model_verification_handler=model_verification_handler,
         mineru_settings_service=mineru_settings_service,
+        data_source_service=data_source_service,
+        source_storage=source_storage,
     )
