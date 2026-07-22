@@ -1,7 +1,17 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    Text,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database.base import Base, utc_now
@@ -40,6 +50,59 @@ class RetentionSettingsModel(Base):
     metric_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=365, server_default=text("365")
     )
+    revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+        server_default=func.now(),
+    )
+
+
+class MinerUSettingsModel(Base):
+    __tablename__ = "mineru_settings"
+    __table_args__ = (
+        CheckConstraint("token_revision >= 1", name="token_revision_positive"),
+        CheckConstraint(
+            "poll_timeout_seconds BETWEEN 300 AND 7200",
+            name="poll_timeout_seconds_range",
+        ),
+        CheckConstraint("revision >= 1", name="revision_positive"),
+        CheckConstraint(
+            "(token_ciphertext IS NULL AND token_nonce IS NULL "
+            "AND token_key_version IS NULL AND token_prefix IS NULL) "
+            "OR (token_ciphertext IS NOT NULL AND token_nonce IS NOT NULL "
+            "AND token_key_version IS NOT NULL)",
+            name="token_encryption_complete",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    base_url: Mapped[str] = mapped_column(Text, nullable=False)
+    token_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    token_nonce: Mapped[bytes | None] = mapped_column(LargeBinary)
+    token_key_version: Mapped[str | None] = mapped_column(Text)
+    token_prefix: Mapped[str | None] = mapped_column(Text)
+    token_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+    default_parse_config: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    poll_timeout_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1800, server_default=text("1800")
+    )
+    cloud_processing_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cloud_processing_confirmed_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("administrators.id", ondelete="RESTRICT")
+    )
+    cloud_processing_terms_version: Mapped[str | None] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default=text("1")
     )

@@ -41,17 +41,20 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 唯一索引：`lower(username)`。
 
-### `system_mineru_settings`
+### `mineru_settings`
 
 单行配置，固定逻辑 key `default`：
 
 - id uuid PK。
 - base_url text not null。
-- token_ciphertext bytea、token_nonce bytea、token_key_version text。
+- token_ciphertext bytea、token_nonce bytea、token_key_version text、token_prefix text，均可空但加密字段必须成组存在。
+- token_revision integer not null default 1 check >=1。
 - default_parse_config jsonb not null。
 - poll_timeout_seconds integer not null check 300-7200。
-- cloud_transfer_accepted_at timestamptz。
-- revision、created_at、updated_at。
+- cloud_processing_confirmed_at timestamptz/null。
+- cloud_processing_confirmed_by uuid/null FK administrators RESTRICT。
+- cloud_processing_terms_version text/null。
+- revision integer not null default 1 check >=1、created_at、updated_at。
 
 ### `retention_settings`
 
@@ -90,6 +93,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 - credential_ciphertext/nonce/key_version。
 - credential_prefix text/null。
 - credential_revision integer not null default 1；每次凭据轮换递增。
+- supported_model_types jsonb array，只允许 llm/embedding/rerank/vision。
 - enabled boolean not null default true。
 - revision integer not null。
 - created_at/updated_at/deleted_at。
@@ -128,6 +132,19 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 - tested_at timestamptz。
 
 索引：`model_id, tested_at desc`。
+
+### `model_discovered_candidates`
+
+- id uuid PK。
+- provider_id uuid FK model_providers RESTRICT。
+- discovery_operation_id uuid FK operations RESTRICT。
+- model_name text not null。
+- suggested_types jsonb array，只允许 `llm/embedding/rerank/vision`。
+- provider_status text check `available/unavailable/unknown`。
+- raw_metadata_summary jsonb not null default `{}`，不保存完整供应商响应。
+- discovered_at timestamptz not null。
+
+唯一约束：`provider_id, discovery_operation_id, model_name`。
 
 ## 4. 原始数据源和解析
 
