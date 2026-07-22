@@ -13,19 +13,34 @@ from app.infrastructure.database.session import transaction
 from app.modules.auth.dependencies import require_admin, require_csrf
 from app.modules.auth.domain import Administrator
 from app.modules.models.domain import ModelType
-from app.modules.models.repository import ModelProviderListQuery
+from app.modules.models.repository import ModelConfigListQuery, ModelProviderListQuery
 from app.modules.models.schemas import (
     CreateModelProviderRequest,
+    CreateModelRequest,
     DiscoveredModelView,
+    ModelPageView,
     ModelProviderPageView,
     ModelProviderView,
+    ModelReferenceView,
+    ModelStateRequest,
+    ModelView,
     ProviderOperationRequest,
     UpdateModelProviderRequest,
+    UpdateModelRequest,
     discovered_model_view,
     model_provider_view,
+    model_reference_view,
+    model_view,
 )
 from app.modules.models.service import (
+    ModelConfigNotFoundError,
+    ModelConfigRevisionConflictError,
+    ModelConfigService,
+    ModelIdentityConflictError,
+    ModelInUseError,
+    ModelNotSelectableError,
     ModelProviderCapabilityError,
+    ModelProviderDisabledError,
     ModelProviderInUseError,
     ModelProviderNameConflictError,
     ModelProviderNotFoundError,
@@ -40,6 +55,7 @@ from app.modules.tasks.schemas import OperationRef
 class ModelDependencies(Protocol):
     session_factory: sessionmaker[Session]
     model_provider_service: ModelProviderService
+    model_config_service: ModelConfigService
 
 
 class ProviderPageSize(IntEnum):
@@ -58,6 +74,12 @@ class AuditArguments(TypedDict):
 router = APIRouter(
     prefix="/api/v1/model-providers",
     tags=["模型供应商"],
+    dependencies=[Depends(require_admin)],
+)
+
+models_router = APIRouter(
+    prefix="/api/v1/models",
+    tags=["模型配置"],
     dependencies=[Depends(require_admin)],
 )
 
@@ -324,6 +346,241 @@ def delete_model_provider(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@models_router.get("", response_model=ModelPageView, operation_id="modelsList")
+def list_models(
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+    provider_id: Annotated[UUID | None, Query(alias="providerId")] = None,
+    model_type: Annotated[ModelType | None, Query(alias="modelType")] = None,
+    enabled: bool | None = None,
+    verification_status: Annotated[
+        Literal["untested", "passed", "failed", "stale"] | None,
+        Query(alias="verificationStatus"),
+    ] = None,
+    search: str | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[ProviderPageSize, Query(alias="pageSize")] = ProviderPageSize.DEFAULT,
+    sort: Literal["display_name", "-display_name", "created_at", "-created_at"] = "display_name",
+) -> ModelPageView:
+    with transaction(dependencies.session_factory) as session:
+        result = dependencies.model_config_service.list(
+            session,
+            ModelConfigListQuery(
+                provider_id=provider_id,
+                model_type=model_type,
+                enabled=enabled,
+                verification_status=verification_status,
+                search=search,
+                page=page,
+                page_size=page_size,
+                sort=sort,
+            ),
+        )
+    return ModelPageView(
+        items=[model_view(item) for item in result.items],
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+    )
+
+
+@models_router.post(
+    "",
+    response_model=ModelView,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="modelsCreate",
+    dependencies=[Depends(require_csrf)],
+)
+def create_model(
+    payload: CreateModelRequest,
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> ModelView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.model_config_service.create(
+                session,
+                provider_id=payload.provider_id,
+                model_name=payload.model_name,
+                display_name=payload.display_name,
+                model_type=payload.model_type,
+                context_window=payload.context_window,
+                max_output_tokens=payload.max_output_tokens,
+                embedding_dimension=payload.embedding_dimension,
+                default_params=payload.default_params,
+            )
+    except IntegrityError as error:
+        raise _model_conflict() from error
+    except ModelIdentityConflictError as error:
+        raise _model_conflict() from error
+    except ModelProviderNotFoundError as error:
+        raise _not_found() from error
+    except ModelProviderDisabledError as error:
+        raise AppError(
+            code="MODEL_PROVIDER_DISABLED",
+            message="模型供应商已停用",
+            status_code=409,
+        ) from error
+    except ModelNotSelectableError as error:
+        raise _model_rule_error(error) from error
+    return model_view(details)
+
+
+@models_router.post(
+    "/{modelId}:enable",
+    response_model=ModelView,
+    operation_id="modelsEnable",
+    dependencies=[Depends(require_csrf)],
+)
+def enable_model(
+    payload: ModelStateRequest,
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> ModelView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.model_config_service.enable(
+                session,
+                model_id,
+                expected_revision=payload.expected_revision,
+            )
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    except ModelConfigRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except ModelNotSelectableError as error:
+        raise _model_rule_error(error) from error
+    return model_view(details)
+
+
+@models_router.post(
+    "/{modelId}:disable",
+    response_model=ModelView,
+    operation_id="modelsDisable",
+    dependencies=[Depends(require_csrf)],
+)
+def disable_model(
+    payload: ModelStateRequest,
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> ModelView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.model_config_service.disable(
+                session,
+                model_id,
+                expected_revision=payload.expected_revision,
+            )
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    except ModelConfigRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except ModelInUseError as error:
+        raise _model_in_use(error) from error
+    return model_view(details)
+
+
+@models_router.get(
+    "/{modelId}/references",
+    response_model=list[ModelReferenceView],
+    operation_id="modelsReferences",
+)
+def model_references(
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> list[ModelReferenceView]:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            references = dependencies.model_config_service.references(session, model_id)
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    return [model_reference_view(item) for item in references]
+
+
+@models_router.get(
+    "/{modelId}",
+    response_model=ModelView,
+    operation_id="modelsGet",
+)
+def get_model(
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> ModelView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.model_config_service.get(session, model_id)
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    return model_view(details)
+
+
+@models_router.patch(
+    "/{modelId}",
+    response_model=ModelView,
+    operation_id="modelsUpdate",
+    dependencies=[Depends(require_csrf)],
+)
+def update_model(
+    payload: UpdateModelRequest,
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> ModelView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.model_config_service.update(
+                session,
+                model_id,
+                expected_revision=payload.expected_revision,
+                model_name=payload.model_name,
+                display_name=payload.display_name,
+                model_type=payload.model_type,
+                context_window=payload.context_window,
+                max_output_tokens=payload.max_output_tokens,
+                embedding_dimension=payload.embedding_dimension,
+                capability_version=payload.capability_version,
+                default_params=payload.default_params,
+                config_schema=payload.config_schema,
+            )
+    except IntegrityError as error:
+        raise _model_conflict() from error
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    except ModelConfigRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except ModelIdentityConflictError as error:
+        raise _model_conflict() from error
+    except ModelInUseError as error:
+        raise _model_in_use(error) from error
+    except ModelNotSelectableError as error:
+        raise _model_rule_error(error) from error
+    return model_view(details)
+
+
+@models_router.delete(
+    "/{modelId}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="modelsDelete",
+    dependencies=[Depends(require_csrf)],
+)
+def delete_model(
+    model_id: Annotated[UUID, Path(alias="modelId")],
+    expected_revision: Annotated[int, Query(alias="expectedRevision", ge=1)],
+    dependencies: Annotated[ModelDependencies, Depends(get_model_dependencies)],
+) -> Response:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            dependencies.model_config_service.delete(
+                session,
+                model_id,
+                expected_revision=expected_revision,
+            )
+    except ModelConfigNotFoundError as error:
+        raise _model_not_found() from error
+    except ModelConfigRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except ModelInUseError as error:
+        raise _model_in_use(error) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 def _audit_arguments(request: Request, administrator: Administrator) -> AuditArguments:
     trace_id = getattr(request.state, "trace_id", None)
     return {
@@ -373,4 +630,35 @@ def _idempotency_reused() -> AppError:
         code="IDEMPOTENCY_KEY_REUSED",
         message="幂等键已用于不同请求",
         status_code=409,
+    )
+
+
+def _model_not_found() -> AppError:
+    return AppError(code="MODEL_NOT_FOUND", message="模型不存在", status_code=404)
+
+
+def _model_conflict() -> AppError:
+    return AppError(code="MODEL_CONFLICT", message="模型配置已存在", status_code=409)
+
+
+def _model_rule_error(error: ModelNotSelectableError) -> AppError:
+    return AppError(
+        code=error.code,
+        message=(
+            "模型类型不匹配" if error.code == "MODEL_TYPE_MISMATCH" else "模型尚未通过当前配置验证"
+        ),
+        status_code=422 if error.code == "MODEL_TYPE_MISMATCH" else 409,
+    )
+
+
+def _model_in_use(error: ModelInUseError) -> AppError:
+    references = [
+        model_reference_view(item).model_dump(mode="json", by_alias=True)
+        for item in error.references
+    ]
+    return AppError(
+        code="MODEL_IN_USE",
+        message="模型仍被业务配置引用",
+        status_code=409,
+        details={"references": references},
     )

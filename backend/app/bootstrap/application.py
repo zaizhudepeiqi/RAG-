@@ -12,6 +12,7 @@ from app.core.logging import configure_logging
 from app.core.middleware import TraceIdMiddleware
 from app.modules.auth.api import router as auth_router
 from app.modules.capabilities.api import router as capabilities_router
+from app.modules.models.api import models_router
 from app.modules.models.api import router as model_providers_router
 from app.modules.observability.api import router as health_router
 from app.modules.tasks.api import router as tasks_router
@@ -61,5 +62,6 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(capabilities_router)
     app.include_router(health_router)
     app.include_router(model_providers_router)
+    app.include_router(models_router)
     app.include_router(tasks_router)
     return app

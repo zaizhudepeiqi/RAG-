@@ -14,6 +14,7 @@ from app.infrastructure.database.repositories.auth import SqlAlchemyAdministrato
 from app.infrastructure.database.repositories.models import (
     SqlAlchemyModelAuditRepository,
     SqlAlchemyModelProviderRepository,
+    SqlAlchemyModelRepository,
     SqlAlchemyProviderTaskStore,
 )
 from app.infrastructure.database.repositories.tasks import (
@@ -40,7 +41,11 @@ from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
-from app.modules.models.service import ModelProviderService
+from app.modules.models.service import (
+    ModelConfigService,
+    ModelProviderService,
+    ModelSelectionService,
+)
 from app.modules.models.tasks import ProviderDiscoveryHandler, ProviderTestHandler
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.tasks.idempotency import AdminIdempotencyService
@@ -67,6 +72,8 @@ class ApplicationDependencies:
     model_provider_adapter_registry: ModelProviderAdapterRegistry
     provider_test_handler: ProviderTestHandler
     provider_discovery_handler: ProviderDiscoveryHandler
+    model_config_service: ModelConfigService
+    model_selection_service: ModelSelectionService
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -137,6 +144,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         idempotency=admin_idempotency_service,
         operation_retention_days=settings.operation_retention_days,
     )
+    model_repository = SqlAlchemyModelRepository()
+    provider_repository = SqlAlchemyModelProviderRepository()
+    model_config_service = ModelConfigService(
+        model_repository,
+        provider_repository,
+        capability_service,
+    )
+    model_selection_service = ModelSelectionService(model_repository, provider_repository)
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(
         TaskDispatchDefinition(
@@ -170,4 +185,6 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_provider_adapter_registry=model_provider_adapter_registry,
         provider_test_handler=provider_test_handler,
         provider_discovery_handler=provider_discovery_handler,
+        model_config_service=model_config_service,
+        model_selection_service=model_selection_service,
     )

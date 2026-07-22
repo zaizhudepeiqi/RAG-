@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Select, asc, desc, func, select, update
+from sqlalchemy import Select, asc, desc, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
@@ -15,17 +15,23 @@ from app.infrastructure.database.models.models import (
     ModelConfigModel,
     ModelDiscoveredCandidateModel,
     ModelProviderModel,
+    ModelVerificationModel,
 )
 from app.infrastructure.database.models.tasks import OperationModel
 from app.infrastructure.database.session import transaction
 from app.modules.models.adapters import DiscoveredModel
 from app.modules.models.domain import (
     DiscoveredModelCandidate,
+    ModelConfig,
     ModelProvider,
+    ModelReference,
     ModelType,
+    ModelVerificationSnapshot,
     VerificationStatus,
 )
 from app.modules.models.repository import (
+    ModelConfigListQuery,
+    ModelConfigPage,
     ModelProviderListQuery,
     ModelProviderPage,
 )
@@ -259,6 +265,176 @@ class SqlAlchemyModelProviderRepository:
             updated_at=model.updated_at,
             deleted_at=model.deleted_at,
             model_count=model_count,
+        )
+
+
+class SqlAlchemyModelRepository:
+    def add(self, session: Session, model: ModelConfig) -> None:
+        session.add(self._to_model(model))
+
+    def get(
+        self,
+        session: Session,
+        model_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> ModelConfig | None:
+        statement = select(ModelConfigModel).where(
+            ModelConfigModel.id == model_id,
+            ModelConfigModel.deleted_at.is_(None),
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        model = session.scalar(statement)
+        return self._to_domain(model) if model is not None else None
+
+    def find_identity(
+        self,
+        session: Session,
+        provider_id: UUID,
+        model_name: str,
+        model_type: ModelType,
+    ) -> ModelConfig | None:
+        model = session.scalar(
+            select(ModelConfigModel).where(
+                ModelConfigModel.provider_id == provider_id,
+                ModelConfigModel.model_name == model_name,
+                ModelConfigModel.model_type == model_type.value,
+                ModelConfigModel.deleted_at.is_(None),
+            )
+        )
+        return self._to_domain(model) if model is not None else None
+
+    def list(self, session: Session, query: ModelConfigListQuery) -> ModelConfigPage:
+        conditions: list[ColumnElement[bool]] = [ModelConfigModel.deleted_at.is_(None)]
+        if query.provider_id is not None:
+            conditions.append(ModelConfigModel.provider_id == query.provider_id)
+        if query.model_type is not None:
+            conditions.append(ModelConfigModel.model_type == query.model_type.value)
+        if query.enabled is not None:
+            conditions.append(ModelConfigModel.enabled == query.enabled)
+        if query.verification_status is not None:
+            conditions.append(ModelConfigModel.verification_status == query.verification_status)
+        if query.search:
+            pattern = f"%{query.search.strip()}%"
+            conditions.append(
+                or_(
+                    ModelConfigModel.display_name.ilike(pattern),
+                    ModelConfigModel.model_name.ilike(pattern),
+                )
+            )
+        ordering = {
+            "display_name": asc(func.lower(ModelConfigModel.display_name)),
+            "-display_name": desc(func.lower(ModelConfigModel.display_name)),
+            "created_at": asc(ModelConfigModel.created_at),
+            "-created_at": desc(ModelConfigModel.created_at),
+        }
+        models = session.scalars(
+            select(ModelConfigModel)
+            .where(*conditions)
+            .order_by(ordering[query.sort], ModelConfigModel.id)
+            .offset((query.page - 1) * query.page_size)
+            .limit(query.page_size)
+        ).all()
+        total = (
+            session.scalar(select(func.count()).select_from(ModelConfigModel).where(*conditions))
+            or 0
+        )
+        return ModelConfigPage(
+            items=[self._to_domain(model) for model in models],
+            total=total,
+            page=query.page,
+            page_size=query.page_size,
+        )
+
+    def save(self, session: Session, model: ModelConfig) -> None:
+        stored = session.get(ModelConfigModel, model.id)
+        if stored is None:
+            raise LookupError("model config no longer exists")
+        stored.model_name = model.model_name
+        stored.display_name = model.display_name
+        stored.model_type = model.model_type.value
+        stored.enabled = model.enabled
+        stored.verification_status = model.verification_status.value
+        stored.context_window = model.context_window
+        stored.max_output_tokens = model.max_output_tokens
+        stored.embedding_dimension = model.embedding_dimension
+        stored.capability_version = model.capability_version
+        stored.default_params = model.default_params
+        stored.config_schema = model.config_schema
+        stored.revision = model.revision
+        stored.updated_at = model.updated_at
+        stored.deleted_at = model.deleted_at
+
+    def latest_verification(
+        self,
+        session: Session,
+        model_id: UUID,
+    ) -> ModelVerificationSnapshot | None:
+        verification = session.scalar(
+            select(ModelVerificationModel)
+            .where(ModelVerificationModel.model_id == model_id)
+            .order_by(ModelVerificationModel.tested_at.desc(), ModelVerificationModel.id.desc())
+            .limit(1)
+        )
+        if verification is None:
+            return None
+        return ModelVerificationSnapshot(
+            model_id=verification.model_id,
+            tested_model_revision=verification.tested_model_revision,
+            tested_provider_revision=verification.tested_provider_revision,
+            tested_credential_revision=verification.tested_credential_revision,
+            status=verification.status,
+            latency_ms=verification.latency_ms,
+            error_code=verification.error_code,
+            tested_at=verification.tested_at,
+        )
+
+    def references(self, session: Session, model_id: UUID) -> tuple[ModelReference, ...]:
+        return ()
+
+    @staticmethod
+    def _to_model(model: ModelConfig) -> ModelConfigModel:
+        return ModelConfigModel(
+            id=model.id,
+            provider_id=model.provider_id,
+            model_name=model.model_name,
+            display_name=model.display_name,
+            model_type=model.model_type.value,
+            enabled=model.enabled,
+            verification_status=model.verification_status.value,
+            context_window=model.context_window,
+            max_output_tokens=model.max_output_tokens,
+            embedding_dimension=model.embedding_dimension,
+            capability_version=model.capability_version,
+            default_params=model.default_params,
+            config_schema=model.config_schema,
+            revision=model.revision,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            deleted_at=model.deleted_at,
+        )
+
+    @staticmethod
+    def _to_domain(model: ModelConfigModel) -> ModelConfig:
+        return ModelConfig(
+            id=model.id,
+            provider_id=model.provider_id,
+            model_name=model.model_name,
+            display_name=model.display_name,
+            model_type=ModelType(model.model_type),
+            enabled=model.enabled,
+            verification_status=VerificationStatus(model.verification_status),
+            context_window=model.context_window,
+            max_output_tokens=model.max_output_tokens,
+            embedding_dimension=model.embedding_dimension,
+            capability_version=model.capability_version,
+            default_params=dict(model.default_params),
+            config_schema=dict(model.config_schema),
+            revision=model.revision,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            deleted_at=model.deleted_at,
         )
 
 
