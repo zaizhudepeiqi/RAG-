@@ -155,6 +155,151 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "CloudProcessingConsent": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted": {
+            "const": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "termsVersion": {
+            "const": "mineru-cloud-v1",
+            "title": "Termsversion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accepted",
+          "termsVersion"
+        ],
+        "title": "CloudProcessingConsent",
+        "type": "object"
+      },
+      "CreateModelProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "baseUrl": {
+            "format": "uri",
+            "minLength": 1,
+            "title": "Baseurl",
+            "type": "string"
+          },
+          "credential": {
+            "format": "password",
+            "minLength": 1,
+            "title": "Credential",
+            "type": "string",
+            "writeOnly": true
+          },
+          "displayName": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Displayname",
+            "type": "string"
+          },
+          "providerType": {
+            "title": "Providertype",
+            "type": "string"
+          },
+          "supportedModelTypes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelType"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supportedmodeltypes"
+          }
+        },
+        "required": [
+          "providerType",
+          "displayName",
+          "baseUrl",
+          "credential"
+        ],
+        "title": "CreateModelProviderRequest",
+        "type": "object"
+      },
+      "CreateModelRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contextWindow": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contextwindow"
+          },
+          "defaultParams": {
+            "additionalProperties": true,
+            "title": "Defaultparams",
+            "type": "object"
+          },
+          "displayName": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Displayname",
+            "type": "string"
+          },
+          "embeddingDimension": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embeddingdimension"
+          },
+          "maxOutputTokens": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxoutputtokens"
+          },
+          "modelName": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Modelname",
+            "type": "string"
+          },
+          "modelType": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "providerId": {
+            "format": "uuid",
+            "title": "Providerid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId",
+          "modelName",
+          "displayName",
+          "modelType"
+        ],
+        "title": "CreateModelRequest",
+        "type": "object"
+      },
       "DependencyHealthItem": {
         "additionalProperties": false,
         "properties": {
@@ -238,6 +383,48 @@
         "title": "DependencyHealthResponse",
         "type": "object"
       },
+      "DiscoveredModelView": {
+        "additionalProperties": false,
+        "properties": {
+          "alreadyConfiguredModelIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Alreadyconfiguredmodelids",
+            "type": "array"
+          },
+          "discoveryMetadata": {
+            "additionalProperties": true,
+            "title": "Discoverymetadata",
+            "type": "object"
+          },
+          "providerModelName": {
+            "title": "Providermodelname",
+            "type": "string"
+          },
+          "suggestedDisplayName": {
+            "title": "Suggesteddisplayname",
+            "type": "string"
+          },
+          "supportedModelTypes": {
+            "items": {
+              "$ref": "#/components/schemas/ModelType"
+            },
+            "title": "Supportedmodeltypes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providerModelName",
+          "suggestedDisplayName",
+          "supportedModelTypes",
+          "alreadyConfiguredModelIds",
+          "discoveryMetadata"
+        ],
+        "title": "DiscoveredModelView",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -287,6 +474,48 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "LastModelVerificationView": {
+        "additionalProperties": false,
+        "properties": {
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errorcode"
+          },
+          "latencyMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latencyms"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "testedAt": {
+            "format": "date-time",
+            "title": "Testedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "testedAt"
+        ],
+        "title": "LastModelVerificationView",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -331,6 +560,382 @@
           "firstLoginRequired"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "MinerUSettingsView": {
+        "additionalProperties": false,
+        "properties": {
+          "baseUrl": {
+            "title": "Baseurl",
+            "type": "string"
+          },
+          "cloudProcessingConfirmedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloudprocessingconfirmedat"
+          },
+          "defaultParseConfig": {
+            "$ref": "#/components/schemas/ParseConfigDto"
+          },
+          "pollTimeoutSeconds": {
+            "title": "Polltimeoutseconds",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "termsVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Termsversion"
+          },
+          "tokenConfigured": {
+            "title": "Tokenconfigured",
+            "type": "boolean"
+          },
+          "tokenMasked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokenmasked"
+          }
+        },
+        "required": [
+          "baseUrl",
+          "tokenConfigured",
+          "defaultParseConfig",
+          "pollTimeoutSeconds",
+          "revision"
+        ],
+        "title": "MinerUSettingsView",
+        "type": "object"
+      },
+      "ModelPageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModelView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ModelPageView",
+        "type": "object"
+      },
+      "ModelProviderPageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ModelProviderView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ModelProviderPageView",
+        "type": "object"
+      },
+      "ModelProviderView": {
+        "additionalProperties": false,
+        "properties": {
+          "baseUrl": {
+            "title": "Baseurl",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "credentialConfigured": {
+            "title": "Credentialconfigured",
+            "type": "boolean"
+          },
+          "credentialMasked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentialmasked"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "modelCount": {
+            "title": "Modelcount",
+            "type": "integer"
+          },
+          "providerType": {
+            "title": "Providertype",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "providerType",
+          "displayName",
+          "baseUrl",
+          "credentialConfigured",
+          "enabled",
+          "modelCount",
+          "revision",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "ModelProviderView",
+        "type": "object"
+      },
+      "ModelReferenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "resourceId": {
+            "format": "uuid",
+            "title": "Resourceid",
+            "type": "string"
+          },
+          "resourceType": {
+            "title": "Resourcetype",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "displayName",
+          "state"
+        ],
+        "title": "ModelReferenceView",
+        "type": "object"
+      },
+      "ModelStateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "ModelStateRequest",
+        "type": "object"
+      },
+      "ModelType": {
+        "enum": [
+          "llm",
+          "embedding",
+          "rerank",
+          "vision"
+        ],
+        "title": "ModelType",
+        "type": "string"
+      },
+      "ModelView": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilityVersion": {
+            "title": "Capabilityversion",
+            "type": "string"
+          },
+          "configSchema": {
+            "additionalProperties": true,
+            "title": "Configschema",
+            "type": "object"
+          },
+          "contextWindow": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contextwindow"
+          },
+          "defaultParams": {
+            "additionalProperties": true,
+            "title": "Defaultparams",
+            "type": "object"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "embeddingDimension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embeddingdimension"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lastVerification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastModelVerificationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxOutputTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxoutputtokens"
+          },
+          "modelName": {
+            "title": "Modelname",
+            "type": "string"
+          },
+          "modelType": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ResourceRef"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "usedByBotCount": {
+            "title": "Usedbybotcount",
+            "type": "integer"
+          },
+          "usedByKnowledgeBaseCount": {
+            "title": "Usedbyknowledgebasecount",
+            "type": "integer"
+          },
+          "verificationStatus": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "modelName",
+          "displayName",
+          "modelType",
+          "enabled",
+          "verificationStatus",
+          "capabilityVersion",
+          "defaultParams",
+          "configSchema",
+          "usedByKnowledgeBaseCount",
+          "usedByBotCount",
+          "revision"
+        ],
+        "title": "ModelView",
         "type": "object"
       },
       "OperationDetail": {
@@ -565,6 +1170,41 @@
         "title": "OperationPageSize",
         "type": "integer"
       },
+      "OperationRef": {
+        "additionalProperties": false,
+        "properties": {
+          "operationId": {
+            "format": "uuid",
+            "title": "Operationid",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OperationStatus"
+          },
+          "statusUrl": {
+            "title": "Statusurl",
+            "type": "string"
+          },
+          "targetId": {
+            "format": "uuid",
+            "title": "Targetid",
+            "type": "string"
+          },
+          "targetType": {
+            "title": "Targettype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operationId",
+          "status",
+          "statusUrl",
+          "targetType",
+          "targetId"
+        ],
+        "title": "OperationRef",
+        "type": "object"
+      },
       "OperationStatus": {
         "enum": [
           "queued",
@@ -577,6 +1217,118 @@
         "title": "OperationStatus",
         "type": "string"
       },
+      "ParseConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "extraFormats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extraformats",
+            "type": "array"
+          },
+          "forceProviderRefresh": {
+            "title": "Forceproviderrefresh",
+            "type": "boolean"
+          },
+          "formulaEnabled": {
+            "title": "Formulaenabled",
+            "type": "boolean"
+          },
+          "language": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Language",
+            "type": "string"
+          },
+          "modelVersion": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Modelversion",
+            "type": "string"
+          },
+          "ocrEnabled": {
+            "title": "Ocrenabled",
+            "type": "boolean"
+          },
+          "pageRanges": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pageranges"
+          },
+          "parserCode": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Parsercode",
+            "type": "string"
+          },
+          "tableEnabled": {
+            "title": "Tableenabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "parserCode",
+          "modelVersion",
+          "language",
+          "ocrEnabled",
+          "tableEnabled",
+          "formulaEnabled",
+          "forceProviderRefresh"
+        ],
+        "title": "ParseConfigDto",
+        "type": "object"
+      },
+      "ProviderOperationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "ProviderOperationRequest",
+        "type": "object"
+      },
+      "ProviderPageSize": {
+        "enum": [
+          20,
+          50,
+          100
+        ],
+        "title": "ProviderPageSize",
+        "type": "integer"
+      },
+      "ResourceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "title": "ResourceRef",
+        "type": "object"
+      },
       "SuccessResponse": {
         "additionalProperties": false,
         "properties": {
@@ -587,6 +1339,228 @@
           }
         },
         "title": "SuccessResponse",
+        "type": "object"
+      },
+      "UpdateMinerUSettingsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "baseUrl": {
+            "format": "uri",
+            "minLength": 1,
+            "title": "Baseurl",
+            "type": "string"
+          },
+          "cloudProcessingConsent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CloudProcessingConsent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultParseConfig": {
+            "$ref": "#/components/schemas/ParseConfigDto"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "pollTimeoutSeconds": {
+            "maximum": 7200.0,
+            "minimum": 300.0,
+            "title": "Polltimeoutseconds",
+            "type": "integer"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "baseUrl",
+          "defaultParseConfig",
+          "pollTimeoutSeconds"
+        ],
+        "title": "UpdateMinerUSettingsRequest",
+        "type": "object"
+      },
+      "UpdateModelProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "anyOf": [
+              {
+                "format": "password",
+                "minLength": 1,
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "UpdateModelProviderRequest",
+        "type": "object"
+      },
+      "UpdateModelRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilityVersion": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capabilityversion"
+          },
+          "configSchema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configschema"
+          },
+          "contextWindow": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contextwindow"
+          },
+          "defaultParams": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultparams"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "embeddingDimension": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embeddingdimension"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "maxOutputTokens": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maxoutputtokens"
+          },
+          "modelName": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelname"
+          },
+          "modelType": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "UpdateModelRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -628,6 +1602,16 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VerificationStatus": {
+        "enum": [
+          "untested",
+          "passed",
+          "failed",
+          "stale"
+        ],
+        "title": "VerificationStatus",
+        "type": "string"
       }
     }
   },
@@ -1108,6 +2092,1674 @@
         ]
       }
     },
+    "/api/v1/model-providers": {
+      "get": {
+        "operationId": "modelProvidersList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "enabled",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Enabled"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ProviderPageSize",
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "display_name",
+              "enum": [
+                "display_name",
+                "-display_name",
+                "created_at",
+                "-created_at"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelProviderPageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Model Providers",
+        "tags": [
+          "模型供应商"
+        ]
+      },
+      "post": {
+        "operationId": "modelProvidersCreate",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModelProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelProviderView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Model Provider",
+        "tags": [
+          "模型供应商"
+        ]
+      }
+    },
+    "/api/v1/model-providers/{providerId}": {
+      "delete": {
+        "operationId": "modelProvidersDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expectedrevision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Model Provider",
+        "tags": [
+          "模型供应商"
+        ]
+      },
+      "get": {
+        "operationId": "modelProvidersGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelProviderView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model Provider",
+        "tags": [
+          "模型供应商"
+        ]
+      },
+      "patch": {
+        "operationId": "modelProvidersUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelProviderView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Model Provider",
+        "tags": [
+          "模型供应商"
+        ]
+      }
+    },
+    "/api/v1/model-providers/{providerId}/discovered-models": {
+      "get": {
+        "operationId": "modelProvidersDiscoveredModelsList",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "modelType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Modeltype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "available",
+                    "unavailable",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DiscoveredModelView"
+                  },
+                  "title": "Response Modelprovidersdiscoveredmodelslist",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Discovered Models",
+        "tags": [
+          "模型供应商"
+        ]
+      }
+    },
+    "/api/v1/model-providers/{providerId}:discover-models": {
+      "post": {
+        "operationId": "modelProvidersDiscover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discover Provider Models",
+        "tags": [
+          "模型供应商"
+        ]
+      }
+    },
+    "/api/v1/model-providers/{providerId}:test": {
+      "post": {
+        "operationId": "modelProvidersTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "providerId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Providerid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Model Provider",
+        "tags": [
+          "模型供应商"
+        ]
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "operationId": "modelsList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "providerId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Providerid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "modelType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Modeltype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "enabled",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Enabled"
+            }
+          },
+          {
+            "in": "query",
+            "name": "verificationStatus",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "untested",
+                    "passed",
+                    "failed",
+                    "stale"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Verificationstatus"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ProviderPageSize",
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "display_name",
+              "enum": [
+                "display_name",
+                "-display_name",
+                "created_at",
+                "-created_at"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelPageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "模型配置"
+        ]
+      },
+      "post": {
+        "operationId": "modelsCreate",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Model",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
+    "/api/v1/models/{modelId}": {
+      "delete": {
+        "operationId": "modelsDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expectedrevision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Model",
+        "tags": [
+          "模型配置"
+        ]
+      },
+      "get": {
+        "operationId": "modelsGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model",
+        "tags": [
+          "模型配置"
+        ]
+      },
+      "patch": {
+        "operationId": "modelsUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Model",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
+    "/api/v1/models/{modelId}/references": {
+      "get": {
+        "operationId": "modelsReferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelReferenceView"
+                  },
+                  "title": "Response Modelsreferences",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Model References",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
+    "/api/v1/models/{modelId}:disable": {
+      "post": {
+        "operationId": "modelsDisable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disable Model",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
+    "/api/v1/models/{modelId}:enable": {
+      "post": {
+        "operationId": "modelsEnable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable Model",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
+    "/api/v1/models/{modelId}:verify": {
+      "post": {
+        "operationId": "modelsVerify",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "modelId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Modelid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Model",
+        "tags": [
+          "模型配置"
+        ]
+      }
+    },
     "/api/v1/operations": {
       "get": {
         "operationId": "operationsList",
@@ -1507,6 +4159,144 @@
         "summary": "Retry Operation",
         "tags": [
           "异步任务"
+        ]
+      }
+    },
+    "/api/v1/settings/mineru": {
+      "get": {
+        "operationId": "mineruSettingsGet",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MinerUSettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Mineru Settings",
+        "tags": [
+          "MinerU 设置"
+        ]
+      },
+      "patch": {
+        "operationId": "mineruSettingsUpdate",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMinerUSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MinerUSettingsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Mineru Settings",
+        "tags": [
+          "MinerU 设置"
         ]
       }
     }

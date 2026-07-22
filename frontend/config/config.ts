@@ -174,8 +174,8 @@ export default defineConfig({
         }
         // @umijs/openapi 1.14.1 treats literal colon suffixes as path parameters.
         data.path = data.path.replace(
-          /^\/api\/v1\/operations\/\{operationId\}:(cancel|retry)$/u,
-          '/api/v1/operations/{operationId}%3A$1',
+          /(\{[A-Za-z][A-Za-z0-9]*\}):([a-z][a-z0-9-]*)$/u,
+          '$1%3A$2',
         );
         return data.operationId;
       },
