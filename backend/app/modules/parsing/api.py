@@ -23,6 +23,8 @@ from app.modules.parsing.repository import DataSourceListQuery
 from app.modules.parsing.schemas import (
     DataSourceDetail,
     DataSourcePageView,
+    ParseSourceRequest,
+    ParseSourceResponse,
     RejectedUploadView,
     UpdateDataSourceRequest,
     UploadBatchResult,
@@ -30,13 +32,17 @@ from app.modules.parsing.schemas import (
     UploadOptions,
     data_source_detail,
     data_source_summary,
+    parsed_source_version_summary,
     uploaded_data_source_view,
 )
 from app.modules.parsing.service import (
     DataSourceNotFoundError,
     DataSourceRevisionConflictError,
     DataSourceService,
+    ParseConfigInvalidError,
 )
+from app.modules.parsing.settings_schemas import parse_config_domain
+from app.modules.parsing.settings_service import MinerUCloudConsentRequiredError
 from app.modules.parsing.validation import (
     SourceTypeMismatchError,
     SourceTypeUnsupportedError,
@@ -320,6 +326,54 @@ def get_data_source(
     except DataSourceNotFoundError as error:
         raise _not_found() from error
     return data_source_detail(details)
+
+
+@router.post(
+    "/{dataSourceId}/parse",
+    response_model=ParseSourceResponse,
+    status_code=202,
+    operation_id="dataSourcesParse",
+    dependencies=[Depends(require_csrf)],
+)
+def parse_data_source(
+    payload: ParseSourceRequest,
+    data_source_id: Annotated[UUID, Path(alias="dataSourceId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> ParseSourceResponse:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            result = dependencies.data_source_service.request_parse(
+                session,
+                data_source_id,
+                expected_revision=payload.expected_revision,
+                requested_config=parse_config_domain(payload.config),
+                reuse_policy=payload.reuse_policy,
+                now=datetime.now(UTC),
+            )
+    except DataSourceNotFoundError as error:
+        raise _not_found() from error
+    except DataSourceRevisionConflictError as error:
+        raise AppError(
+            code="REVISION_CONFLICT",
+            message="数据源已被其他请求修改",
+            status_code=409,
+        ) from error
+    except ParseConfigInvalidError as error:
+        raise AppError(
+            code="PARSE_CONFIG_INVALID",
+            message="解析配置无效",
+            status_code=422,
+        ) from error
+    except MinerUCloudConsentRequiredError as error:
+        raise AppError(
+            code="MINERU_CLOUD_CONSENT_REQUIRED",
+            message="使用 MinerU Cloud 前必须确认数据外发条款",
+            status_code=409,
+        ) from error
+    return ParseSourceResponse(
+        parsed_source_version=parsed_source_version_summary(result.version),
+        reused=result.reused,
+    )
 
 
 @router.patch(

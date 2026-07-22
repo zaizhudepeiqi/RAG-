@@ -5,7 +5,12 @@ from uuid import UUID
 from pydantic import Field
 
 from app.core.schemas import ApiModel
-from app.modules.parsing.domain import DataSourceDetails, RegisteredUpload
+from app.modules.parsing.domain import (
+    DataSourceDetails,
+    ParsedSourceVersion,
+    RegisteredUpload,
+)
+from app.modules.parsing.settings_schemas import ParseConfigDto
 
 
 class UploadOptions(ApiModel):
@@ -29,6 +34,8 @@ class ParsedSourceVersionSummary(ApiModel):
     version_number: int
     parser_code: str
     parser_version: str
+    normalizer_version: str
+    config_snapshot: dict[str, object]
     config_hash: str
     status: str
     quality_level: str | None = None
@@ -103,8 +110,20 @@ class UploadBatchResult(ApiModel):
     rejected: list[RejectedUploadView]
 
 
+class ParseSourceRequest(ApiModel):
+    expected_revision: int = Field(ge=1)
+    reuse_policy: Literal["reuse_if_exact", "force_new"] = "reuse_if_exact"
+    config: ParseConfigDto
+
+
+class ParseSourceResponse(ApiModel):
+    parsed_source_version: ParsedSourceVersionSummary
+    reused: bool
+
+
 def data_source_summary(details: DataSourceDetails) -> DataSourceSummary:
     source = details.source
+    latest = details.latest_versions[0] if details.latest_versions else None
     return DataSourceSummary(
         id=source.id,
         display_name=source.display_name,
@@ -115,7 +134,7 @@ def data_source_summary(details: DataSourceDetails) -> DataSourceSummary:
         size_bytes=source.size_bytes,
         sha256_short=source.sha256[:12],
         origin_type=source.origin_type,
-        latest_parsed_version=None,
+        latest_parsed_version=(parsed_source_version_summary(latest) if latest else None),
         version_count=details.version_count,
         active_knowledge_base_reference_count=0,
         revision=source.revision,
@@ -128,7 +147,7 @@ def data_source_detail(details: DataSourceDetails) -> DataSourceDetail:
     return DataSourceDetail(
         **summary.model_dump(),
         sha256=details.source.sha256,
-        latest_versions=[],
+        latest_versions=[parsed_source_version_summary(item) for item in details.latest_versions],
         references=[],
         deleted_at=details.source.deleted_at,
     )
@@ -138,4 +157,40 @@ def uploaded_data_source_view(uploaded: RegisteredUpload) -> UploadedDataSourceV
     return UploadedDataSourceView(
         data_source=data_source_summary(uploaded.details),
         duplicate_of_data_source_id=uploaded.duplicate_of_data_source_id,
+    )
+
+
+def parsed_source_version_summary(
+    version: ParsedSourceVersion,
+) -> ParsedSourceVersionSummary:
+    flags = version.feature_flags
+    return ParsedSourceVersionSummary(
+        id=version.id,
+        data_source_id=version.data_source_id,
+        version_number=version.version_number,
+        parser_code=version.parser_code,
+        parser_version=version.parser_version,
+        normalizer_version=version.normalizer_version,
+        config_snapshot=version.config_snapshot,
+        config_hash=version.config_hash,
+        status=version.status,
+        quality_level=version.quality_level,
+        selectable=version.status in {"succeeded", "degraded"},
+        page_count=version.page_count,
+        block_count=version.block_count,
+        asset_count=version.asset_count,
+        feature_flags=ParsedFeatureFlagsView(
+            has_text=flags["hasText"],
+            has_pages=flags["hasPages"],
+            has_headings=flags["hasHeadings"],
+            has_bounding_boxes=flags["hasBoundingBoxes"],
+            has_assets=flags["hasAssets"],
+            has_tables=flags["hasTables"],
+            has_formulas=flags["hasFormulas"],
+        ),
+        operation_id=version.operation_id,
+        error_code=version.error_code,
+        error_message=version.error_message,
+        created_at=version.created_at,
+        finished_at=version.finished_at,
     )

@@ -188,6 +188,9 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
     data_source_service = DataSourceService(
         SqlAlchemyDataSourceRepository(),
         SqlAlchemyDataSourceAuditRepository(),
+        tasks=task_service,
+        mineru_settings=mineru_settings_service,
+        operation_retention_days=settings.operation_retention_days,
     )
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(
@@ -212,6 +215,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
             schema_version="1",
             celery_task_name="app.tasks.maintenance.discover_provider_models",
             queue="maintenance",
+        )
+    )
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="parsing.source.requested",
+            schema_version="1",
+            celery_task_name="app.tasks.parsing.parse_source",
+            queue="parsing",
         )
     )
     return ApplicationDependencies(

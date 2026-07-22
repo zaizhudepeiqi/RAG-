@@ -54,6 +54,7 @@ EXPECTED_OPERATIONS = {
     ("post", "/api/v1/data-sources/uploads", "dataSourcesUpload"),
     ("get", "/api/v1/data-sources/{dataSourceId}", "dataSourcesGet"),
     ("patch", "/api/v1/data-sources/{dataSourceId}", "dataSourcesUpdate"),
+    ("post", "/api/v1/data-sources/{dataSourceId}/parse", "dataSourcesParse"),
     (
         "get",
         "/api/v1/data-sources/{dataSourceId}/original",

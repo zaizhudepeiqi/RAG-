@@ -14,7 +14,7 @@ from app.infrastructure.database.models.parsing import (
     ParsedSourceVersionModel,
     SourceBlobModel,
 )
-from app.modules.parsing.domain import DataSource, SourceBlob
+from app.modules.parsing.domain import DataSource, ParsedSourceVersion, SourceBlob
 from app.modules.parsing.repository import DataSourceListQuery, DataSourcePage
 
 
@@ -134,6 +134,87 @@ class SqlAlchemyDataSourceRepository:
             or 0
         )
 
+    def find_exact_version(
+        self,
+        session: Session,
+        *,
+        source_id: UUID,
+        source_sha256: str,
+        parser_code: str,
+        parser_version: str,
+        config_hash: str,
+        statuses: tuple[str, ...],
+    ) -> ParsedSourceVersion | None:
+        model = session.scalar(
+            select(ParsedSourceVersionModel)
+            .where(
+                ParsedSourceVersionModel.data_source_id == source_id,
+                ParsedSourceVersionModel.source_sha256 == source_sha256,
+                ParsedSourceVersionModel.parser_code == parser_code,
+                ParsedSourceVersionModel.parser_version == parser_version,
+                ParsedSourceVersionModel.config_hash == config_hash,
+                ParsedSourceVersionModel.status.in_(statuses),
+            )
+            .order_by(ParsedSourceVersionModel.version_number.desc())
+            .limit(1)
+        )
+        return self._version_domain(model) if model is not None else None
+
+    def next_version_number(self, session: Session, source_id: UUID) -> int:
+        current = session.scalar(
+            select(func.max(ParsedSourceVersionModel.version_number)).where(
+                ParsedSourceVersionModel.data_source_id == source_id
+            )
+        )
+        return (current or 0) + 1
+
+    def add_version(self, session: Session, version: ParsedSourceVersion) -> None:
+        session.add(
+            ParsedSourceVersionModel(
+                id=version.id,
+                data_source_id=version.data_source_id,
+                version_number=version.version_number,
+                parser_code=version.parser_code,
+                parser_version=version.parser_version,
+                normalizer_version=version.normalizer_version,
+                config_snapshot=version.config_snapshot,
+                config_hash=version.config_hash,
+                source_sha256=version.source_sha256,
+                status=version.status,
+                quality_level=version.quality_level,
+                progress_current=version.progress_current,
+                progress_total=version.progress_total,
+                progress_unit=version.progress_unit,
+                page_count=version.page_count,
+                block_count=version.block_count,
+                asset_count=version.asset_count,
+                markdown_char_count=version.markdown_char_count,
+                feature_flags=version.feature_flags,
+                error_code=version.error_code,
+                error_message=version.error_message,
+                retryable=version.retryable,
+                operation_id=version.operation_id,
+                started_at=version.started_at,
+                finished_at=version.finished_at,
+                created_at=version.created_at,
+            )
+        )
+
+    def list_versions(
+        self,
+        session: Session,
+        source_id: UUID,
+        *,
+        limit: int,
+    ) -> list[ParsedSourceVersion]:
+        models = session.scalars(
+            select(ParsedSourceVersionModel)
+            .where(ParsedSourceVersionModel.data_source_id == source_id)
+            .order_by(ParsedSourceVersionModel.version_number.desc())
+            .limit(limit)
+        ).all()
+        return [self._version_domain(model) for model in models]
+
     @staticmethod
     def _blob_values(blob: SourceBlob) -> dict[str, object]:
         return {
@@ -200,6 +281,37 @@ class SqlAlchemyDataSourceRepository:
             created_at=model.created_at,
             updated_at=model.updated_at,
             deleted_at=model.deleted_at,
+        )
+
+    @staticmethod
+    def _version_domain(model: ParsedSourceVersionModel) -> ParsedSourceVersion:
+        return ParsedSourceVersion(
+            id=model.id,
+            data_source_id=model.data_source_id,
+            version_number=model.version_number,
+            parser_code=model.parser_code,
+            parser_version=model.parser_version,
+            normalizer_version=model.normalizer_version,
+            config_snapshot=dict(model.config_snapshot),
+            config_hash=model.config_hash,
+            source_sha256=model.source_sha256,
+            status=model.status,
+            quality_level=model.quality_level,
+            progress_current=model.progress_current,
+            progress_total=model.progress_total,
+            progress_unit=model.progress_unit,
+            page_count=model.page_count,
+            block_count=model.block_count,
+            asset_count=model.asset_count,
+            markdown_char_count=model.markdown_char_count,
+            feature_flags=dict(model.feature_flags),
+            error_code=model.error_code,
+            error_message=model.error_message,
+            retryable=model.retryable,
+            operation_id=model.operation_id,
+            started_at=model.started_at,
+            finished_at=model.finished_at,
+            created_at=model.created_at,
         )
 
 

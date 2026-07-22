@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.modules.parsing.domain import DataSource, SourceBlob
+from app.modules.parsing.domain import DataSource, ParsedSourceVersion, SourceBlob
 
 DataSourceSort = Literal["display_name", "-display_name", "created_at", "-created_at"]
 
@@ -59,3 +59,27 @@ class DataSourceRepository(Protocol):
     def list_sources(self, session: Session, query: DataSourceListQuery) -> DataSourcePage: ...
 
     def count_versions(self, session: Session, source_id: UUID) -> int: ...
+
+    def find_exact_version(
+        self,
+        session: Session,
+        *,
+        source_id: UUID,
+        source_sha256: str,
+        parser_code: str,
+        parser_version: str,
+        config_hash: str,
+        statuses: tuple[str, ...],
+    ) -> ParsedSourceVersion | None: ...
+
+    def next_version_number(self, session: Session, source_id: UUID) -> int: ...
+
+    def add_version(self, session: Session, version: ParsedSourceVersion) -> None: ...
+
+    def list_versions(
+        self,
+        session: Session,
+        source_id: UUID,
+        *,
+        limit: int,
+    ) -> list[ParsedSourceVersion]: ...
