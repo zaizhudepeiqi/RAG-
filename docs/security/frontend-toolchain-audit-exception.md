@@ -1,12 +1,12 @@
 # Frontend toolchain audit exception
 
 - Owner: `@zaizhudepeiqi` (repository owner/maintainer)
-- Reviewed: 2026-07-17
+- Reviewed: 2026-07-22
 - Expires: 2026-08-31
 
 ## Scope
 
-The full `npm audit` report for the locked frontend dependency graph currently contains 55 vulnerabilities: 10 low, 27 moderate, 17 high, and 1 critical. The affected paths are rooted in the Umi development and build toolchain, including `@umijs/max`, Umi bundler packages, webpack tooling, and `dva-immer`. Representative advisory identifiers include `GHSA-33f9-j839-rf8h` for the critical `immer` advisory reached through `dva-immer`, plus `GHSA-9jgg-88mc-972h` and `GHSA-4v9v-hfq4-rm2v` in `webpack-dev-server` paths.
+The full `npm audit` report for the locked frontend dependency graph currently contains 60 vulnerabilities: 9 low, 28 moderate, 22 high, and 1 critical. The affected paths are rooted in the Umi development and build toolchain, including `@umijs/max`, Umi bundler packages, webpack tooling, and `dva-immer`. Representative advisory identifiers include `GHSA-33f9-j839-rf8h` for the critical `immer` advisory reached through `dva-immer`, plus `GHSA-9jgg-88mc-972h` and `GHSA-4v9v-hfq4-rm2v` in `webpack-dev-server` paths.
 
 This exception does not assert that every advisory is unexploitable. It permits only the full toolchain audit report in the [CI workflow](../../.github/workflows/ci.yml) to be non-blocking while the Umi dependency roots are remediated. The locked production dependency audit, `npm --prefix frontend audit --omit=dev --audit-level=high`, remains blocking and currently reports 1 moderate, 0 high, and 0 critical vulnerabilities. The locked backend audit also remains blocking.
 
