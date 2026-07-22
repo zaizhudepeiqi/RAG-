@@ -91,6 +91,16 @@ class ParsedSourceVersion:
 
 
 @dataclass(frozen=True)
+class ParseTaskSnapshot:
+    operation_id: UUID
+    version_id: UUID
+    parser_code: str
+    parser_version: str
+    extension: str
+    source_storage_key: str
+
+
+@dataclass(frozen=True)
 class NormalizedParseConfig:
     parser_code: str
     parser_version: str

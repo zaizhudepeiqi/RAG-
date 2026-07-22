@@ -25,6 +25,7 @@ from app.infrastructure.database.repositories.models import (
 from app.infrastructure.database.repositories.parsing import (
     SqlAlchemyDataSourceAuditRepository,
     SqlAlchemyDataSourceRepository,
+    SqlAlchemyParseTaskStore,
 )
 from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyAdminIdempotencyRepository,
@@ -43,6 +44,8 @@ from app.infrastructure.model_providers.registry import (
     ModelProviderAdapterRegistry,
     build_model_provider_adapter_registry,
 )
+from app.infrastructure.parsers.builtin_text import BuiltinTextParser
+from app.infrastructure.parsers.registry import ParserRegistry
 from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
 from app.infrastructure.storage.local import LocalStorageAdapter
@@ -63,6 +66,7 @@ from app.modules.models.tasks import (
 from app.modules.observability.service import HealthService, NotConfiguredProbe
 from app.modules.parsing.service import DataSourceService
 from app.modules.parsing.settings_service import MinerUSettingsService
+from app.modules.parsing.tasks import SourceParseHandler
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
 from app.modules.tasks.service import TaskService
@@ -93,6 +97,7 @@ class ApplicationDependencies:
     mineru_settings_service: MinerUSettingsService
     data_source_service: DataSourceService
     source_storage: LocalStorageAdapter
+    source_parse_handler: SourceParseHandler
 
     def assert_database_at_head(self) -> None:
         config = Config(BACKEND_ROOT / "alembic.ini")
@@ -192,6 +197,13 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         mineru_settings=mineru_settings_service,
         operation_retention_days=settings.operation_retention_days,
     )
+    parser_registry = ParserRegistry()
+    parser_registry.register(BuiltinTextParser())
+    source_parse_handler = SourceParseHandler(
+        SqlAlchemyParseTaskStore(session_factory),
+        parser_registry,
+        source_storage,
+    )
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(
         TaskDispatchDefinition(
@@ -247,4 +259,5 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         mineru_settings_service=mineru_settings_service,
         data_source_service=data_source_service,
         source_storage=source_storage,
+        source_parse_handler=source_parse_handler,
     )

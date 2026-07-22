@@ -1,3 +1,4 @@
+import hashlib
 import ipaddress
 from collections.abc import Mapping
 from datetime import datetime
@@ -5,16 +6,26 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import asc, desc, func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.infrastructure.database.models.auth import AuditLogModel
 from app.infrastructure.database.models.parsing import (
     DataSourceModel,
+    ParsedArtifactModel,
+    ParsedBlockModel,
     ParsedSourceVersionModel,
     SourceBlobModel,
 )
-from app.modules.parsing.domain import DataSource, ParsedSourceVersion, SourceBlob
+from app.infrastructure.database.session import transaction
+from app.modules.parsing.domain import (
+    DataSource,
+    ParsedSourceVersion,
+    ParseTaskSnapshot,
+    SourceBlob,
+)
+from app.modules.parsing.normalization import NormalizedDocument
+from app.modules.parsing.ports import StoredBlob
 from app.modules.parsing.repository import DataSourceListQuery, DataSourcePage
 
 
@@ -313,6 +324,125 @@ class SqlAlchemyDataSourceRepository:
             finished_at=model.finished_at,
             created_at=model.created_at,
         )
+
+
+class SqlAlchemyParseTaskStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    def load(self, operation_id: UUID) -> ParseTaskSnapshot | None:
+        with transaction(self._session_factory) as session:
+            row = session.execute(
+                select(ParsedSourceVersionModel, DataSourceModel, SourceBlobModel)
+                .join(
+                    DataSourceModel,
+                    DataSourceModel.id == ParsedSourceVersionModel.data_source_id,
+                )
+                .join(SourceBlobModel, SourceBlobModel.id == DataSourceModel.source_blob_id)
+                .where(ParsedSourceVersionModel.operation_id == operation_id)
+            ).one_or_none()
+            if row is None:
+                return None
+            version, source, blob = row
+            return ParseTaskSnapshot(
+                operation_id=operation_id,
+                version_id=version.id,
+                parser_code=version.parser_code,
+                parser_version=version.parser_version,
+                extension=source.extension,
+                source_storage_key=blob.storage_key,
+            )
+
+    def mark_normalizing(self, version_id: UUID) -> bool:
+        with transaction(self._session_factory) as session:
+            model = session.scalar(
+                select(ParsedSourceVersionModel)
+                .where(ParsedSourceVersionModel.id == version_id)
+                .with_for_update()
+            )
+            if model is None or model.status not in {"queued", "normalizing"}:
+                return False
+            model.status = "normalizing"
+            return True
+
+    def save_succeeded(
+        self,
+        snapshot: ParseTaskSnapshot,
+        document: NormalizedDocument,
+        markdown_artifact: StoredBlob,
+        finished_at: datetime,
+    ) -> bool:
+        with transaction(self._session_factory) as session:
+            model = session.scalar(
+                select(ParsedSourceVersionModel)
+                .where(ParsedSourceVersionModel.id == snapshot.version_id)
+                .with_for_update()
+            )
+            if model is None or model.status in {"succeeded", "degraded"}:
+                return False
+            if model.status != "normalizing":
+                raise RuntimeError("parsed source version is not normalizing")
+            for block in document.blocks:
+                content = block.markdown_content or block.text_content or ""
+                session.add(
+                    ParsedBlockModel(
+                        id=uuid4(),
+                        parsed_source_version_id=model.id,
+                        block_type=block.block_type,
+                        order_index=block.order_index,
+                        text_content=block.text_content,
+                        markdown_content=block.markdown_content,
+                        heading_level=block.heading_level,
+                        heading_path=(list(block.heading_path) if block.heading_path else None),
+                        page_number=block.page_number,
+                        bounding_box=block.bounding_box,
+                        raw_locator=block.raw_locator,
+                        content_hash=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                        created_at=finished_at,
+                    )
+                )
+            session.add(
+                ParsedArtifactModel(
+                    id=uuid4(),
+                    parsed_source_version_id=model.id,
+                    artifact_type="markdown",
+                    display_name="normalized.md",
+                    storage_key=markdown_artifact.storage_key,
+                    sha256=markdown_artifact.sha256,
+                    size_bytes=markdown_artifact.size_bytes,
+                    is_downloadable=True,
+                    created_at=finished_at,
+                )
+            )
+            model.status = "succeeded"
+            model.quality_level = "full"
+            model.normalized_storage_key = markdown_artifact.storage_key
+            model.block_count = len(document.blocks)
+            model.markdown_char_count = len(document.markdown)
+            model.feature_flags = document.feature_flags
+            model.finished_at = finished_at
+            model.error_code = None
+            model.error_message = None
+            model.retryable = False
+            return True
+
+    def save_failed(
+        self,
+        version_id: UUID,
+        *,
+        error_code: str,
+        retryable: bool,
+        finished_at: datetime,
+    ) -> None:
+        with transaction(self._session_factory) as session:
+            model = session.get(ParsedSourceVersionModel, version_id)
+            if model is None or model.status in {"succeeded", "degraded", "failed"}:
+                return
+            model.status = "failed"
+            model.error_code = error_code
+            model.error_message = "解析输入无效" if not retryable else "解析暂时失败"
+            model.retryable = retryable
+            model.finished_at = finished_at
 
 
 class SqlAlchemyDataSourceAuditRepository:
