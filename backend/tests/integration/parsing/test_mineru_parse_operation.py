@@ -296,6 +296,7 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
 ) -> None:
     storage = LocalStorageAdapter(tmp_path / "storage")
     operation_id, version_id = create_parse_request(database_engine, storage)
+    result_archive = normalized_archive()
 
     def assert_checkpoint_exists_before_upload() -> None:
         with database_engine.connect() as connection:
@@ -316,7 +317,7 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
     first_clock = ControlledClock()
     first_adapter = ControlledMinerUAdapter(
         poll_results=[],
-        result_archive=normalized_archive(),
+        result_archive=result_archive,
         before_upload=assert_checkpoint_exists_before_upload,
         crash_on_upload=True,
     )
@@ -331,7 +332,7 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
             poll_result("converting", str(version_id), progress=2),
             poll_result("done", str(version_id), progress=2),
         ],
-        result_archive=normalized_archive(),
+        result_archive=result_archive,
     )
     handler = parse_handler(database_engine, storage, second_adapter, second_clock)
     execute_operation(
@@ -389,8 +390,8 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
     assert row.markdown_char_count == len("# Contract\n\nBody\n")
     assert content_counts == (2, 2)
     with storage.open_binary(row.raw_result_storage_key) as raw_result:
-        assert raw_result.read() == normalized_archive()
-    assert row.raw_result_storage_key.endswith(sha256(normalized_archive()).hexdigest())
+        assert raw_result.read() == result_archive
+    assert row.raw_result_storage_key.endswith(sha256(result_archive).hexdigest())
 
 
 def test_mineru_worker_stops_after_consecutive_poll_errors_without_new_submission(
