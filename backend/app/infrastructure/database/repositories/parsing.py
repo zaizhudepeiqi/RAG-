@@ -13,6 +13,8 @@ from app.infrastructure.database.models.auth import AuditLogModel
 from app.infrastructure.database.models.parsing import (
     DataSourceModel,
     ParsedArtifactModel,
+    ParsedAssetModel,
+    ParsedBlockAssetModel,
     ParsedBlockModel,
     ParsedSourceVersionModel,
     SourceBlobModel,
@@ -23,7 +25,11 @@ from app.modules.parsing.domain import (
     TERMINAL_PARSE_STATES,
     DataSource,
     MinerURuntimeSettings,
+    ParsedArtifact,
+    ParsedAsset,
+    ParsedBlock,
     ParsedSourceVersion,
+    ParsedSourceVersionDetails,
     ParseEvent,
     ParseState,
     ParseTaskSnapshot,
@@ -34,6 +40,7 @@ from app.modules.parsing.normalization import NormalizedDocument
 from app.modules.parsing.ports import MinerUPollResult, StoredBlob
 from app.modules.parsing.repository import DataSourceListQuery, DataSourcePage
 from app.modules.parsing.settings_domain import MINERU_SETTINGS_ID
+from app.modules.parsing.tasks import StoredNormalizedAsset
 
 
 class SqlAlchemyDataSourceRepository:
@@ -233,6 +240,142 @@ class SqlAlchemyDataSourceRepository:
         ).all()
         return [self._version_domain(model) for model in models]
 
+    def get_parsed_version(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> ParsedSourceVersionDetails | None:
+        model = session.get(ParsedSourceVersionModel, version_id)
+        if model is None:
+            return None
+        return ParsedSourceVersionDetails(
+            version=self._version_domain(model),
+            provider_batch_id=model.provider_batch_id,
+            provider_task_id=model.provider_task_id,
+            provider_data_id=model.provider_data_id,
+            provider_trace_id=model.provider_trace_id,
+            normalized_storage_key=model.normalized_storage_key,
+        )
+
+    def list_parsed_blocks(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page_number: int | None,
+        block_type: str | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ParsedBlock], int]:
+        filters: list[ColumnElement[bool]] = [
+            ParsedBlockModel.parsed_source_version_id == version_id
+        ]
+        if page_number is not None:
+            filters.append(ParsedBlockModel.page_number == page_number)
+        if block_type is not None:
+            filters.append(ParsedBlockModel.block_type == block_type)
+        total = (
+            session.scalar(select(func.count()).select_from(ParsedBlockModel).where(*filters)) or 0
+        )
+        models = session.scalars(
+            select(ParsedBlockModel)
+            .where(*filters)
+            .order_by(ParsedBlockModel.order_index, ParsedBlockModel.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        asset_ids: dict[UUID, list[UUID]] = {model.id: [] for model in models}
+        if asset_ids:
+            links = session.execute(
+                select(
+                    ParsedBlockAssetModel.block_id,
+                    ParsedBlockAssetModel.asset_id,
+                )
+                .join(ParsedAssetModel, ParsedAssetModel.id == ParsedBlockAssetModel.asset_id)
+                .where(ParsedBlockAssetModel.block_id.in_(asset_ids))
+                .order_by(ParsedAssetModel.order_index, ParsedAssetModel.id)
+            ).all()
+            for block_id, asset_id in links:
+                asset_ids[block_id].append(asset_id)
+        return (
+            [
+                ParsedBlock(
+                    id=model.id,
+                    block_type=model.block_type,
+                    order_index=model.order_index,
+                    text_content=model.text_content,
+                    markdown_content=model.markdown_content,
+                    heading_level=model.heading_level,
+                    heading_path=(tuple(model.heading_path) if model.heading_path else None),
+                    page_number=model.page_number,
+                    bounding_box=(dict(model.bounding_box) if model.bounding_box else None),
+                    raw_locator=(dict(model.raw_locator) if model.raw_locator else None),
+                    asset_ids=tuple(asset_ids[model.id]),
+                )
+                for model in models
+            ],
+            total,
+        )
+
+    def list_parsed_assets(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ParsedAsset], int]:
+        condition = ParsedAssetModel.parsed_source_version_id == version_id
+        total = (
+            session.scalar(select(func.count()).select_from(ParsedAssetModel).where(condition)) or 0
+        )
+        models = session.scalars(
+            select(ParsedAssetModel)
+            .where(condition)
+            .order_by(ParsedAssetModel.order_index, ParsedAssetModel.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return [self._asset_domain(model) for model in models], total
+
+    def get_parsed_asset(
+        self,
+        session: Session,
+        version_id: UUID,
+        asset_id: UUID,
+    ) -> ParsedAsset | None:
+        model = session.scalar(
+            select(ParsedAssetModel).where(
+                ParsedAssetModel.id == asset_id,
+                ParsedAssetModel.parsed_source_version_id == version_id,
+            )
+        )
+        return self._asset_domain(model) if model is not None else None
+
+    def list_parsed_artifacts(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> list[ParsedArtifact]:
+        models = session.scalars(
+            select(ParsedArtifactModel)
+            .where(ParsedArtifactModel.parsed_source_version_id == version_id)
+            .order_by(ParsedArtifactModel.artifact_type, ParsedArtifactModel.id)
+        ).all()
+        return [
+            ParsedArtifact(
+                id=model.id,
+                artifact_type=model.artifact_type,
+                display_name=model.display_name,
+                storage_key=model.storage_key,
+                sha256=model.sha256,
+                size_bytes=model.size_bytes,
+                is_downloadable=model.is_downloadable,
+                created_at=model.created_at,
+            )
+            for model in models
+        ]
+
     @staticmethod
     def _blob_values(blob: SourceBlob) -> dict[str, object]:
         return {
@@ -299,6 +442,22 @@ class SqlAlchemyDataSourceRepository:
             created_at=model.created_at,
             updated_at=model.updated_at,
             deleted_at=model.deleted_at,
+        )
+
+    @staticmethod
+    def _asset_domain(model: ParsedAssetModel) -> ParsedAsset:
+        return ParsedAsset(
+            id=model.id,
+            asset_type=model.asset_type,
+            mime_type=model.mime_type,
+            page_number=model.page_number,
+            bounding_box=(dict(model.bounding_box) if model.bounding_box else None),
+            storage_key=model.storage_key,
+            sha256=model.sha256,
+            size_bytes=model.size_bytes,
+            caption=model.caption,
+            ocr_text=model.ocr_text,
+            order_index=model.order_index,
         )
 
     @staticmethod
@@ -515,6 +674,18 @@ class SqlAlchemyParseTaskStore:
                 return False
             model.raw_result_storage_key = result.storage_key
             model.status = transition_parse_state(state, ParseEvent.NORMALIZE).value
+            session.add(
+                ParsedArtifactModel(
+                    id=uuid4(),
+                    parsed_source_version_id=model.id,
+                    artifact_type="mineru_full_zip",
+                    display_name="mineru-full.zip",
+                    storage_key=result.storage_key,
+                    sha256=result.sha256,
+                    size_bytes=result.size_bytes,
+                    is_downloadable=False,
+                )
+            )
             return True
 
     def mark_normalizing(self, version_id: UUID) -> bool:
@@ -536,6 +707,7 @@ class SqlAlchemyParseTaskStore:
         document: NormalizedDocument,
         markdown_artifact: StoredBlob,
         finished_at: datetime,
+        assets: tuple[StoredNormalizedAsset, ...] = (),
     ) -> bool:
         with transaction(self._session_factory) as session:
             model = session.scalar(
@@ -547,11 +719,33 @@ class SqlAlchemyParseTaskStore:
                 return False
             if model.status != "normalizing":
                 raise RuntimeError("parsed source version is not normalizing")
+            asset_ids: dict[str, UUID] = {}
+            for item in assets:
+                asset_id = uuid4()
+                asset_ids[item.asset.source_path] = asset_id
+                session.add(
+                    ParsedAssetModel(
+                        id=asset_id,
+                        parsed_source_version_id=model.id,
+                        asset_type=item.asset.asset_type,
+                        mime_type=item.asset.mime_type,
+                        page_number=item.asset.page_number,
+                        bounding_box=item.asset.bounding_box,
+                        storage_key=item.stored.storage_key,
+                        sha256=item.stored.sha256,
+                        size_bytes=item.stored.size_bytes,
+                        caption=item.asset.caption,
+                        ocr_text=item.asset.ocr_text,
+                        order_index=item.asset.order_index,
+                        created_at=finished_at,
+                    )
+                )
             for block in document.blocks:
                 content = block.markdown_content or block.text_content or ""
+                block_id = uuid4()
                 session.add(
                     ParsedBlockModel(
-                        id=uuid4(),
+                        id=block_id,
                         parsed_source_version_id=model.id,
                         block_type=block.block_type,
                         order_index=block.order_index,
@@ -566,6 +760,16 @@ class SqlAlchemyParseTaskStore:
                         created_at=finished_at,
                     )
                 )
+                for source_path in block.asset_source_paths:
+                    linked_asset_id = asset_ids.get(source_path)
+                    if linked_asset_id is None:
+                        raise RuntimeError("normalized block references an unknown asset")
+                    session.add(
+                        ParsedBlockAssetModel(
+                            block_id=block_id,
+                            asset_id=linked_asset_id,
+                        )
+                    )
             session.add(
                 ParsedArtifactModel(
                     id=uuid4(),
@@ -579,10 +783,13 @@ class SqlAlchemyParseTaskStore:
                     created_at=finished_at,
                 )
             )
-            model.status = "succeeded"
-            model.quality_level = "full"
+            event = ParseEvent.SUCCEED if document.quality_level == "full" else ParseEvent.DEGRADE
+            model.status = transition_parse_state(ParseState(model.status), event).value
+            model.quality_level = document.quality_level
             model.normalized_storage_key = markdown_artifact.storage_key
+            model.page_count = document.page_count
             model.block_count = len(document.blocks)
+            model.asset_count = len(assets)
             model.markdown_char_count = len(document.markdown)
             model.feature_flags = document.feature_flags
             model.finished_at = finished_at

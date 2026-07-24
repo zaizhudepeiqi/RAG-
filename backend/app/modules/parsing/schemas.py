@@ -7,7 +7,11 @@ from pydantic import Field
 from app.core.schemas import ApiModel
 from app.modules.parsing.domain import (
     DataSourceDetails,
+    ParsedArtifact,
+    ParsedAsset,
+    ParsedBlock,
     ParsedSourceVersion,
+    ParsedSourceVersionDetails,
     RegisteredUpload,
 )
 from app.modules.parsing.settings_schemas import ParseConfigDto
@@ -121,6 +125,78 @@ class ParseSourceResponse(ApiModel):
     reused: bool
 
 
+class ParsedSourceVersionDetailView(ParsedSourceVersionSummary):
+    progress_current: int | None = None
+    progress_total: int | None = None
+    progress_unit: str | None = None
+    markdown_char_count: int
+    provider_batch_id: str | None = None
+    provider_task_id: str | None = None
+    provider_data_id: str | None = None
+    provider_trace_id: str | None = None
+
+
+class ParsedMarkdownView(ApiModel):
+    markdown: str
+    markdown_char_count: int
+    quality_level: str
+
+
+class ParsedBlockView(ApiModel):
+    id: UUID
+    block_type: str
+    order_index: int
+    text_content: str | None = None
+    markdown_content: str | None = None
+    heading_level: int | None = None
+    heading_path: list[str] | None = None
+    page_number: int | None = None
+    bounding_box: dict[str, object] | None = None
+    asset_ids: list[UUID]
+    raw_locator: dict[str, object] | None = None
+
+
+class ParsedBlockPageView(ApiModel):
+    items: list[ParsedBlockView]
+    total: int
+    page: int
+    page_size: int
+
+
+class ParsedAssetView(ApiModel):
+    id: UUID
+    asset_type: str
+    mime_type: str
+    page_number: int | None = None
+    bounding_box: dict[str, object] | None = None
+    sha256: str
+    size_bytes: int
+    caption: str | None = None
+    ocr_text: str | None = None
+    order_index: int
+
+
+class ParsedAssetPageView(ApiModel):
+    items: list[ParsedAssetView]
+    total: int
+    page: int
+    page_size: int
+
+
+class ParsedArtifactView(ApiModel):
+    id: UUID
+    artifact_type: str
+    display_name: str
+    sha256: str
+    size_bytes: int
+    downloadable: bool
+    created_at: datetime
+
+
+class ParsedArtifactListView(ApiModel):
+    items: list[ParsedArtifactView]
+
+
 def data_source_summary(details: DataSourceDetails) -> DataSourceSummary:
     source = details.source
     latest = details.latest_versions[0] if details.latest_versions else None
@@ -193,4 +269,64 @@ def parsed_source_version_summary(
         error_message=version.error_message,
         created_at=version.created_at,
         finished_at=version.finished_at,
+    )
+
+
+def parsed_source_version_detail(
+    details: ParsedSourceVersionDetails,
+) -> ParsedSourceVersionDetailView:
+    summary = parsed_source_version_summary(details.version)
+    return ParsedSourceVersionDetailView(
+        **summary.model_dump(),
+        progress_current=details.version.progress_current,
+        progress_total=details.version.progress_total,
+        progress_unit=details.version.progress_unit,
+        markdown_char_count=details.version.markdown_char_count,
+        provider_batch_id=details.provider_batch_id,
+        provider_task_id=details.provider_task_id,
+        provider_data_id=details.provider_data_id,
+        provider_trace_id=details.provider_trace_id,
+    )
+
+
+def parsed_block_view(block: ParsedBlock) -> ParsedBlockView:
+    return ParsedBlockView(
+        id=block.id,
+        block_type=block.block_type,
+        order_index=block.order_index,
+        text_content=block.text_content,
+        markdown_content=block.markdown_content,
+        heading_level=block.heading_level,
+        heading_path=list(block.heading_path) if block.heading_path else None,
+        page_number=block.page_number,
+        bounding_box=block.bounding_box,
+        asset_ids=list(block.asset_ids),
+        raw_locator=block.raw_locator,
+    )
+
+
+def parsed_asset_view(asset: ParsedAsset) -> ParsedAssetView:
+    return ParsedAssetView(
+        id=asset.id,
+        asset_type=asset.asset_type,
+        mime_type=asset.mime_type,
+        page_number=asset.page_number,
+        bounding_box=asset.bounding_box,
+        sha256=asset.sha256,
+        size_bytes=asset.size_bytes,
+        caption=asset.caption,
+        ocr_text=asset.ocr_text,
+        order_index=asset.order_index,
+    )
+
+
+def parsed_artifact_view(artifact: ParsedArtifact) -> ParsedArtifactView:
+    return ParsedArtifactView(
+        id=artifact.id,
+        artifact_type=artifact.artifact_type,
+        display_name=artifact.display_name,
+        sha256=artifact.sha256,
+        size_bytes=artifact.size_bytes,
+        downloadable=artifact.is_downloadable,
+        created_at=artifact.created_at,
     )

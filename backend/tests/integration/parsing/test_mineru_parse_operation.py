@@ -5,6 +5,7 @@ from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 from uuid import UUID, uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from app.core.security import encrypt_secret
@@ -262,6 +263,33 @@ def poll_result(
     )
 
 
+def normalized_archive() -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as bundle:
+        bundle.writestr("result/result.md", "# Contract\n\nBody\n")
+        bundle.writestr(
+            "result/result_content_list.json",
+            json.dumps(
+                [
+                    {
+                        "type": "text",
+                        "text": "Contract",
+                        "text_level": 1,
+                        "page_idx": 0,
+                        "bbox": [1, 2, 100, 20],
+                    },
+                    {
+                        "type": "text",
+                        "text": "Body",
+                        "page_idx": 0,
+                        "bbox": [1, 30, 100, 60],
+                    },
+                ]
+            ),
+        )
+    return output.getvalue()
+
+
 def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_resubmit(
     database_engine: Engine,
     tmp_path: Path,
@@ -288,7 +316,7 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
     first_clock = ControlledClock()
     first_adapter = ControlledMinerUAdapter(
         poll_results=[],
-        result_archive=b"zip-result-v1",
+        result_archive=normalized_archive(),
         before_upload=assert_checkpoint_exists_before_upload,
         crash_on_upload=True,
     )
@@ -303,7 +331,7 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
             poll_result("converting", str(version_id), progress=2),
             poll_result("done", str(version_id), progress=2),
         ],
-        result_archive=b"zip-result-v1",
+        result_archive=normalized_archive(),
     )
     handler = parse_handler(database_engine, storage, second_adapter, second_clock)
     execute_operation(
@@ -314,14 +342,17 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
             SqlAlchemyOperationExecutionStore(create_session_factory(database_engine))
         ),
     )
+    duplicate = handler.run(operation_id)
 
     with database_engine.connect() as connection:
         row = connection.execute(
             text(
                 """
-                SELECT status, provider_batch_id, provider_data_id, provider_task_id,
+                SELECT status, quality_level, provider_batch_id, provider_data_id,
+                       provider_task_id,
                        provider_trace_id, progress_current, progress_total,
-                       raw_result_storage_key
+                       raw_result_storage_key, normalized_storage_key,
+                       block_count, markdown_char_count
                 FROM parsed_source_versions
                 WHERE id = :version_id
                 """
@@ -332,6 +363,10 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
             text("SELECT status FROM operations WHERE id = :operation_id"),
             {"operation_id": operation_id},
         )
+        content_counts = (
+            connection.scalar(text("SELECT count(*) FROM parsed_blocks")),
+            connection.scalar(text("SELECT count(*) FROM parsed_artifacts")),
+        )
 
     assert first_adapter.submit_requests[0].data_id == str(version_id)
     assert first_adapter.upload_count == 1
@@ -339,7 +374,9 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
     assert second_adapter.upload_count == 0
     assert second_adapter.poll_count == 4
     assert second_clock.delays == [3.0, 3.0, 3.0]
-    assert row.status == "normalizing"
+    assert duplicate == {"parsedSourceVersionId": str(version_id), "duplicate": True}
+    assert row.status == "succeeded"
+    assert row.quality_level == "full"
     assert row.provider_batch_id == "batch-worker-001"
     assert row.provider_data_id == str(version_id)
     assert row.provider_task_id == "provider-task-001"
@@ -347,9 +384,13 @@ def test_mineru_worker_persists_checkpoint_before_upload_and_resumes_without_res
     assert (row.progress_current, row.progress_total) == (2, 2)
     assert operation_status == "succeeded"
     assert row.raw_result_storage_key is not None
+    assert row.normalized_storage_key is not None
+    assert row.block_count == 2
+    assert row.markdown_char_count == len("# Contract\n\nBody\n")
+    assert content_counts == (2, 2)
     with storage.open_binary(row.raw_result_storage_key) as raw_result:
-        assert raw_result.read() == b"zip-result-v1"
-    assert row.raw_result_storage_key.endswith(sha256(b"zip-result-v1").hexdigest())
+        assert raw_result.read() == normalized_archive()
+    assert row.raw_result_storage_key.endswith(sha256(normalized_archive()).hexdigest())
 
 
 def test_mineru_worker_stops_after_consecutive_poll_errors_without_new_submission(
@@ -389,3 +430,53 @@ def test_mineru_worker_stops_after_consecutive_poll_errors_without_new_submissio
     assert row.retryable is True
     assert row.provider_batch_id == "batch-worker-001"
     assert row.provider_data_id == str(version_id)
+
+
+def test_invalid_mineru_archive_keeps_raw_artifact_without_publishing_content(
+    database_engine: Engine,
+    tmp_path: Path,
+) -> None:
+    storage = LocalStorageAdapter(tmp_path / "storage")
+    operation_id, version_id = create_parse_request(database_engine, storage)
+    adapter = ControlledMinerUAdapter(
+        poll_results=[poll_result("done", str(version_id), progress=1)],
+        result_archive=b"invalid-result-archive",
+    )
+    handler = parse_handler(database_engine, storage, adapter, ControlledClock())
+
+    execute_operation(
+        operation_id,
+        SOURCE_PARSE_TASK,
+        handler,
+        WorkerDependencies(
+            SqlAlchemyOperationExecutionStore(create_session_factory(database_engine))
+        ),
+    )
+
+    with database_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                """
+                SELECT status, error_code, raw_result_storage_key
+                FROM parsed_source_versions
+                WHERE id = :version_id
+                """
+            ),
+            {"version_id": version_id},
+        ).one()
+        operation = connection.execute(
+            text("SELECT status, error_code FROM operations WHERE id = :operation_id"),
+            {"operation_id": operation_id},
+        ).one()
+        counts = (
+            connection.scalar(text("SELECT count(*) FROM parsed_artifacts")),
+            connection.scalar(text("SELECT count(*) FROM parsed_blocks")),
+            connection.scalar(text("SELECT count(*) FROM parsed_assets")),
+        )
+
+    assert row.status == "failed"
+    assert row.error_code == "PARSER_ARCHIVE_INVALID"
+    assert row.raw_result_storage_key is not None
+    assert operation.status == "failed"
+    assert operation.error_code == "PARSER_ARCHIVE_INVALID"
+    assert counts == (1, 0, 0)

@@ -35,7 +35,7 @@ def parse_client(
         database_url=migrated_database_url,
         redis_url="redis://127.0.0.1:6379/15",
         storage_root=tmp_path / "storage",
-        jwt_signing_key="p" * 48,
+        jwt_signing_key="j" * 48,
         credential_encryption_key="Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M=",
         initial_admin_password=INITIAL_CREDENTIAL,
     )

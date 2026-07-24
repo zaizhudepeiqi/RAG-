@@ -4,7 +4,15 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.modules.parsing.domain import DataSource, ParsedSourceVersion, SourceBlob
+from app.modules.parsing.domain import (
+    DataSource,
+    ParsedArtifact,
+    ParsedAsset,
+    ParsedBlock,
+    ParsedSourceVersion,
+    ParsedSourceVersionDetails,
+    SourceBlob,
+)
 
 DataSourceSort = Literal["display_name", "-display_name", "created_at", "-created_at"]
 
@@ -83,3 +91,42 @@ class DataSourceRepository(Protocol):
         *,
         limit: int,
     ) -> list[ParsedSourceVersion]: ...
+
+    def get_parsed_version(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> ParsedSourceVersionDetails | None: ...
+
+    def list_parsed_blocks(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page_number: int | None,
+        block_type: str | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ParsedBlock], int]: ...
+
+    def list_parsed_assets(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ParsedAsset], int]: ...
+
+    def get_parsed_asset(
+        self,
+        session: Session,
+        version_id: UUID,
+        asset_id: UUID,
+    ) -> ParsedAsset | None: ...
+
+    def list_parsed_artifacts(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> list[ParsedArtifact]: ...

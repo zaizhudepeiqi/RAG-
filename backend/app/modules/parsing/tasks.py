@@ -1,6 +1,7 @@
 import hashlib
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import NoReturn, Protocol
@@ -16,7 +17,12 @@ from app.modules.parsing.domain import (
     ParseState,
     ParseTaskSnapshot,
 )
-from app.modules.parsing.normalization import NormalizedDocument
+from app.modules.parsing.normalization import (
+    MinerUNormalizationError,
+    NormalizedAsset,
+    NormalizedDocument,
+    normalize_mineru_archive,
+)
 from app.modules.parsing.ports import (
     MinerUAdapterFactory,
     MinerUError,
@@ -32,9 +38,16 @@ from app.modules.tasks.worker import NonRetryableTaskError, RetryableTaskError
 SOURCE_PARSE_TASK = "source_parse"
 MAX_NORMALIZED_MARKDOWN_BYTES = 400 * 1024 * 1024
 MAX_MINERU_RESULT_BYTES = 400 * 1024 * 1024
+MAX_NORMALIZED_ASSET_BYTES = 200 * 1024 * 1024
 MAX_CONSECUTIVE_POLL_ERRORS = 5
 Sleeper = Callable[[float], None]
 Monotonic = Callable[[], float]
+
+
+@dataclass(frozen=True)
+class StoredNormalizedAsset:
+    asset: NormalizedAsset
+    stored: StoredBlob
 
 
 class ParseTaskStore(Protocol):
@@ -58,6 +71,7 @@ class ParseTaskStore(Protocol):
         document: NormalizedDocument,
         markdown_artifact: StoredBlob,
         finished_at: datetime,
+        assets: tuple[StoredNormalizedAsset, ...] = (),
     ) -> bool: ...
     def save_failed(
         self,
@@ -148,6 +162,19 @@ class SourceParseHandler:
         }
 
     def _run_mineru(self, snapshot: ParseTaskSnapshot) -> dict[str, object]:
+        if snapshot.status is ParseState.NORMALIZING:
+            if snapshot.raw_result_storage_key is None:
+                self._fail(snapshot, "MINERU_CHECKPOINT_INVALID", retryable=False)
+            try:
+                raw_result = self._load_stored_blob(snapshot.raw_result_storage_key)
+            except RetryableTaskError as error:
+                self._fail(snapshot, error.code, retryable=True, cause=error)
+            except NonRetryableTaskError as error:
+                self._fail(snapshot, error.code, retryable=False, cause=error)
+            return self._normalize_mineru_result(
+                snapshot,
+                raw_result,
+            )
         adapter = self._mineru_adapter(snapshot)
         expected_data_id = str(snapshot.version_id)
         batch_id = snapshot.provider_batch_id
@@ -249,11 +276,68 @@ class SourceParseHandler:
         if stored.sha256 != expected_sha256 or stored.size_bytes != len(content):
             self._fail(snapshot, "PARSER_STORAGE_FAILED", retryable=True)
         self._store.save_raw_result(snapshot.version_id, stored)
+        return self._normalize_mineru_result(snapshot, stored)
+
+    def _normalize_mineru_result(
+        self,
+        snapshot: ParseTaskSnapshot,
+        raw_result: StoredBlob,
+    ) -> dict[str, object]:
+        try:
+            with self._storage.open_binary(raw_result.storage_key) as source:
+                content = source.read(MAX_MINERU_RESULT_BYTES + 1)
+            if len(content) > MAX_MINERU_RESULT_BYTES:
+                raise MinerUNormalizationError("PARSER_ARCHIVE_UNSAFE")
+            document = normalize_mineru_archive(content)
+            markdown = self._storage.store_blob(
+                BytesIO(document.markdown.encode("utf-8")),
+                max_bytes=MAX_NORMALIZED_MARKDOWN_BYTES,
+            )
+            assets = tuple(
+                StoredNormalizedAsset(
+                    asset=asset,
+                    stored=self._storage.store_blob(
+                        BytesIO(asset.content),
+                        max_bytes=MAX_NORMALIZED_ASSET_BYTES,
+                    ),
+                )
+                for asset in document.assets
+            )
+        except MinerUNormalizationError as error:
+            self._fail(snapshot, error.code, retryable=False, cause=error)
+        except OSError as error:
+            self._fail(snapshot, "PARSER_STORAGE_FAILED", retryable=True, cause=error)
+        except ValueError as error:
+            self._fail(snapshot, "PARSER_NORMALIZATION_FAILED", retryable=False, cause=error)
+        self._store.save_succeeded(
+            snapshot,
+            document,
+            markdown,
+            datetime.now(UTC),
+            assets,
+        )
         return {
             "parsedSourceVersionId": str(snapshot.version_id),
-            "rawResultSha256": stored.sha256,
-            "rawResultSizeBytes": stored.size_bytes,
+            "qualityLevel": document.quality_level,
+            "blockCount": len(document.blocks),
+            "assetCount": len(document.assets),
+            "rawResultSha256": raw_result.sha256,
+            "rawResultSizeBytes": raw_result.size_bytes,
         }
+
+    def _load_stored_blob(self, storage_key: str) -> StoredBlob:
+        try:
+            with self._storage.open_binary(storage_key) as source:
+                content = source.read(MAX_MINERU_RESULT_BYTES + 1)
+        except OSError as error:
+            raise RetryableTaskError("PARSER_STORAGE_FAILED") from error
+        if not content or len(content) > MAX_MINERU_RESULT_BYTES:
+            raise NonRetryableTaskError("PARSER_ARCHIVE_INVALID")
+        return StoredBlob(
+            storage_key=storage_key,
+            sha256=hashlib.sha256(content).hexdigest(),
+            size_bytes=len(content),
+        )
 
     def _mineru_adapter(self, snapshot: ParseTaskSnapshot) -> MinerUParseClient:
         settings = snapshot.mineru_settings

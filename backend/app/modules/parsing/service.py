@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
@@ -8,7 +9,11 @@ from sqlalchemy.orm import Session
 from app.modules.parsing.domain import (
     DataSource,
     DataSourceDetails,
+    ParsedArtifact,
+    ParsedAsset,
+    ParsedBlock,
     ParsedSourceVersion,
+    ParsedSourceVersionDetails,
     RegisteredUpload,
     SourceBlob,
     normalize_parse_config,
@@ -57,6 +62,14 @@ class DataSourceRevisionConflictError(ValueError):
 
 
 class ParseConfigInvalidError(ValueError):
+    pass
+
+
+class ParsedSourceVersionNotFoundError(ValueError):
+    pass
+
+
+class ParsedVersionNotSelectableError(ValueError):
     pass
 
 
@@ -316,6 +329,86 @@ class DataSourceService:
         )
         return self._details(session, source)
 
+    def get_parsed_version(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> ParsedSourceVersionDetails:
+        details = self._repository.get_parsed_version(session, version_id)
+        if details is None:
+            raise ParsedSourceVersionNotFoundError
+        return details
+
+    def get_parsed_markdown(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> ParsedSourceVersionDetails:
+        details = self.get_parsed_version(session, version_id)
+        self._require_selectable(details)
+        if details.normalized_storage_key is None:
+            raise ParsedVersionNotSelectableError
+        return details
+
+    def list_parsed_blocks(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page_number: int | None,
+        block_type: str | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[Sequence[ParsedBlock], int]:
+        details = self.get_parsed_version(session, version_id)
+        self._require_selectable(details)
+        return self._repository.list_parsed_blocks(
+            session,
+            version_id,
+            page_number=page_number,
+            block_type=block_type,
+            page=page,
+            page_size=page_size,
+        )
+
+    def list_parsed_assets(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[Sequence[ParsedAsset], int]:
+        details = self.get_parsed_version(session, version_id)
+        self._require_selectable(details)
+        return self._repository.list_parsed_assets(
+            session,
+            version_id,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_parsed_asset(
+        self,
+        session: Session,
+        version_id: UUID,
+        asset_id: UUID,
+    ) -> ParsedAsset:
+        details = self.get_parsed_version(session, version_id)
+        asset = self._repository.get_parsed_asset(session, version_id, asset_id)
+        if asset is None:
+            raise ParsedSourceVersionNotFoundError
+        self._require_selectable(details)
+        return asset
+
+    def list_parsed_artifacts(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> Sequence[ParsedArtifact]:
+        self.get_parsed_version(session, version_id)
+        return self._repository.list_parsed_artifacts(session, version_id)
+
     def _details(self, session: Session, source: DataSource) -> DataSourceDetails:
         blob = self._repository.get_blob(session, source.source_blob_id)
         if blob is None:
@@ -326,3 +419,8 @@ class DataSourceService:
             version_count=self._repository.count_versions(session, source.id),
             latest_versions=tuple(self._repository.list_versions(session, source.id, limit=10)),
         )
+
+    @staticmethod
+    def _require_selectable(details: ParsedSourceVersionDetails) -> None:
+        if details.version.status not in {"succeeded", "degraded"}:
+            raise ParsedVersionNotSelectableError

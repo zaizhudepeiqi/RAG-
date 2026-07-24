@@ -155,6 +155,58 @@ class ParsedSourceVersion:
 
 
 @dataclass(frozen=True)
+class ParsedSourceVersionDetails:
+    version: ParsedSourceVersion
+    provider_batch_id: str | None
+    provider_task_id: str | None
+    provider_data_id: str | None
+    provider_trace_id: str | None
+    normalized_storage_key: str | None
+
+
+@dataclass(frozen=True)
+class ParsedBlock:
+    id: UUID
+    block_type: str
+    order_index: int
+    text_content: str | None
+    markdown_content: str | None
+    heading_level: int | None
+    heading_path: tuple[str, ...] | None
+    page_number: int | None
+    bounding_box: dict[str, object] | None
+    raw_locator: dict[str, object] | None
+    asset_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True)
+class ParsedAsset:
+    id: UUID
+    asset_type: str
+    mime_type: str
+    page_number: int | None
+    bounding_box: dict[str, object] | None
+    storage_key: str
+    sha256: str
+    size_bytes: int
+    caption: str | None
+    ocr_text: str | None
+    order_index: int
+
+
+@dataclass(frozen=True)
+class ParsedArtifact:
+    id: UUID
+    artifact_type: str
+    display_name: str
+    storage_key: str
+    sha256: str
+    size_bytes: int
+    is_downloadable: bool
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class ParseTaskSnapshot:
     operation_id: UUID
     version_id: UUID

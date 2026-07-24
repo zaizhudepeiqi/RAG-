@@ -23,6 +23,11 @@ from app.modules.parsing.repository import DataSourceListQuery
 from app.modules.parsing.schemas import (
     DataSourceDetail,
     DataSourcePageView,
+    ParsedArtifactListView,
+    ParsedAssetPageView,
+    ParsedBlockPageView,
+    ParsedMarkdownView,
+    ParsedSourceVersionDetailView,
     ParseSourceRequest,
     ParseSourceResponse,
     RejectedUploadView,
@@ -32,6 +37,10 @@ from app.modules.parsing.schemas import (
     UploadOptions,
     data_source_detail,
     data_source_summary,
+    parsed_artifact_view,
+    parsed_asset_view,
+    parsed_block_view,
+    parsed_source_version_detail,
     parsed_source_version_summary,
     uploaded_data_source_view,
 )
@@ -40,6 +49,8 @@ from app.modules.parsing.service import (
     DataSourceRevisionConflictError,
     DataSourceService,
     ParseConfigInvalidError,
+    ParsedSourceVersionNotFoundError,
+    ParsedVersionNotSelectableError,
 )
 from app.modules.parsing.settings_schemas import parse_config_domain
 from app.modules.parsing.settings_service import MinerUCloudConsentRequiredError
@@ -68,6 +79,11 @@ class PageSize(IntEnum):
 router = APIRouter(
     prefix="/api/v1/data-sources",
     tags=["数据源"],
+    dependencies=[Depends(require_admin)],
+)
+parsed_versions_router = APIRouter(
+    prefix="/api/v1/parsed-source-versions",
+    tags=["数据解析"],
     dependencies=[Depends(require_admin)],
 )
 
@@ -440,6 +456,188 @@ def download_original_source(
     )
 
 
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}",
+    response_model=ParsedSourceVersionDetailView,
+    operation_id="parsedSourceVersionsGet",
+)
+def get_parsed_source_version(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> ParsedSourceVersionDetailView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.data_source_service.get_parsed_version(
+                session,
+                parsed_source_version_id,
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    return parsed_source_version_detail(details)
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/markdown",
+    response_model=ParsedMarkdownView,
+    operation_id="parsedSourceVersionsMarkdown",
+)
+def get_parsed_markdown(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> ParsedMarkdownView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            details = dependencies.data_source_service.get_parsed_markdown(
+                session,
+                parsed_source_version_id,
+            )
+        storage_key = details.normalized_storage_key
+        if storage_key is None:
+            raise ParsedVersionNotSelectableError
+        with dependencies.source_storage.open_binary(storage_key) as source:
+            markdown = source.read().decode("utf-8")
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParsedVersionNotSelectableError as error:
+        raise _parsed_version_not_selectable() from error
+    except (OSError, UnicodeDecodeError) as error:
+        raise AppError(
+            code="STORAGE_UNAVAILABLE",
+            message="解析内容暂时无法读取",
+            status_code=503,
+        ) from error
+    return ParsedMarkdownView(
+        markdown=markdown,
+        markdown_char_count=details.version.markdown_char_count,
+        quality_level=details.version.quality_level or "degraded",
+    )
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/blocks",
+    response_model=ParsedBlockPageView,
+    operation_id="parsedSourceVersionsBlocks",
+)
+def list_parsed_blocks(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+    page_number: Annotated[int | None, Query(alias="pageNumber", ge=1)] = None,
+    block_type: Annotated[str | None, Query(alias="blockType", min_length=1)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[PageSize, Query(alias="pageSize")] = PageSize.DEFAULT,
+) -> ParsedBlockPageView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            blocks, total = dependencies.data_source_service.list_parsed_blocks(
+                session,
+                parsed_source_version_id,
+                page_number=page_number,
+                block_type=block_type,
+                page=page,
+                page_size=page_size,
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParsedVersionNotSelectableError as error:
+        raise _parsed_version_not_selectable() from error
+    return ParsedBlockPageView(
+        items=[parsed_block_view(block) for block in blocks],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/assets",
+    response_model=ParsedAssetPageView,
+    operation_id="parsedSourceVersionsAssets",
+)
+def list_parsed_assets(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[PageSize, Query(alias="pageSize")] = PageSize.DEFAULT,
+) -> ParsedAssetPageView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            assets, total = dependencies.data_source_service.list_parsed_assets(
+                session,
+                parsed_source_version_id,
+                page=page,
+                page_size=page_size,
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParsedVersionNotSelectableError as error:
+        raise _parsed_version_not_selectable() from error
+    return ParsedAssetPageView(
+        items=[parsed_asset_view(asset) for asset in assets],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/assets/{assetId}",
+    response_class=StreamingResponse,
+    operation_id="parsedSourceVersionsAssetContent",
+)
+def download_parsed_asset(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    asset_id: Annotated[UUID, Path(alias="assetId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> StreamingResponse:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            asset = dependencies.data_source_service.get_parsed_asset(
+                session,
+                parsed_source_version_id,
+                asset_id,
+            )
+        handle = dependencies.source_storage.open_binary(asset.storage_key)
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParsedVersionNotSelectableError as error:
+        raise _parsed_version_not_selectable() from error
+    except OSError as error:
+        raise AppError(
+            code="STORAGE_UNAVAILABLE",
+            message="解析资产暂时无法读取",
+            status_code=503,
+        ) from error
+    return StreamingResponse(
+        _stream(handle),
+        media_type=_safe_asset_mime(asset.mime_type),
+        headers={
+            "Content-Disposition": f'inline; filename="asset-{asset.id}"',
+            "ETag": f'"{asset.sha256}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/artifacts",
+    response_model=ParsedArtifactListView,
+    operation_id="parsedSourceVersionsArtifacts",
+)
+def list_parsed_artifacts(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> ParsedArtifactListView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            artifacts = dependencies.data_source_service.list_parsed_artifacts(
+                session,
+                parsed_source_version_id,
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    return ParsedArtifactListView(items=[parsed_artifact_view(artifact) for artifact in artifacts])
+
+
 def _stream(handle: BinaryIO) -> Iterator[bytes]:
     try:
         while chunk := handle.read(1024 * 1024):
@@ -454,8 +652,28 @@ def _safe_download_mime(mime_type: str) -> str:
     return mime_type
 
 
+def _safe_asset_mime(mime_type: str) -> str:
+    return mime_type if mime_type.startswith("image/") else "application/octet-stream"
+
+
 def _not_found() -> AppError:
     return AppError(code="DATA_SOURCE_NOT_FOUND", message="数据源不存在", status_code=404)
+
+
+def _parsed_version_not_found() -> AppError:
+    return AppError(
+        code="PARSED_SOURCE_VERSION_NOT_FOUND",
+        message="解析版本不存在",
+        status_code=404,
+    )
+
+
+def _parsed_version_not_selectable() -> AppError:
+    return AppError(
+        code="PARSED_VERSION_NOT_SELECTABLE",
+        message="解析版本尚无可读取内容",
+        status_code=409,
+    )
 
 
 def _trace_id(request: Request) -> UUID | None:

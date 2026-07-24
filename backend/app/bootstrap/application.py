@@ -15,6 +15,7 @@ from app.modules.capabilities.api import router as capabilities_router
 from app.modules.models.api import models_router
 from app.modules.models.api import router as model_providers_router
 from app.modules.observability.api import router as health_router
+from app.modules.parsing.api import parsed_versions_router
 from app.modules.parsing.api import router as data_sources_router
 from app.modules.parsing.settings_api import router as mineru_settings_router
 from app.modules.tasks.api import router as tasks_router
@@ -67,5 +68,6 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(models_router)
     app.include_router(mineru_settings_router)
     app.include_router(data_sources_router)
+    app.include_router(parsed_versions_router)
     app.include_router(tasks_router)
     return app
