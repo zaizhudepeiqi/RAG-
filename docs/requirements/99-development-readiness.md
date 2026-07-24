@@ -1,8 +1,8 @@
 # 开发就绪审计
 
-审计时间：2026-07-23
+审计时间：2026-07-24
 
-当前结论：**IMPLEMENTATION IN PROGRESS (PHASE 2B)**。第一阶段已合并并推送到 `main`；第二阶段 A 的模型注册与 MinerU 设置已在 `codex/phase-02-models-parsing` 完成并通过退出门禁，下一步是同分支上的 02B 数据上传与解析。Phase 02 尚未完成；知识库、检索、机器人和渠道仍留在后续阶段，不提前创建假实现。
+当前结论：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。第一阶段已合并并推送到 `main`；第二阶段的模型配置、数据上传与独立解析闭环已在 `codex/phase-02-models-parsing` 完成并通过退出门禁。下一步先审阅并合并 Phase 02，再编写 Phase 3 知识库构建与检索详细实施计划。知识库、检索、机器人、渠道和完整业务页面尚未实现，不提前创建假实现。
 
 ## 1. 文档门禁
 
@@ -17,8 +17,8 @@
 | 页面/API 对照 | 完成 | `docs/frontend-api-map/page-api-map.md` |
 | 第一版验收清单 | 完成 | `docs/acceptance/v1-acceptance.md` |
 | 用户基线审阅 | 完成 | 用户已完成基线审阅 |
-| 分阶段实施计划 | Phase 01、Phase 02A 完成；Phase 02B 下一步创建 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md`、`02a-model-registry-implementation-plan.md` |
-| 生产代码 | 第二阶段 B 实施中 | `codex/phase-02-models-parsing` |
+| 分阶段实施计划 | Phase 01、Phase 02A、Phase 02B 完成；Phase 03 下一步创建 | `docs/implementation/README.md`、`01-foundation-implementation-plan.md`、`02a-model-registry-implementation-plan.md`、`02b-data-parsing-implementation-plan.md` |
+| 生产代码 | 第二阶段完成，下一阶段尚未开始 | `codex/phase-02-models-parsing` |
 
 ## 2. 已消除的高风险冲突
 
@@ -83,6 +83,15 @@
 - 迁移和生成：测试库 `alembic check` 无新 upgrade operation；OpenAPI 与 Umi client 二次生成无差异，冒号动作后缀生成回归测试通过。
 - 依赖审计：固定 `pip-audit 2.10.1` 无未豁免已知漏洞，ChromaDB `PYSEC-2026-311` 例外继续受 2026-08-31 到期门禁约束；前端生产依赖 high 门槛通过，报告 1 项 moderate `dompurify` 上游问题。
 
+## 5.3 第二阶段 B 验证证据（2026-07-24）
+
+- 根质量门禁：`scripts/check.ps1` exit 0；后端非集成测试 230 passed，前端 Jest 7 suites/16 tests passed，Ruff、strict mypy、Biome、TypeScript、production build 和 OpenAPI 生成漂移检查通过。
+- PostgreSQL/Redis/Chroma 集成组：104 passed，覆盖上传、去重、ZIP 安全、ParsedSourceVersion、builtin_text、MinerU checkpoint/恢复/标准化、完整连接测试和异步清理；三个 Docker 依赖均为 healthy。
+- 迁移与生成：0003 已升级到开发库 head；空库升级测试和 `alembic check` 通过，无新 upgrade operation；OpenAPI 与 Umi client 二次生成无差异。
+- 安全专项：ZIP/上传/解析内容/Provider/MinerU 固定组 35 passed；OpenAPI/generated client 未发现 storage key、signed/upload URL、ciphertext/nonce/key-version 字段；仓库密钥扫描通过。
+- 依赖审计：固定 `pip-audit 2.10.1` 无未豁免已知漏洞，保留到 2026-08-31 的 `PYSEC-2026-311` 例外；前端生产依赖 high 门槛通过，仅报告 1 项 moderate `dompurify` 上游问题。完整开发工具链告警继续由 `docs/security/frontend-toolchain-audit-exception.md` 的到期门禁管理。
+- 集成测试曾暴露 ZIP fixture 每次生成携带不同条目时间戳的非确定性比较；现已单次生成并复用，目标测试连续 3 次及完整集成组均通过。
+
 ## 6. 基线审阅重点（已完成）
 
 用户基线审阅已完成，审阅时优先确认以下内容，不需要检查每个 SQL 类型：
@@ -96,4 +105,4 @@
 
 ## 7. Git 状态说明
 
-`D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；Phase 02 生产代码当前在独立分支 `codex/phase-02-models-parsing` 开发，不直接在 `main` 开发。
+`D:\RAG知识库` 已初始化为 Git 仓库，默认分支为 `main`，远端为 `https://github.com/zaizhudepeiqi/RAG-.git`。首个文档基线提交为 `79dccc14475c77f1138dceedd967ac39a08fa4e5`；Phase 02 生产代码已在独立分支 `codex/phase-02-models-parsing` 完成，审阅合并前不直接在 `main` 修改，Phase 3 也不得复用旧阶段 worktree。
