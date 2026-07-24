@@ -428,6 +428,7 @@ type KnowledgeBaseBuildConfig = {
   vectorIndexParams: Record<string, unknown>;
   keywordStoreCode: "postgres_trigram";
   indexStructure: "chunk" | "parent_child";
+  indexStructureParams: Record<string, unknown>;
   chunkStrategyCode: string;
   chunkParams: Record<string, unknown>;
 };

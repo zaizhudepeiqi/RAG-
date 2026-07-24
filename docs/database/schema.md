@@ -274,6 +274,7 @@ reference_count 由同一事务内 service 维护，并由维护任务定期校�
 - vector_index_params jsonb not null。
 - keyword_store_code/keyword_store_version text not null。
 - index_structure text check `chunk/parent_child`。
+- index_structure_params jsonb not null；只保存索引结构 capability 的参数，不与分块策略参数混用。
 - chunk_strategy_code/chunk_strategy_version text not null。
 - chunk_params jsonb not null。
 - token_counter_snapshot jsonb not null。

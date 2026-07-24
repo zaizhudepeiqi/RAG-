@@ -97,6 +97,7 @@ def create_config_revisions() -> None:
         "embedding_model_snapshot",
         "embedding_params",
         "vector_index_params",
+        "index_structure_params",
         "chunk_params",
         "token_counter_snapshot",
     )
@@ -116,6 +117,7 @@ def create_config_revisions() -> None:
         sa.Column("keyword_store_code", sa.Text(), nullable=False),
         sa.Column("keyword_store_version", sa.Text(), nullable=False),
         sa.Column("index_structure", sa.Text(), nullable=False),
+        sa.Column("index_structure_params", postgresql.JSONB(), nullable=False),
         sa.Column("chunk_strategy_code", sa.Text(), nullable=False),
         sa.Column("chunk_strategy_version", sa.Text(), nullable=False),
         sa.Column("chunk_params", postgresql.JSONB(), nullable=False),

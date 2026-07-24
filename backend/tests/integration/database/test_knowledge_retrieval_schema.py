@@ -103,12 +103,13 @@ def _insert_graph(connection: Connection) -> dict[str, UUID]:
                 embedding_model_snapshot, embedding_params, vector_store_code,
                 vector_store_version, vector_index_code, vector_index_version,
                 vector_index_params, keyword_store_code, keyword_store_version,
-                index_structure, chunk_strategy_code, chunk_strategy_version,
+                index_structure, index_structure_params,
+                chunk_strategy_code, chunk_strategy_version,
                 chunk_params, token_counter_snapshot, config_hash
             ) VALUES (
                 :id, :kb_id, 1, :model_id, '{}'::jsonb, '{}'::jsonb,
                 'chroma', '1', 'hnsw', '1', CAST(:vector_params AS jsonb),
-                'postgres_trigram', '1', 'chunk', 'token', '1',
+                'postgres_trigram', '1', 'chunk', '{}'::jsonb, 'token', '1',
                 CAST(:chunk_params AS jsonb), CAST(:token_counter AS jsonb), :hash
             )
             """

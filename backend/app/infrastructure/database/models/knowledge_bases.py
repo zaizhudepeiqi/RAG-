@@ -121,6 +121,10 @@ class KnowledgeBaseBuildConfigRevisionModel(Base):
         CheckConstraint(
             "jsonb_typeof(vector_index_params) = 'object'", name="vector_index_params_object"
         ),
+        CheckConstraint(
+            "jsonb_typeof(index_structure_params) = 'object'",
+            name="index_structure_params_object",
+        ),
         CheckConstraint("jsonb_typeof(chunk_params) = 'object'", name="chunk_params_object"),
         CheckConstraint(
             "jsonb_typeof(token_counter_snapshot) = 'object'",
@@ -156,6 +160,7 @@ class KnowledgeBaseBuildConfigRevisionModel(Base):
     keyword_store_code: Mapped[str] = mapped_column(Text, nullable=False)
     keyword_store_version: Mapped[str] = mapped_column(Text, nullable=False)
     index_structure: Mapped[str] = mapped_column(Text, nullable=False)
+    index_structure_params: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     chunk_strategy_code: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_strategy_version: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_params: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
