@@ -1,4 +1,15 @@
 from app.infrastructure.database.models.auth import AdministratorModel, AuditLogModel
+from app.infrastructure.database.models.knowledge_bases import (
+    ChunkAssetModel,
+    ChunkModel,
+    ChunkSourceBlockModel,
+    IndexGenerationItemModel,
+    IndexGenerationModel,
+    KnowledgeBaseBuildConfigRevisionModel,
+    KnowledgeBaseBuildConfigSourceModel,
+    KnowledgeBaseModel,
+    KnowledgeBaseRetrievalRevisionModel,
+)
 from app.infrastructure.database.models.models import (
     ModelConfigModel,
     ModelDiscoveredCandidateModel,
@@ -26,7 +37,16 @@ __all__ = [
     "AdminApiIdempotencyRecordModel",
     "AdministratorModel",
     "AuditLogModel",
+    "ChunkAssetModel",
+    "ChunkModel",
+    "ChunkSourceBlockModel",
     "DataSourceModel",
+    "IndexGenerationItemModel",
+    "IndexGenerationModel",
+    "KnowledgeBaseBuildConfigRevisionModel",
+    "KnowledgeBaseBuildConfigSourceModel",
+    "KnowledgeBaseModel",
+    "KnowledgeBaseRetrievalRevisionModel",
     "MinerUSettingsModel",
     "ModelConfigModel",
     "ModelDiscoveredCandidateModel",
