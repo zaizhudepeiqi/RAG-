@@ -14,11 +14,16 @@ from app.modules.parsing.domain import (
     ParsedBlock,
     ParsedSourceVersion,
     ParsedSourceVersionDetails,
+    ParsingReference,
     RegisteredUpload,
     SourceBlob,
     normalize_parse_config,
 )
-from app.modules.parsing.ports import DataSourceAuditRepository, StoredBlob
+from app.modules.parsing.ports import (
+    DataSourceAuditRepository,
+    ParsingReferenceQuery,
+    StoredBlob,
+)
 from app.modules.parsing.repository import (
     DataSourceListQuery,
     DataSourcePage,
@@ -29,6 +34,7 @@ from app.modules.parsing.settings_service import (
     MinerUCloudConsentRequiredError,
     MinerUSettingsService,
 )
+from app.modules.tasks.domain import Operation
 from app.modules.tasks.service import TaskService
 
 REUSABLE_PARSE_STATUSES = (
@@ -41,6 +47,15 @@ REUSABLE_PARSE_STATUSES = (
     "normalizing",
     "succeeded",
     "degraded",
+)
+RESUMABLE_PROVIDER_ERROR_CODES = frozenset(
+    {
+        "MINERU_TIMEOUT",
+        "MINERU_POLL_FAILED",
+        "MINERU_RATE_LIMITED",
+        "MINERU_RESULT_NOT_FOUND",
+        "MINERU_RESULT_DOWNLOAD_FAILED",
+    }
 )
 EMPTY_FEATURE_FLAGS = {
     "hasText": False,
@@ -73,6 +88,36 @@ class ParsedVersionNotSelectableError(ValueError):
     pass
 
 
+class ParseRecoveryNotAllowedError(ValueError):
+    pass
+
+
+class ParsingDeleteNotAllowedError(ValueError):
+    pass
+
+
+class SourceInUseError(ValueError):
+    def __init__(self, references: tuple[ParsingReference, ...]) -> None:
+        super().__init__("source is in use")
+        self.references = references
+
+
+class EmptyParsingReferenceQuery:
+    def for_data_source(
+        self,
+        _session: Session,
+        _data_source_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        return ()
+
+    def for_parsed_version(
+        self,
+        _session: Session,
+        _parsed_source_version_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        return ()
+
+
 @dataclass(frozen=True)
 class ParseRequestResult:
     version: ParsedSourceVersion
@@ -86,12 +131,14 @@ class DataSourceService:
         audits: DataSourceAuditRepository,
         tasks: TaskService | None = None,
         mineru_settings: MinerUSettingsService | None = None,
+        references: ParsingReferenceQuery | None = None,
         operation_retention_days: int = 30,
     ) -> None:
         self._repository = repository
         self._audits = audits
         self._tasks = tasks
         self._mineru_settings = mineru_settings
+        self._references = references or EmptyParsingReferenceQuery()
         self._operation_retention_days = operation_retention_days
 
     def register_upload(
@@ -329,6 +376,176 @@ class DataSourceService:
         )
         return self._details(session, source)
 
+    def resume_provider_query(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        now: datetime,
+    ) -> Operation:
+        if self._tasks is None:
+            raise RuntimeError("parse operations are not configured")
+        details = self._repository.get_parsed_version(session, version_id, for_update=True)
+        if details is None:
+            raise ParsedSourceVersionNotFoundError
+        version = details.version
+        if (
+            version.parser_code != "mineru_precision_api"
+            or version.status != "failed"
+            or not version.retryable
+            or version.error_code not in RESUMABLE_PROVIDER_ERROR_CODES
+            or details.provider_batch_id is None
+            or details.provider_data_id != str(version.id)
+        ):
+            raise ParseRecoveryNotAllowedError
+        operation = self._tasks.create_operation(
+            session,
+            task_type="source_parse",
+            target_type="parsed_source_version",
+            target_id=version.id,
+            target_revision=version.version_number,
+            business_key=f"source.parse.resume:{version.id}:{version.operation_id}",
+            event_type="parsing.source.requested",
+            payload={
+                "parsedSourceVersionId": str(version.id),
+                "resumeMode": "provider_query",
+            },
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        self._repository.resume_provider_query(session, version.id, operation.id)
+        return operation
+
+    def create_reparse(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        expected_source_revision: int,
+        requested_config: ParseConfig,
+        now: datetime,
+    ) -> ParseRequestResult:
+        details = self._repository.get_parsed_version(session, version_id)
+        if details is None:
+            raise ParsedSourceVersionNotFoundError
+        return self.request_parse(
+            session,
+            details.version.data_source_id,
+            expected_revision=expected_source_revision,
+            requested_config=requested_config,
+            reuse_policy="force_new",
+            now=now,
+        )
+
+    def references_for_version(
+        self,
+        session: Session,
+        version_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        if self._repository.get_parsed_version(session, version_id) is None:
+            raise ParsedSourceVersionNotFoundError
+        return self._references.for_parsed_version(session, version_id)
+
+    def references_for_source(
+        self,
+        session: Session,
+        source_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        if self._repository.get_source(session, source_id) is None:
+            raise DataSourceNotFoundError
+        return self._references.for_data_source(session, source_id)
+
+    def request_delete_version(
+        self,
+        session: Session,
+        version_id: UUID,
+        *,
+        now: datetime,
+    ) -> Operation:
+        if self._tasks is None:
+            raise RuntimeError("cleanup operations are not configured")
+        details = self._repository.get_parsed_version(session, version_id, for_update=True)
+        if details is None:
+            raise ParsedSourceVersionNotFoundError
+        if details.version.status not in {"succeeded", "degraded", "failed", "cancelled"}:
+            raise ParsingDeleteNotAllowedError
+        references = self._references.for_parsed_version(session, version_id)
+        if references:
+            raise SourceInUseError(references)
+        return self._tasks.create_operation(
+            session,
+            task_type="parsing_cleanup",
+            target_type="parsed_source_version",
+            target_id=version_id,
+            target_revision=details.version.version_number,
+            business_key=f"parsed-source.cleanup:{version_id}:{details.version.operation_id}",
+            event_type="parsing.cleanup.requested",
+            payload={"parsedSourceVersionId": str(version_id)},
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+
+    def request_delete_source(
+        self,
+        session: Session,
+        source_id: UUID,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        now: datetime,
+        trace_id: UUID | None,
+        source_ip: str | None,
+        user_agent: str | None,
+    ) -> Operation:
+        if self._tasks is None:
+            raise RuntimeError("cleanup operations are not configured")
+        source = self._repository.get_source(session, source_id, for_update=True)
+        if source is None:
+            raise DataSourceNotFoundError
+        if source.revision != expected_revision:
+            raise DataSourceRevisionConflictError
+        if self._repository.has_nonterminal_versions(session, source_id):
+            raise ParsingDeleteNotAllowedError
+        references = self._references.for_data_source(session, source_id)
+        if references:
+            raise SourceInUseError(references)
+        operation = self._tasks.create_operation(
+            session,
+            task_type="parsing_cleanup",
+            target_type="data_source",
+            target_id=source.id,
+            target_revision=source.revision,
+            business_key=f"data-source.cleanup:{source.id}:{source.revision}",
+            event_type="parsing.cleanup.requested",
+            payload={"dataSourceId": str(source.id)},
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        blob = self._repository.get_blob(session, source.source_blob_id, for_update=True)
+        if blob is None or blob.reference_count < 1:
+            raise RuntimeError("data source blob reference count is invalid")
+        blob.reference_count -= 1
+        if blob.reference_count == 0:
+            blob.purge_after = now
+        self._repository.save_blob(session, blob)
+        source.deleted_at = now
+        source.updated_at = now
+        source.revision += 1
+        self._repository.save_source(session, source)
+        self._audits.record(
+            session,
+            occurred_at=now,
+            actor_id=administrator_id,
+            event_code="data_source.deleted",
+            target_id=source.id,
+            target_name=source.display_name,
+            change_summary={"deletedAt": now.isoformat()},
+            trace_id=trace_id,
+            source_ip=source_ip,
+            user_agent=user_agent,
+        )
+        return operation
+
     def get_parsed_version(
         self,
         session: Session,
@@ -418,6 +635,7 @@ class DataSourceService:
             blob=blob,
             version_count=self._repository.count_versions(session, source.id),
             latest_versions=tuple(self._repository.list_versions(session, source.id, limit=10)),
+            references=self._references.for_data_source(session, source.id),
         )
 
     @staticmethod

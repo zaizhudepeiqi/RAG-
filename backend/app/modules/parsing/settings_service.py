@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -16,6 +16,9 @@ from app.modules.parsing.settings_domain import (
 )
 from app.modules.parsing.settings_ports import MinerUSettingsAuditRepository
 from app.modules.parsing.settings_repository import MinerUSettingsRepository
+from app.modules.tasks.domain import Operation
+from app.modules.tasks.idempotency import AdminIdempotencyService
+from app.modules.tasks.service import TaskService
 
 
 class MinerUCloudConsentRequiredError(ValueError):
@@ -26,16 +29,27 @@ class MinerUSettingsRevisionConflictError(ValueError):
     pass
 
 
+class MinerUNotConfiguredError(ValueError):
+    pass
+
+
 class MinerUSettingsService:
     def __init__(
         self,
         repository: MinerUSettingsRepository,
         audits: MinerUSettingsAuditRepository,
         encryption_key: bytes,
+        *,
+        tasks: TaskService | None = None,
+        idempotency: AdminIdempotencyService | None = None,
+        operation_retention_days: int = 90,
     ) -> None:
         self._repository = repository
         self._audits = audits
         self._encryption_key = encryption_key
+        self._tasks = tasks
+        self._idempotency = idempotency
+        self._operation_retention_days = operation_retention_days
 
     def get(self, session: Session, *, now: datetime) -> MinerUSettings:
         return self._repository.get_or_create(session, default_mineru_settings(now))
@@ -125,3 +139,58 @@ class MinerUSettingsService:
             user_agent=user_agent,
         )
         return updated
+
+    def request_test(
+        self,
+        session: Session,
+        *,
+        expected_revision: int,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime,
+    ) -> Operation:
+        if self._tasks is None or self._idempotency is None:
+            raise RuntimeError("MinerU test operations are not configured")
+        request_body: dict[str, object] = {"expectedRevision": expected_revision}
+        existing = self._idempotency.find(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code="mineru.settings.test",
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+        )
+        if existing is not None and existing.operation_id is not None:
+            return self._tasks.get(session, existing.operation_id)
+
+        settings = self.get(session, now=now)
+        if settings.revision != expected_revision:
+            raise MinerUSettingsRevisionConflictError
+        if (
+            settings.token_ciphertext is None
+            or settings.token_nonce is None
+            or settings.token_key_version is None
+            or settings.cloud_processing_confirmed_at is None
+        ):
+            raise MinerUNotConfiguredError
+        operation = self._tasks.create_operation(
+            session,
+            task_type="mineru_connection_test",
+            target_type="mineru_settings",
+            target_id=settings.id,
+            target_revision=settings.revision,
+            business_key=(f"admin:{administrator_id}:mineru.settings.test:{idempotency_key}"),
+            event_type="parsing.mineru.test.requested",
+            payload={"settingsRevision": settings.revision},
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        self._idempotency.reserve(
+            session,
+            administrator_id=administrator_id,
+            endpoint_code="mineru.settings.test",
+            idempotency_key=idempotency_key,
+            request_body=request_body,
+            operation_id=operation.id,
+            now=now,
+        )
+        return operation

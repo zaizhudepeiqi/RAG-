@@ -44,7 +44,13 @@ class DataSourceRepository(Protocol):
 
     def save_blob(self, session: Session, blob: SourceBlob) -> None: ...
 
-    def get_blob(self, session: Session, blob_id: UUID) -> SourceBlob | None: ...
+    def get_blob(
+        self,
+        session: Session,
+        blob_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> SourceBlob | None: ...
 
     def find_active_source_by_sha256(
         self,
@@ -67,6 +73,8 @@ class DataSourceRepository(Protocol):
     def list_sources(self, session: Session, query: DataSourceListQuery) -> DataSourcePage: ...
 
     def count_versions(self, session: Session, source_id: UUID) -> int: ...
+
+    def has_nonterminal_versions(self, session: Session, source_id: UUID) -> bool: ...
 
     def find_exact_version(
         self,
@@ -96,7 +104,16 @@ class DataSourceRepository(Protocol):
         self,
         session: Session,
         version_id: UUID,
+        *,
+        for_update: bool = False,
     ) -> ParsedSourceVersionDetails | None: ...
+
+    def resume_provider_query(
+        self,
+        session: Session,
+        version_id: UUID,
+        operation_id: UUID,
+    ) -> ParsedSourceVersion: ...
 
     def list_parsed_blocks(
         self,

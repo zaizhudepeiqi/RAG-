@@ -3,7 +3,12 @@ from typing import Literal
 from uuid import UUID
 
 from app.core.schemas import ApiModel
-from app.modules.tasks.domain import TERMINAL_OPERATION_STATUSES, Operation, OperationStatus
+from app.modules.tasks.domain import (
+    NON_CANCELLABLE_TASK_TYPES,
+    TERMINAL_OPERATION_STATUSES,
+    Operation,
+    OperationStatus,
+)
 
 
 class OperationRef(ApiModel):
@@ -44,7 +49,10 @@ class OperationPage(ApiModel):
 
 def operation_detail(operation: Operation) -> OperationDetail:
     actions: list[Literal["cancel", "retry"]] = []
-    if operation.status is OperationStatus.QUEUED:
+    if (
+        operation.status is OperationStatus.QUEUED
+        and operation.task_type not in NON_CANCELLABLE_TASK_TYPES
+    ):
         actions.append("cancel")
     if operation.status in TERMINAL_OPERATION_STATUSES and operation.retryable:
         actions.append("retry")

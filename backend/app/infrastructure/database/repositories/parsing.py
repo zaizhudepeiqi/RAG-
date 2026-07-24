@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, delete, desc, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
@@ -20,11 +20,16 @@ from app.infrastructure.database.models.parsing import (
     SourceBlobModel,
 )
 from app.infrastructure.database.models.settings import MinerUSettingsModel
+from app.infrastructure.database.models.tasks import OperationModel
+from app.infrastructure.database.repositories.mineru_settings import (
+    SqlAlchemyMinerUSettingsRepository,
+)
 from app.infrastructure.database.session import transaction
 from app.modules.parsing.domain import (
     TERMINAL_PARSE_STATES,
     DataSource,
     MinerURuntimeSettings,
+    MinerUTestTaskSnapshot,
     ParsedArtifact,
     ParsedAsset,
     ParsedBlock,
@@ -33,6 +38,8 @@ from app.modules.parsing.domain import (
     ParseEvent,
     ParseState,
     ParseTaskSnapshot,
+    ParsingCleanupTaskSnapshot,
+    ParsingReference,
     SourceBlob,
     transition_parse_state,
 )
@@ -74,8 +81,17 @@ class SqlAlchemyDataSourceRepository:
         for name, value in self._blob_values(blob).items():
             setattr(model, name, value)
 
-    def get_blob(self, session: Session, blob_id: UUID) -> SourceBlob | None:
-        model = session.get(SourceBlobModel, blob_id)
+    def get_blob(
+        self,
+        session: Session,
+        blob_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> SourceBlob | None:
+        statement = select(SourceBlobModel).where(SourceBlobModel.id == blob_id)
+        if for_update:
+            statement = statement.with_for_update()
+        model = session.scalar(statement)
         return self._blob_domain(model) if model is not None else None
 
     def find_active_source_by_sha256(
@@ -154,9 +170,31 @@ class SqlAlchemyDataSourceRepository:
             session.scalar(
                 select(func.count())
                 .select_from(ParsedSourceVersionModel)
-                .where(ParsedSourceVersionModel.data_source_id == source_id)
+                .where(
+                    ParsedSourceVersionModel.data_source_id == source_id,
+                    ~self._cleanup_requested(
+                        "parsed_source_version",
+                        ParsedSourceVersionModel.id,
+                    ),
+                )
             )
             or 0
+        )
+
+    def has_nonterminal_versions(self, session: Session, source_id: UUID) -> bool:
+        return bool(
+            session.scalar(
+                select(
+                    select(ParsedSourceVersionModel.id)
+                    .where(
+                        ParsedSourceVersionModel.data_source_id == source_id,
+                        ~ParsedSourceVersionModel.status.in_(
+                            ("succeeded", "degraded", "failed", "cancelled")
+                        ),
+                    )
+                    .exists()
+                )
+            )
         )
 
     def find_exact_version(
@@ -234,7 +272,13 @@ class SqlAlchemyDataSourceRepository:
     ) -> list[ParsedSourceVersion]:
         models = session.scalars(
             select(ParsedSourceVersionModel)
-            .where(ParsedSourceVersionModel.data_source_id == source_id)
+            .where(
+                ParsedSourceVersionModel.data_source_id == source_id,
+                ~self._cleanup_requested(
+                    "parsed_source_version",
+                    ParsedSourceVersionModel.id,
+                ),
+            )
             .order_by(ParsedSourceVersionModel.version_number.desc())
             .limit(limit)
         ).all()
@@ -244,8 +288,22 @@ class SqlAlchemyDataSourceRepository:
         self,
         session: Session,
         version_id: UUID,
+        *,
+        for_update: bool = False,
     ) -> ParsedSourceVersionDetails | None:
-        model = session.get(ParsedSourceVersionModel, version_id)
+        statement = select(ParsedSourceVersionModel).where(
+            ParsedSourceVersionModel.id == version_id,
+            ParsedSourceVersionModel.data_source_id.in_(
+                select(DataSourceModel.id).where(DataSourceModel.deleted_at.is_(None))
+            ),
+            ~self._cleanup_requested(
+                "parsed_source_version",
+                ParsedSourceVersionModel.id,
+            ),
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        model = session.scalar(statement)
         if model is None:
             return None
         return ParsedSourceVersionDetails(
@@ -256,6 +314,26 @@ class SqlAlchemyDataSourceRepository:
             provider_trace_id=model.provider_trace_id,
             normalized_storage_key=model.normalized_storage_key,
         )
+
+    def resume_provider_query(
+        self,
+        session: Session,
+        version_id: UUID,
+        operation_id: UUID,
+    ) -> ParsedSourceVersion:
+        model = session.get(ParsedSourceVersionModel, version_id)
+        if model is None:
+            raise RuntimeError("parsed source version does not exist")
+        model.status = transition_parse_state(
+            ParseState(model.status),
+            ParseEvent.RESUME_PROVIDER_QUERY,
+        ).value
+        model.operation_id = operation_id
+        model.error_code = None
+        model.error_message = None
+        model.retryable = False
+        model.finished_at = None
+        return self._version_domain(model)
 
     def list_parsed_blocks(
         self,
@@ -490,6 +568,207 @@ class SqlAlchemyDataSourceRepository:
             finished_at=model.finished_at,
             created_at=model.created_at,
         )
+
+    @staticmethod
+    def _cleanup_requested(target_type: str, target_id: object) -> ColumnElement[bool]:
+        return (
+            select(OperationModel.id)
+            .where(
+                OperationModel.task_type == "parsing_cleanup",
+                OperationModel.target_type == target_type,
+                OperationModel.target_id == target_id,
+                OperationModel.status != "cancelled",
+            )
+            .exists()
+        )
+
+
+class SqlAlchemyParsingReferenceQuery:
+    """Phase 3 replaces these empty queries with knowledge-base-owned lookups."""
+
+    def for_data_source(
+        self,
+        _session: Session,
+        _data_source_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        return ()
+
+    def for_parsed_version(
+        self,
+        _session: Session,
+        _parsed_source_version_id: UUID,
+    ) -> tuple[ParsingReference, ...]:
+        return ()
+
+
+class SqlAlchemyParsingCleanupTaskStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    def load(
+        self,
+        operation_id: UUID,
+        now: datetime,
+    ) -> ParsingCleanupTaskSnapshot | None:
+        with transaction(self._session_factory) as session:
+            operation = session.get(OperationModel, operation_id)
+            if operation is None or operation.task_type != "parsing_cleanup":
+                return None
+            source_blob_id: UUID | None = None
+            source_blob_storage_key: str | None = None
+            if operation.target_type == "data_source":
+                source = session.get(DataSourceModel, operation.target_id)
+                if source is None or source.deleted_at is None:
+                    return None
+                version_ids = tuple(
+                    session.scalars(
+                        select(ParsedSourceVersionModel.id).where(
+                            ParsedSourceVersionModel.data_source_id == source.id
+                        )
+                    ).all()
+                )
+                source_blob_id = source.source_blob_id
+                blob = session.get(SourceBlobModel, source.source_blob_id)
+                if (
+                    blob is not None
+                    and blob.reference_count == 0
+                    and blob.purge_after is not None
+                    and blob.purge_after <= now
+                ):
+                    source_blob_storage_key = blob.storage_key
+            elif operation.target_type == "parsed_source_version":
+                version = session.get(ParsedSourceVersionModel, operation.target_id)
+                version_ids = (version.id,) if version is not None else ()
+            else:
+                return None
+            storage_keys = self._unshared_storage_keys(session, version_ids)
+            return ParsingCleanupTaskSnapshot(
+                operation_id=operation_id,
+                target_type=operation.target_type,
+                target_id=operation.target_id,
+                version_ids=version_ids,
+                storage_keys=storage_keys,
+                source_blob_id=source_blob_id,
+                source_blob_storage_key=source_blob_storage_key,
+            )
+
+    def finalize(self, snapshot: ParsingCleanupTaskSnapshot) -> int:
+        if not snapshot.version_ids:
+            return 0
+        with transaction(self._session_factory) as session:
+            block_ids = select(ParsedBlockModel.id).where(
+                ParsedBlockModel.parsed_source_version_id.in_(snapshot.version_ids)
+            )
+            asset_ids = select(ParsedAssetModel.id).where(
+                ParsedAssetModel.parsed_source_version_id.in_(snapshot.version_ids)
+            )
+            session.execute(
+                delete(ParsedBlockAssetModel).where(
+                    or_(
+                        ParsedBlockAssetModel.block_id.in_(block_ids),
+                        ParsedBlockAssetModel.asset_id.in_(asset_ids),
+                    )
+                )
+            )
+            for model in (ParsedBlockModel, ParsedAssetModel, ParsedArtifactModel):
+                session.execute(
+                    delete(model).where(model.parsed_source_version_id.in_(snapshot.version_ids))
+                )
+            result = session.execute(
+                delete(ParsedSourceVersionModel).where(
+                    ParsedSourceVersionModel.id.in_(snapshot.version_ids)
+                )
+            )
+            return result.rowcount  # type: ignore[attr-defined,no-any-return]
+
+    @staticmethod
+    def _unshared_storage_keys(
+        session: Session,
+        version_ids: tuple[UUID, ...],
+    ) -> tuple[str, ...]:
+        if not version_ids:
+            return ()
+        versions = session.scalars(
+            select(ParsedSourceVersionModel).where(ParsedSourceVersionModel.id.in_(version_ids))
+        ).all()
+        candidates = {
+            key
+            for version in versions
+            for key in (version.raw_result_storage_key, version.normalized_storage_key)
+            if key is not None
+        }
+        candidates.update(
+            session.scalars(
+                select(ParsedAssetModel.storage_key).where(
+                    ParsedAssetModel.parsed_source_version_id.in_(version_ids)
+                )
+            ).all()
+        )
+        candidates.update(
+            session.scalars(
+                select(ParsedArtifactModel.storage_key).where(
+                    ParsedArtifactModel.parsed_source_version_id.in_(version_ids)
+                )
+            ).all()
+        )
+        removable: list[str] = []
+        for key in sorted(candidates):
+            referenced = session.scalar(
+                select(
+                    or_(
+                        select(SourceBlobModel.id)
+                        .where(SourceBlobModel.storage_key == key)
+                        .exists(),
+                        select(ParsedSourceVersionModel.id)
+                        .where(
+                            ParsedSourceVersionModel.id.not_in(version_ids),
+                            or_(
+                                ParsedSourceVersionModel.raw_result_storage_key == key,
+                                ParsedSourceVersionModel.normalized_storage_key == key,
+                            ),
+                        )
+                        .exists(),
+                        select(ParsedAssetModel.id)
+                        .where(
+                            ParsedAssetModel.parsed_source_version_id.not_in(version_ids),
+                            ParsedAssetModel.storage_key == key,
+                        )
+                        .exists(),
+                        select(ParsedArtifactModel.id)
+                        .where(
+                            ParsedArtifactModel.parsed_source_version_id.not_in(version_ids),
+                            ParsedArtifactModel.storage_key == key,
+                        )
+                        .exists(),
+                    )
+                )
+            )
+            if not referenced:
+                removable.append(key)
+        return tuple(removable)
+
+
+class SqlAlchemyMinerUTestTaskStore:
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    def load(self, operation_id: UUID) -> MinerUTestTaskSnapshot | None:
+        with transaction(self._session_factory) as session:
+            operation = session.get(OperationModel, operation_id)
+            if (
+                operation is None
+                or operation.task_type != "mineru_connection_test"
+                or operation.target_type != "mineru_settings"
+                or operation.target_id != MINERU_SETTINGS_ID
+            ):
+                return None
+            settings = SqlAlchemyMinerUSettingsRepository().get_for_update(
+                session,
+                MINERU_SETTINGS_ID,
+            )
+            if settings is None or operation.target_revision != settings.revision:
+                return None
+            return MinerUTestTaskSnapshot(operation_id=operation_id, settings=settings)
 
 
 class SqlAlchemyParseTaskStore:

@@ -181,6 +181,7 @@ category 第一版包括：`parser/input_type/model_provider/model_type/vector_s
 |---|---|---|
 | GET | `/settings/mineru` | `MinerUSettingsView` |
 | PATCH | `/settings/mineru` | `UpdateMinerUSettingsRequest` -> view |
+| POST | `/settings/mineru:test` | `MinerUSettingsTestRequest` + `Idempotency-Key` -> `OperationRef`，202 |
 | GET | `/settings/retention` | `RetentionSettings` |
 | PATCH | `/settings/retention` | `expectedRevision + values` -> settings |
 | POST | `/retention-cleanups` | `RetentionCleanupRequest` -> `OperationRef`，202 |
@@ -211,7 +212,13 @@ type UpdateMinerUSettingsRequest = {
   pollTimeoutSeconds: number;
   cloudProcessingConsent?: CloudProcessingConsent;
 };
+
+type MinerUSettingsTestRequest = {
+  expectedRevision: number;
+};
 ```
+
+MinerU 测试 Operation 使用内置最小 PDF，真实执行 signed upload、轮询、结果下载和标准化；不得退化为 HTTP ping。Operation 结果不返回 Token、signed URL 或 storage key。
 
 Token 留空表示不替换；首次配置 Token 必须同时确认 `mineru-cloud-v1` 云处理条款，后续轮换沿用已保存的确认。响应永不返回明文或确认管理员 ID。真实连接测试在 MinerU Precision Adapter 完成后注册，本阶段不提供伪测试端点。
 
@@ -315,6 +322,7 @@ type UploadBatchResult = {
 |---|---|---|---|
 | GET | `/data-sources` | `extension/originType/parseStatus/search/page/pageSize/sort` | page summary |
 | GET | `/data-sources/{dataSourceId}` | 无 | `DataSourceDetail` |
+| GET | `/data-sources/{dataSourceId}/references` | 无 | `DataSourceReference[]` |
 | PATCH | `/data-sources/{dataSourceId}` | `displayName + expectedRevision` | detail |
 | DELETE | `/data-sources/{dataSourceId}` | `expectedRevision` | `OperationRef`，202 |
 | GET | `/data-sources/{dataSourceId}/versions` | 分页 | `PageResult<ParsedSourceVersionSummary>` |
@@ -363,6 +371,11 @@ type CreateParseVersionResponse = {
   reusedFromParsedSourceVersionId?: string;
   operation?: OperationRef;
 };
+
+type CreateReparseRequest = {
+  expectedRevision: number;
+  config: ParseConfig;
+};
 ```
 
 ### 8.3 解析版本
@@ -375,11 +388,14 @@ type CreateParseVersionResponse = {
 | GET | `/parsed-source-versions/{id}/assets` | 分页资产 |
 | GET | `/parsed-source-versions/{id}/assets/{assetId}` | 鉴权文件流 |
 | GET | `/parsed-source-versions/{id}/artifacts` | 产物清单，不暴露物理路径 |
+| GET | `/parsed-source-versions/{id}/references` | `DataSourceReference[]` |
 | POST | `/parsed-source-versions/{id}:resume-provider-query` | 创建 operation，202 |
-| POST | `/parsed-source-versions/{id}:create-reparse` | 新配置/强制新版本，201 |
+| POST | `/parsed-source-versions/{id}:create-reparse` | `CreateReparseRequest`，强制新版本，201 |
 | DELETE | `/parsed-source-versions/{id}` | 无引用时异步清理，202 |
 
 `ParsedSourceVersionSummary.status` 枚举严格采用解析真源；只有 succeeded/degraded 返回 `selectable=true`。
+
+`resume-provider-query` 只接受保留原 `batchId/dataId` checkpoint 且错误属于 timeout/poll/download 的可恢复 failed 版本；它不得重新申请上传 URL。数据源和解析版本删除前都查询 references，有引用返回 `SOURCE_IN_USE` 与 `details.references`。cleanup Operation 在 queued 状态也不可取消。
 
 ## 9. 知识库
 
@@ -796,13 +812,15 @@ type ParsedSourceVersionSummary = {
 type DataSourceDetail = DataSourceSummary & {
   sha256: string;
   latestVersions: ParsedSourceVersionSummary[];
-  references: Array<{
-    knowledgeBaseId: string;
-    knowledgeBaseName: string;
-    configRevisionId: string;
-    active: boolean;
-  }>;
+  references: DataSourceReference[];
   deletedAt?: string;
+};
+
+type DataSourceReference = {
+  knowledgeBaseId: string;
+  knowledgeBaseName: string;
+  configRevisionId: string;
+  active: boolean;
 };
 
 type RetrievalConfig = {

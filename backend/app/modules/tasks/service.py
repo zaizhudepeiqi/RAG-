@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.modules.tasks.domain import (
+    NON_CANCELLABLE_TASK_TYPES,
     TERMINAL_OPERATION_STATUSES,
     Operation,
     OperationEvent,
@@ -14,7 +15,11 @@ from app.modules.tasks.domain import (
     OutboxEvent,
     transition_operation,
 )
-from app.modules.tasks.errors import OperationNotFoundError, OperationNotRetryableError
+from app.modules.tasks.errors import (
+    InvalidStateTransitionError,
+    OperationNotFoundError,
+    OperationNotRetryableError,
+)
 from app.modules.tasks.repository import (
     OperationListQuery,
     OperationRepository,
@@ -142,6 +147,15 @@ class TaskService:
         operation = self._operations.get(session, operation_id, for_update=True)
         if operation is None:
             raise OperationNotFoundError
+        if operation.task_type in NON_CANCELLABLE_TASK_TYPES:
+            raise InvalidStateTransitionError(
+                "INVALID_STATE_TRANSITION",
+                {
+                    "current": operation.status.value,
+                    "event": "cancel",
+                    "allowedEvents": [],
+                },
+            )
         cancelled = transition_operation(operation, OperationEvent.CANCEL, now)
         self._operations.save(session, cancelled)
         return cancelled

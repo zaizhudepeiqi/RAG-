@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.errors import AppError
@@ -10,6 +10,7 @@ from app.infrastructure.database.session import transaction
 from app.modules.auth.dependencies import require_admin, require_csrf
 from app.modules.auth.domain import Administrator
 from app.modules.parsing.settings_schemas import (
+    MinerUSettingsTestRequest,
     MinerUSettingsView,
     UpdateMinerUSettingsRequest,
     mineru_settings_view,
@@ -17,9 +18,13 @@ from app.modules.parsing.settings_schemas import (
 )
 from app.modules.parsing.settings_service import (
     MinerUCloudConsentRequiredError,
+    MinerUNotConfiguredError,
     MinerUSettingsRevisionConflictError,
     MinerUSettingsService,
 )
+from app.modules.tasks.domain import Operation
+from app.modules.tasks.errors import IdempotencyKeyReusedError
+from app.modules.tasks.schemas import OperationRef
 
 
 class MinerUSettingsDependencies(Protocol):
@@ -90,6 +95,62 @@ def update_mineru_settings(
             status_code=409,
         ) from error
     return mineru_settings_view(settings)
+
+
+@router.post(
+    ":test",
+    response_model=OperationRef,
+    status_code=202,
+    operation_id="mineruSettingsTest",
+    dependencies=[Depends(require_csrf)],
+)
+def test_mineru_settings(
+    payload: MinerUSettingsTestRequest,
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[MinerUSettingsDependencies, Depends(get_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.mineru_settings_service.request_test(
+                session,
+                expected_revision=payload.expected_revision,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+                now=datetime.now(UTC),
+            )
+    except MinerUNotConfiguredError as error:
+        raise AppError(
+            code="MINERU_AUTH_FAILED",
+            message="请先配置并确认 MinerU Cloud Token",
+            status_code=409,
+        ) from error
+    except MinerUSettingsRevisionConflictError as error:
+        raise AppError(
+            code="REVISION_CONFLICT",
+            message="MinerU 设置已被其他请求修改",
+            status_code=409,
+        ) from error
+    except IdempotencyKeyReusedError as error:
+        raise AppError(
+            code="IDEMPOTENCY_KEY_REUSED",
+            message="同一幂等键不能用于不同请求",
+            status_code=409,
+        ) from error
+    return _operation_ref(operation)
+
+
+def _operation_ref(operation: Operation) -> OperationRef:
+    return OperationRef(
+        operation_id=operation.id,
+        status=operation.status,
+        status_url=f"/api/v1/operations/{operation.id}",
+        target_type=operation.target_type,
+        target_id=operation.target_id,
+    )
 
 
 def _trace_id(request: Request) -> UUID | None:

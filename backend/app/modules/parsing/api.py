@@ -21,8 +21,10 @@ from app.modules.parsing.archive import UnsafeArchiveError, open_safe_archive
 from app.modules.parsing.ports import SourceStorage
 from app.modules.parsing.repository import DataSourceListQuery
 from app.modules.parsing.schemas import (
+    CreateReparseRequest,
     DataSourceDetail,
     DataSourcePageView,
+    DataSourceReferenceView,
     ParsedArtifactListView,
     ParsedAssetPageView,
     ParsedBlockPageView,
@@ -42,6 +44,7 @@ from app.modules.parsing.schemas import (
     parsed_block_view,
     parsed_source_version_detail,
     parsed_source_version_summary,
+    parsing_reference_view,
     uploaded_data_source_view,
 )
 from app.modules.parsing.service import (
@@ -51,6 +54,9 @@ from app.modules.parsing.service import (
     ParseConfigInvalidError,
     ParsedSourceVersionNotFoundError,
     ParsedVersionNotSelectableError,
+    ParseRecoveryNotAllowedError,
+    ParsingDeleteNotAllowedError,
+    SourceInUseError,
 )
 from app.modules.parsing.settings_schemas import parse_config_domain
 from app.modules.parsing.settings_service import MinerUCloudConsentRequiredError
@@ -59,6 +65,8 @@ from app.modules.parsing.validation import (
     SourceTypeUnsupportedError,
     inspect_source,
 )
+from app.modules.tasks.domain import Operation
+from app.modules.tasks.schemas import OperationRef
 
 MAX_UPLOAD_FILES = 20
 MAX_SOURCE_BYTES = 200 * 1024 * 1024
@@ -344,6 +352,71 @@ def get_data_source(
     return data_source_detail(details)
 
 
+@router.get(
+    "/{dataSourceId}/references",
+    response_model=list[DataSourceReferenceView],
+    operation_id="dataSourcesReferences",
+)
+def get_data_source_references(
+    data_source_id: Annotated[UUID, Path(alias="dataSourceId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> list[DataSourceReferenceView]:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            references = dependencies.data_source_service.references_for_source(
+                session,
+                data_source_id,
+            )
+    except DataSourceNotFoundError as error:
+        raise _not_found() from error
+    return [parsing_reference_view(item) for item in references]
+
+
+@router.delete(
+    "/{dataSourceId}",
+    response_model=OperationRef,
+    status_code=202,
+    operation_id="dataSourcesDelete",
+    dependencies=[Depends(require_csrf)],
+)
+def delete_data_source(
+    request: Request,
+    data_source_id: Annotated[UUID, Path(alias="dataSourceId")],
+    expected_revision: Annotated[int, Query(alias="expectedRevision", ge=1)],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.data_source_service.request_delete_source(
+                session,
+                data_source_id,
+                expected_revision=expected_revision,
+                administrator_id=administrator.id,
+                now=datetime.now(UTC),
+                trace_id=_trace_id(request),
+                source_ip=request.client.host if request.client is not None else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+    except DataSourceNotFoundError as error:
+        raise _not_found() from error
+    except DataSourceRevisionConflictError as error:
+        raise AppError(
+            code="REVISION_CONFLICT",
+            message="数据源已被其他请求修改",
+            status_code=409,
+        ) from error
+    except ParsingDeleteNotAllowedError as error:
+        raise AppError(
+            code="INVALID_STATE_TRANSITION",
+            message="数据源仍有运行中的解析任务",
+            status_code=409,
+        ) from error
+    except SourceInUseError as error:
+        raise _source_in_use(error) from error
+    return _operation_ref(operation)
+
+
 @router.post(
     "/{dataSourceId}/parse",
     response_model=ParseSourceResponse,
@@ -474,6 +547,135 @@ def get_parsed_source_version(
     except ParsedSourceVersionNotFoundError as error:
         raise _parsed_version_not_found() from error
     return parsed_source_version_detail(details)
+
+
+@parsed_versions_router.post(
+    "/{parsedSourceVersionId}:resume-provider-query",
+    response_model=OperationRef,
+    status_code=202,
+    operation_id="parsedSourceVersionsResumeProviderQuery",
+    dependencies=[Depends(require_csrf)],
+)
+def resume_parsed_source_provider_query(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.data_source_service.resume_provider_query(
+                session,
+                parsed_source_version_id,
+                now=datetime.now(UTC),
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParseRecoveryNotAllowedError as error:
+        raise AppError(
+            code="INVALID_STATE_TRANSITION",
+            message="当前解析版本不能继续查询原上游任务",
+            status_code=409,
+        ) from error
+    return _operation_ref(operation)
+
+
+@parsed_versions_router.post(
+    "/{parsedSourceVersionId}:create-reparse",
+    response_model=ParseSourceResponse,
+    status_code=201,
+    operation_id="parsedSourceVersionsCreateReparse",
+    dependencies=[Depends(require_csrf)],
+)
+def create_parsed_source_reparse(
+    payload: CreateReparseRequest,
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> ParseSourceResponse:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            result = dependencies.data_source_service.create_reparse(
+                session,
+                parsed_source_version_id,
+                expected_source_revision=payload.expected_revision,
+                requested_config=parse_config_domain(payload.config),
+                now=datetime.now(UTC),
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except DataSourceNotFoundError as error:
+        raise _not_found() from error
+    except DataSourceRevisionConflictError as error:
+        raise AppError(
+            code="REVISION_CONFLICT",
+            message="数据源已被其他请求修改",
+            status_code=409,
+        ) from error
+    except ParseConfigInvalidError as error:
+        raise AppError(
+            code="PARSE_CONFIG_INVALID",
+            message="解析配置无效",
+            status_code=422,
+        ) from error
+    except MinerUCloudConsentRequiredError as error:
+        raise AppError(
+            code="MINERU_CLOUD_CONSENT_REQUIRED",
+            message="使用 MinerU Cloud 前必须确认数据外发条款",
+            status_code=409,
+        ) from error
+    return ParseSourceResponse(
+        parsed_source_version=parsed_source_version_summary(result.version),
+        reused=result.reused,
+    )
+
+
+@parsed_versions_router.get(
+    "/{parsedSourceVersionId}/references",
+    response_model=list[DataSourceReferenceView],
+    operation_id="parsedSourceVersionsReferences",
+)
+def get_parsed_source_references(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> list[DataSourceReferenceView]:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            references = dependencies.data_source_service.references_for_version(
+                session,
+                parsed_source_version_id,
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    return [parsing_reference_view(item) for item in references]
+
+
+@parsed_versions_router.delete(
+    "/{parsedSourceVersionId}",
+    response_model=OperationRef,
+    status_code=202,
+    operation_id="parsedSourceVersionsDelete",
+    dependencies=[Depends(require_csrf)],
+)
+def delete_parsed_source_version(
+    parsed_source_version_id: Annotated[UUID, Path(alias="parsedSourceVersionId")],
+    dependencies: Annotated[DataSourceDependencies, Depends(get_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.data_source_service.request_delete_version(
+                session,
+                parsed_source_version_id,
+                now=datetime.now(UTC),
+            )
+    except ParsedSourceVersionNotFoundError as error:
+        raise _parsed_version_not_found() from error
+    except ParsingDeleteNotAllowedError as error:
+        raise AppError(
+            code="INVALID_STATE_TRANSITION",
+            message="运行中的解析版本不能删除",
+            status_code=409,
+        ) from error
+    except SourceInUseError as error:
+        raise _source_in_use(error) from error
+    return _operation_ref(operation)
 
 
 @parsed_versions_router.get(
@@ -654,6 +856,34 @@ def _safe_download_mime(mime_type: str) -> str:
 
 def _safe_asset_mime(mime_type: str) -> str:
     return mime_type if mime_type.startswith("image/") else "application/octet-stream"
+
+
+def _operation_ref(operation: Operation) -> OperationRef:
+    return OperationRef(
+        operation_id=operation.id,
+        status=operation.status,
+        status_url=f"/api/v1/operations/{operation.id}",
+        target_type=operation.target_type,
+        target_id=operation.target_id,
+    )
+
+
+def _source_in_use(error: SourceInUseError) -> AppError:
+    return AppError(
+        code="SOURCE_IN_USE",
+        message="解析资源仍被知识库引用",
+        status_code=409,
+        details={
+            "references": [
+                {
+                    "type": "knowledge_base_config_revision",
+                    "id": str(reference.config_revision_id),
+                    "name": reference.knowledge_base_name,
+                }
+                for reference in error.references
+            ]
+        },
+    )
 
 
 def _not_found() -> AppError:

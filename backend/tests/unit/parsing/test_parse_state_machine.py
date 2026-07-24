@@ -47,6 +47,13 @@ def test_provider_converting_maps_to_parsing_without_a_new_domain_state() -> Non
     )
 
 
+def test_failed_provider_query_can_resume_without_returning_to_submission() -> None:
+    assert (
+        transition_parse_state(ParseState.FAILED, ParseEvent.RESUME_PROVIDER_QUERY)
+        is ParseState.PROVIDER_PENDING
+    )
+
+
 @pytest.mark.parametrize(
     ("elapsed_seconds", "expected_delay"),
     [(0.0, 3), (59.9, 3), (60.0, 10), (599.9, 10), (600.0, 30)],

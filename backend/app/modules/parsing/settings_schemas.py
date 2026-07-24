@@ -44,6 +44,10 @@ class MinerUSettingsView(ApiModel):
     revision: int
 
 
+class MinerUSettingsTestRequest(ApiModel):
+    expected_revision: int = Field(ge=1)
+
+
 def parse_config_domain(value: ParseConfigDto) -> ParseConfig:
     return ParseConfig(
         parser_code=value.parser_code,

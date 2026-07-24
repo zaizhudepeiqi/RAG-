@@ -9,7 +9,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from app.modules.capabilities.registry import BUILTIN_TEXT_EXTENSIONS, MINERU_EXTENSIONS
-from app.modules.parsing.settings_domain import ParseConfig
+from app.modules.parsing.settings_domain import MinerUSettings, ParseConfig
 
 PARSER_VERSION = "1"
 NORMALIZER_VERSION = "1"
@@ -44,6 +44,7 @@ class ParseEvent(StrEnum):
     FAIL = "fail"
     CANCEL = "cancel"
     DUPLICATE = "duplicate"
+    RESUME_PROVIDER_QUERY = "resume_provider_query"
 
 
 TERMINAL_PARSE_STATES = frozenset(
@@ -64,6 +65,7 @@ PARSE_TRANSITIONS = {
     (ParseState.DOWNLOADING, ParseEvent.NORMALIZE): ParseState.NORMALIZING,
     (ParseState.NORMALIZING, ParseEvent.SUCCEED): ParseState.SUCCEEDED,
     (ParseState.NORMALIZING, ParseEvent.DEGRADE): ParseState.DEGRADED,
+    (ParseState.FAILED, ParseEvent.RESUME_PROVIDER_QUERY): ParseState.PROVIDER_PENDING,
 }
 
 
@@ -116,6 +118,7 @@ class DataSourceDetails:
     blob: SourceBlob
     version_count: int = 0
     latest_versions: tuple[ParsedSourceVersion, ...] = ()
+    references: tuple[ParsingReference, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -234,6 +237,31 @@ class MinerURuntimeSettings:
     token_key_version: str | None
     poll_timeout_seconds: int
     cloud_processing_confirmed: bool
+
+
+@dataclass(frozen=True)
+class MinerUTestTaskSnapshot:
+    operation_id: UUID
+    settings: MinerUSettings
+
+
+@dataclass(frozen=True)
+class ParsingReference:
+    knowledge_base_id: UUID
+    knowledge_base_name: str
+    config_revision_id: UUID
+    active: bool
+
+
+@dataclass(frozen=True)
+class ParsingCleanupTaskSnapshot:
+    operation_id: UUID
+    target_type: str
+    target_id: UUID
+    version_ids: tuple[UUID, ...]
+    storage_keys: tuple[str, ...]
+    source_blob_id: UUID | None
+    source_blob_storage_key: str | None
 
 
 @dataclass(frozen=True)

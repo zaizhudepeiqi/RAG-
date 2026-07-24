@@ -14,8 +14,10 @@ from app.infrastructure.parsers.builtin_text import ParserInputError
 from app.infrastructure.parsers.registry import ParserRegistry
 from app.modules.parsing.domain import (
     TERMINAL_PARSE_STATES,
+    MinerUTestTaskSnapshot,
     ParseState,
     ParseTaskSnapshot,
+    ParsingCleanupTaskSnapshot,
 )
 from app.modules.parsing.normalization import (
     MinerUNormalizationError,
@@ -36,12 +38,177 @@ from app.modules.parsing.settings_domain import mineru_token_aad
 from app.modules.tasks.worker import NonRetryableTaskError, RetryableTaskError
 
 SOURCE_PARSE_TASK = "source_parse"
+MINERU_CONNECTION_TEST_TASK = "mineru_connection_test"
+PARSING_CLEANUP_TASK = "parsing_cleanup"
 MAX_NORMALIZED_MARKDOWN_BYTES = 400 * 1024 * 1024
 MAX_MINERU_RESULT_BYTES = 400 * 1024 * 1024
 MAX_NORMALIZED_ASSET_BYTES = 200 * 1024 * 1024
 MAX_CONSECUTIVE_POLL_ERRORS = 5
 Sleeper = Callable[[float], None]
 Monotonic = Callable[[], float]
+
+
+class MinerUTestTaskStore(Protocol):
+    def load(self, operation_id: UUID) -> MinerUTestTaskSnapshot | None: ...
+
+
+class ParsingCleanupTaskStore(Protocol):
+    def load(self, operation_id: UUID, now: datetime) -> ParsingCleanupTaskSnapshot | None: ...
+
+    def finalize(self, snapshot: ParsingCleanupTaskSnapshot) -> int: ...
+
+
+class ParsingCleanupHandler:
+    def __init__(self, store: ParsingCleanupTaskStore, storage: SourceStorage) -> None:
+        self._store = store
+        self._storage = storage
+
+    def run(self, operation_id: UUID) -> dict[str, object]:
+        snapshot = self._store.load(operation_id, datetime.now(UTC))
+        if snapshot is None:
+            raise NonRetryableTaskError("PARSED_SOURCE_VERSION_NOT_FOUND")
+        try:
+            for storage_key in snapshot.storage_keys:
+                self._storage.delete(storage_key)
+            removed_versions = self._store.finalize(snapshot)
+            if snapshot.source_blob_storage_key is not None:
+                self._storage.delete(snapshot.source_blob_storage_key)
+        except (OSError, ValueError) as error:
+            raise RetryableTaskError("PARSER_STORAGE_FAILED") from error
+        return {
+            "targetType": snapshot.target_type,
+            "targetId": str(snapshot.target_id),
+            "removedVersionCount": removed_versions,
+            "removedStorageObjectCount": len(snapshot.storage_keys)
+            + int(snapshot.source_blob_storage_key is not None),
+        }
+
+
+class MinerUConnectionTestHandler:
+    def __init__(
+        self,
+        store: MinerUTestTaskStore,
+        *,
+        mineru_adapter_factory: MinerUAdapterFactory,
+        credential_encryption_key: bytes,
+        sleeper: Sleeper = time.sleep,
+        monotonic: Monotonic = time.monotonic,
+    ) -> None:
+        self._store = store
+        self._mineru_adapter_factory = mineru_adapter_factory
+        self._credential_encryption_key = credential_encryption_key
+        self._sleeper = sleeper
+        self._monotonic = monotonic
+
+    def run(self, operation_id: UUID) -> dict[str, object]:
+        snapshot = self._store.load(operation_id)
+        if snapshot is None:
+            raise NonRetryableTaskError("MINERU_AUTH_FAILED")
+        settings = snapshot.settings
+        if (
+            settings.token_ciphertext is None
+            or settings.token_nonce is None
+            or settings.token_key_version is None
+            or settings.cloud_processing_confirmed_at is None
+        ):
+            raise NonRetryableTaskError("MINERU_AUTH_FAILED")
+        try:
+            plaintext = decrypt_secret(
+                EncryptedSecret(
+                    ciphertext=settings.token_ciphertext,
+                    nonce=settings.token_nonce,
+                    key_version=settings.token_key_version,
+                ),
+                self._credential_encryption_key,
+                associated_data=mineru_token_aad(settings.id),
+            )
+            credential = SecretStr(plaintext.decode("utf-8"))
+        except (CredentialDecryptionError, UnicodeDecodeError) as error:
+            raise NonRetryableTaskError("MINERU_AUTH_FAILED") from error
+
+        adapter = self._mineru_adapter_factory(
+            base_url=settings.base_url,
+            credential=credential,
+        )
+        config = settings.default_parse_config
+        request = MinerUSubmitRequest(
+            file_name="mineru-connection-test.pdf",
+            data_id=str(operation_id),
+            model_version=config.model_version,
+            language=config.language,
+            ocr_enabled=config.ocr_enabled,
+            table_enabled=config.table_enabled,
+            formula_enabled=config.formula_enabled,
+            page_ranges=None,
+            extra_formats=config.extra_formats,
+            force_provider_refresh=True,
+        )
+        try:
+            upload = adapter.request_upload(request)
+            if upload.data_id != request.data_id:
+                raise MinerUError("MINERU_RESPONSE_INVALID", retryable=False)
+            adapter.upload(upload.upload_url, BytesIO(_minimal_mineru_test_pdf()))
+            result = self._poll(
+                adapter, upload.batch_id, upload.data_id, settings.poll_timeout_seconds
+            )
+            if result.full_zip_url is None:
+                raise MinerUError("MINERU_RESPONSE_INVALID", retryable=False)
+            archive = adapter.download_result(result.full_zip_url)
+            if not archive or len(archive) > MAX_MINERU_RESULT_BYTES:
+                raise MinerUError("PARSER_ARCHIVE_INVALID", retryable=False)
+            document = normalize_mineru_archive(archive)
+        except MinerUError as error:
+            self._raise(error.code, retryable=error.retryable, cause=error)
+        except MinerUNormalizationError as error:
+            self._raise(error.code, retryable=False, cause=error)
+        return {
+            "qualityLevel": document.quality_level,
+            "pageCount": document.page_count,
+            "blockCount": len(document.blocks),
+            "assetCount": len(document.assets),
+            "providerTaskId": result.provider_task_id,
+            "providerTraceId": result.trace_id,
+        }
+
+    def _poll(
+        self,
+        adapter: MinerUParseClient,
+        batch_id: str,
+        data_id: str,
+        timeout_seconds: int,
+    ) -> MinerUPollResult:
+        started = self._monotonic()
+        consecutive_errors = 0
+        while True:
+            elapsed = self._monotonic() - started
+            if elapsed >= timeout_seconds:
+                raise MinerUError("MINERU_TIMEOUT", retryable=True)
+            try:
+                result = adapter.poll(batch_id, data_id)
+            except MinerUError as error:
+                consecutive_errors += 1
+                if error.retryable and consecutive_errors <= MAX_CONSECUTIVE_POLL_ERRORS:
+                    self._sleeper(float(mineru_poll_delay_seconds(elapsed)))
+                    continue
+                raise
+            consecutive_errors = 0
+            if result.batch_id != batch_id or result.data_id != data_id:
+                raise MinerUError("MINERU_RESPONSE_INVALID", retryable=False)
+            if result.state == "failed":
+                raise MinerUError("MINERU_POLL_FAILED", retryable=False)
+            if result.state == "done":
+                return result
+            self._sleeper(float(mineru_poll_delay_seconds(elapsed)))
+
+    @staticmethod
+    def _raise(
+        code: str,
+        *,
+        retryable: bool,
+        cause: Exception,
+    ) -> NoReturn:
+        error_type = RetryableTaskError if retryable else NonRetryableTaskError
+        raise error_type(code) from cause
 
 
 @dataclass(frozen=True)
@@ -443,3 +610,40 @@ def _config_bool(config: dict[str, object], key: str, *, default: bool) -> bool:
     if not isinstance(value, bool):
         raise NonRetryableTaskError("PARSE_CONFIG_INVALID")
     return value
+
+
+def _minimal_mineru_test_pdf() -> bytes:
+    content = b"BT /F1 12 Tf 72 720 Td (MinerU connection test) Tj ET"
+    objects = (
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>"
+        ),
+        b"<< /Length "
+        + str(len(content)).encode("ascii")
+        + b" >>\nstream\n"
+        + content
+        + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    )
+    output = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for number, item in enumerate(objects, start=1):
+        offsets.append(len(output))
+        output.extend(f"{number} 0 obj\n".encode("ascii"))
+        output.extend(item)
+        output.extend(b"\nendobj\n")
+    xref_offset = len(output)
+    output.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    output.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    output.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode("ascii")
+    )
+    return bytes(output)

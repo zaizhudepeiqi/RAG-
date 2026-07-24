@@ -32,6 +32,7 @@ TERMINAL_OPERATION_STATUSES = frozenset(
         OperationStatus.CANCELLED,
     }
 )
+NON_CANCELLABLE_TASK_TYPES = frozenset({"parsing_cleanup"})
 
 ALLOWED_EVENTS: dict[OperationStatus, frozenset[OperationEvent]] = {
     OperationStatus.QUEUED: frozenset({OperationEvent.WORKER_CLAIM, OperationEvent.CANCEL}),

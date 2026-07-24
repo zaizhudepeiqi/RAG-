@@ -7,7 +7,11 @@ from celery import Celery  # type: ignore[import-untyped]
 from app.bootstrap.celery_app import celery_app
 from app.bootstrap.dependencies import build_application_dependencies
 from app.core.config import get_settings
-from app.modules.parsing.tasks import SOURCE_PARSE_TASK
+from app.modules.parsing.tasks import (
+    MINERU_CONNECTION_TEST_TASK,
+    PARSING_CLEANUP_TASK,
+    SOURCE_PARSE_TASK,
+)
 from app.modules.tasks.dispatcher import OutboxDispatcher
 from app.modules.tasks.ports import OperationExecutionStore
 from app.modules.tasks.worker import execute_operation
@@ -95,6 +99,34 @@ def verify_model(operationId: str, eventType: str, schemaVersion: str) -> None:
             UUID(operationId),
             "model_verification",
             dependencies.model_verification_handler,
+            ExecutionDependencies(dependencies.operation_execution_store),
+        )
+    finally:
+        dependencies.close()
+
+
+@celery_app.task(name="app.tasks.maintenance.test_mineru")
+def test_mineru(operationId: str, eventType: str, schemaVersion: str) -> None:
+    dependencies = build_application_dependencies(get_settings())
+    try:
+        execute_operation(
+            UUID(operationId),
+            MINERU_CONNECTION_TEST_TASK,
+            dependencies.mineru_connection_test_handler,
+            ExecutionDependencies(dependencies.operation_execution_store),
+        )
+    finally:
+        dependencies.close()
+
+
+@celery_app.task(name="app.tasks.maintenance.cleanup_parsing")
+def cleanup_parsing(operationId: str, eventType: str, schemaVersion: str) -> None:
+    dependencies = build_application_dependencies(get_settings())
+    try:
+        execute_operation(
+            UUID(operationId),
+            PARSING_CLEANUP_TASK,
+            dependencies.parsing_cleanup_handler,
             ExecutionDependencies(dependencies.operation_execution_store),
         )
     finally:

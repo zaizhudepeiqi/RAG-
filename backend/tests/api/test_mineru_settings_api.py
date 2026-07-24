@@ -47,7 +47,12 @@ def mineru_client(
     database_engine: Engine,
 ) -> Iterator[tuple[TestClient, Engine]]:
     with database_engine.begin() as connection:
-        connection.execute(text("TRUNCATE audit_logs, mineru_settings, administrators CASCADE"))
+        connection.execute(
+            text(
+                "TRUNCATE audit_logs, api_idempotency_records, task_outbox, operations, "
+                "mineru_settings, administrators CASCADE"
+            )
+        )
     redis_client = Redis.from_url("redis://127.0.0.1:6379/15")
     redis_client.flushdb()
     redis_client.close()
@@ -252,3 +257,74 @@ def test_stale_revision_and_extra_parse_config_fields_are_rejected(
     assert stale.json()["code"] == "REVISION_CONFLICT"
     assert invalid.status_code == 422
     assert invalid.json()["code"] == "VALIDATION_ERROR"
+
+
+def test_mineru_test_requires_configured_token_and_creates_idempotent_operation(
+    mineru_client: tuple[TestClient, Engine],
+) -> None:
+    client, engine = mineru_client
+    client.get("/api/v1/settings/mineru")
+    operation_headers = {
+        "X-CSRF-Token": client.cookies.get("rag_csrf") or "",
+        "Idempotency-Key": "mineru-settings-test-0001",
+    }
+
+    unconfigured = client.post(
+        "/api/v1/settings/mineru:test",
+        headers=operation_headers,
+        json={"expectedRevision": 1},
+    )
+    configured_payload = update_payload(revision=1, token=MINERU_CREDENTIAL)
+    configured_payload["cloudProcessingConsent"] = {
+        "accepted": True,
+        "termsVersion": "mineru-cloud-v1",
+    }
+    configured = client.patch(
+        "/api/v1/settings/mineru",
+        headers={"X-CSRF-Token": client.cookies.get("rag_csrf") or ""},
+        json=configured_payload,
+    )
+    tested = client.post(
+        "/api/v1/settings/mineru:test",
+        headers=operation_headers,
+        json={"expectedRevision": 2},
+    )
+    repeated = client.post(
+        "/api/v1/settings/mineru:test",
+        headers=operation_headers,
+        json={"expectedRevision": 2},
+    )
+
+    assert unconfigured.status_code == 409
+    assert unconfigured.json()["code"] == "MINERU_AUTH_FAILED"
+    assert configured.status_code == 200
+    assert tested.status_code == repeated.status_code == 202
+    assert tested.json() == repeated.json()
+    assert tested.json()["targetType"] == "mineru_settings"
+    with engine.connect() as connection:
+        operation = connection.execute(
+            text("SELECT task_type, target_revision FROM operations WHERE id = :operation_id"),
+            {"operation_id": tested.json()["operationId"]},
+        ).one()
+        outbox = connection.execute(
+            text(
+                "SELECT event_type, payload::text FROM task_outbox "
+                "WHERE operation_id = :operation_id"
+            ),
+            {"operation_id": tested.json()["operationId"]},
+        ).one()
+    assert operation.task_type == "mineru_connection_test"
+    assert operation.target_revision == 2
+    assert outbox.event_type == "parsing.mineru.test.requested"
+    assert MINERU_CREDENTIAL not in outbox.payload
+    assert not any(
+        forbidden in outbox.payload.lower()
+        for forbidden in ("token", "ciphertext", "nonce", "credential")
+    )
+
+    definition = client.app.state.dependencies.task_dispatch_registry.resolve(
+        "parsing.mineru.test.requested",
+        "1",
+    )
+    assert definition.celery_task_name == "app.tasks.maintenance.test_mineru"
+    assert definition.queue == "maintenance"

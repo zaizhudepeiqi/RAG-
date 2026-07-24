@@ -12,6 +12,7 @@ from app.modules.parsing.domain import (
     ParsedBlock,
     ParsedSourceVersion,
     ParsedSourceVersionDetails,
+    ParsingReference,
     RegisteredUpload,
 )
 from app.modules.parsing.settings_schemas import ParseConfigDto
@@ -125,6 +126,11 @@ class ParseSourceResponse(ApiModel):
     reused: bool
 
 
+class CreateReparseRequest(ApiModel):
+    expected_revision: int = Field(ge=1)
+    config: ParseConfigDto
+
+
 class ParsedSourceVersionDetailView(ParsedSourceVersionSummary):
     progress_current: int | None = None
     progress_total: int | None = None
@@ -212,7 +218,9 @@ def data_source_summary(details: DataSourceDetails) -> DataSourceSummary:
         origin_type=source.origin_type,
         latest_parsed_version=(parsed_source_version_summary(latest) if latest else None),
         version_count=details.version_count,
-        active_knowledge_base_reference_count=0,
+        active_knowledge_base_reference_count=sum(
+            1 for reference in details.references if reference.active
+        ),
         revision=source.revision,
         created_at=source.created_at,
     )
@@ -224,7 +232,7 @@ def data_source_detail(details: DataSourceDetails) -> DataSourceDetail:
         **summary.model_dump(),
         sha256=details.source.sha256,
         latest_versions=[parsed_source_version_summary(item) for item in details.latest_versions],
-        references=[],
+        references=[parsing_reference_view(item) for item in details.references],
         deleted_at=details.source.deleted_at,
     )
 
@@ -329,4 +337,13 @@ def parsed_artifact_view(artifact: ParsedArtifact) -> ParsedArtifactView:
         size_bytes=artifact.size_bytes,
         downloadable=artifact.is_downloadable,
         created_at=artifact.created_at,
+    )
+
+
+def parsing_reference_view(reference: ParsingReference) -> DataSourceReferenceView:
+    return DataSourceReferenceView(
+        knowledge_base_id=reference.knowledge_base_id,
+        knowledge_base_name=reference.knowledge_base_name,
+        config_revision_id=reference.config_revision_id,
+        active=reference.active,
     )

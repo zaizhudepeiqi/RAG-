@@ -7,6 +7,8 @@ from uuid import UUID
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
+from app.modules.parsing.domain import ParsingReference
+
 
 @dataclass(frozen=True)
 class StoredBlob:
@@ -101,3 +103,17 @@ class DataSourceAuditRepository(Protocol):
         source_ip: str | None,
         user_agent: str | None,
     ) -> None: ...
+
+
+class ParsingReferenceQuery(Protocol):
+    def for_data_source(
+        self,
+        session: Session,
+        data_source_id: UUID,
+    ) -> tuple[ParsingReference, ...]: ...
+
+    def for_parsed_version(
+        self,
+        session: Session,
+        parsed_source_version_id: UUID,
+    ) -> tuple[ParsingReference, ...]: ...
