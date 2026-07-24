@@ -26,11 +26,11 @@
 
 ## 2. 当前门禁
 
-当前代码状态：Phase 01 已合并到 `main`；Phase 02 模型配置、上传与解析代码已在 `codex/phase-02-models-parsing` 完成并通过退出门禁。
+当前代码状态：Phase 01、Phase 02 已合并到 `main`；Phase 03 正在 `codex/phase-03-knowledge-retrieval` 独立 worktree 中实施。
 
-当前文档状态：`IMPLEMENTATION IN PROGRESS (PHASE 3)`。下一步先审阅并合并 Phase 02，再依据已验证的模型、解析、OpenAPI 和迁移契约编写 Phase 3 知识库构建与检索详细计划；Phase 3 计划确认前不写该阶段生产代码。
+当前文档状态：`IMPLEMENTATION IN PROGRESS (PHASE 3)`。Phase 03 依据已验证的模型、解析、OpenAPI 和迁移契约按独立任务执行。
 
-已完成详细计划：`docs/implementation/01-foundation-implementation-plan.md`、`docs/implementation/02a-model-registry-implementation-plan.md`、`docs/implementation/02b-data-parsing-implementation-plan.md`。
+已完成详细计划：`docs/implementation/01-foundation-implementation-plan.md`、`docs/implementation/02a-model-registry-implementation-plan.md`、`docs/implementation/02b-data-parsing-implementation-plan.md`、`docs/implementation/03-knowledge-base-retrieval-implementation-plan.md`。
 
 后续阶段继续在上一阶段通过退出门禁后形成独立详细计划。这样可以使用已经验证的 OpenAPI、迁移和适配器契约，不让早期猜测扩散到后续五十余张表和全部页面。
 

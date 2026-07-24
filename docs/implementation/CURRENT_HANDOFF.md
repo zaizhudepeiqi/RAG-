@@ -1,14 +1,14 @@
 # 当前开发交接
 
-> 更新时间：2026-07-24（Asia/Shanghai）
+> 更新时间：2026-07-25（Asia/Shanghai）
 > 用途：会话恢复和阶段状态摘要；需求定义以 `docs/requirements` 为唯一真源。
 
 ## 1. 工作位置
 
 - 仓库根目录：`D:\RAG知识库`
-- Phase 02 worktree：`D:\RAG知识库\.worktrees\phase-02-models-parsing`
-- Phase 02 分支：`codex/phase-02-models-parsing`
-- Phase 02 入口提交：`f78e5cf fix: generate Umi types before frontend checks`
+- Phase 03 worktree：`D:\RAG知识库\.worktrees\phase-03-knowledge-retrieval`
+- Phase 03 分支：`codex/phase-03-knowledge-retrieval`
+- Phase 03 入口提交：`f146a62 docs: hand off knowledge base implementation`
 - 远端：`https://github.com/zaizhudepeiqi/RAG-.git`
 - 不直接在 `main` 或旧 Phase worktree 开发下一阶段。
 
@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 已合并并推送到 `main`。Phase 02A 模型配置、Phase 02B 数据上传与解析均已在当前分支完成并通过退出门禁；知识库、分块、索引和检索尚未实现。进入 Phase 3 前必须先审阅并合并 Phase 02，再创建 Phase 3 独立实施计划、分支和 worktree。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建，知识库、分块、索引和检索详细实施计划已建立，正在从 capability 任务开始执行。
 
 ## 3. Phase 02 已交付
 
@@ -72,13 +72,13 @@ e7b0c7d chore: generate parsing api client
 - `npm audit --omit=dev --audit-level=high` 通过，生产依赖仅报告 1 项 moderate `dompurify` 上游问题。完整开发工具链报告仍受 `docs/security/frontend-toolchain-audit-exception.md` 的 2026-08-31 到期门禁约束。
 - MinerU ZIP fixture 曾因 ZIP 条目时间戳造成一次二进制比较不稳定；已改为单次生成并复用，同一目标测试连续 3 次和完整集成组均通过。
 
-## 5. Phase 3 下一步
+## 5. Phase 3 当前执行顺序
 
-1. 审阅并合并 `codex/phase-02-models-parsing`，不得在当前 Phase 02 分支直接写知识库代码。
-2. 从合并后的 `main` 创建 Phase 3 分支和独立 worktree。
-3. 先创建 `docs/implementation/03-knowledge-base-retrieval-implementation-plan.md`，以 `05-knowledge-base-source.md`、`06-retrieval-source.md` 及其 API/数据库/状态机契约为输入。
-4. 计划顺序至少覆盖：capability -> 迁移/ORM -> KnowledgeBase 与配置修订 -> 解析版本绑定 -> 五种分块 -> Chroma/pg_trgm 索引 -> generation 构建状态机 -> vector/keyword/hybrid -> query rewrite/rerank -> 检索测试与来源追溯 -> OpenAPI/客户端 -> 全量门禁。
-5. Phase 3 入口测试必须准备验证通过的 Embedding、LLM、Rerank 配置和多特征 ParsedSourceVersion fixture；模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+1. 按 `03-knowledge-base-retrieval-implementation-plan.md` Task 01 注册并验证 capability。
+2. 实施 0004 迁移和 ORM，先锁定表、约束、索引和 frozen 写保护。
+3. 依次完成配置/状态机、知识库事务、分块、索引 Adapter、generation Worker 和单库检索。
+4. 最后生成 OpenAPI/客户端，并执行完整非集成、PostgreSQL、Chroma、Celery 和前端门禁。
+5. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 
