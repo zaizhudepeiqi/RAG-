@@ -22,6 +22,13 @@ declare namespace API {
     rag_admin_access?: string | null;
   };
 
+  type BodyDataSourcesUpload = {
+    /** Files */
+    files: string[];
+    /** Options */
+    options?: string;
+  };
+
   type capabilitiesGetVersionParams = {
     code: string;
     version: string;
@@ -106,6 +113,151 @@ declare namespace API {
     modelType: ModelType;
     /** Providerid */
     providerId: string;
+  };
+
+  type CreateReparseRequest = {
+    config: ParseConfigDto;
+    /** Expectedrevision */
+    expectedRevision: number;
+  };
+
+  type DataSourceDetail = {
+    /** Activeknowledgebasereferencecount */
+    activeKnowledgeBaseReferenceCount: number;
+    /** Createdat */
+    createdAt: string;
+    /** Deletedat */
+    deletedAt?: string | null;
+    /** Displayname */
+    displayName: string;
+    /** Extension */
+    extension: string;
+    /** Id */
+    id: string;
+    latestParsedVersion?: ParsedSourceVersionSummary | null;
+    /** Latestversions */
+    latestVersions: ParsedSourceVersionSummary[];
+    /** Mimetype */
+    mimeType: string;
+    /** Origintype */
+    originType: string;
+    /** Originalfilename */
+    originalFileName: string;
+    /** References */
+    references: DataSourceReferenceView[];
+    /** Revision */
+    revision: number;
+    /** Sha256 */
+    sha256: string;
+    /** Sha256Short */
+    sha256Short: string;
+    /** Sizebytes */
+    sizeBytes: number;
+    /** Sourcepath */
+    sourcePath: string;
+    /** Versioncount */
+    versionCount: number;
+  };
+
+  type DataSourcePageView = {
+    /** Items */
+    items: DataSourceSummary[];
+    /** Page */
+    page: number;
+    /** Pagesize */
+    pageSize: number;
+    /** Total */
+    total: number;
+  };
+
+  type DataSourceReferenceView = {
+    /** Active */
+    active: boolean;
+    /** Configrevisionid */
+    configRevisionId: string;
+    /** Knowledgebaseid */
+    knowledgeBaseId: string;
+    /** Knowledgebasename */
+    knowledgeBaseName: string;
+  };
+
+  type dataSourcesDeleteParams = {
+    dataSourceId: string;
+    expectedRevision: number;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type dataSourcesGetParams = {
+    dataSourceId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type dataSourcesListParams = {
+    extension?: string | null;
+    originType?: string | null;
+    search?: string | null;
+    page?: number;
+    pageSize?: PageSize;
+    sort?: "display_name" | "-display_name" | "created_at" | "-created_at";
+    rag_admin_access?: string | null;
+  };
+
+  type dataSourcesOriginalParams = {
+    dataSourceId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type dataSourcesParseParams = {
+    dataSourceId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type dataSourcesReferencesParams = {
+    dataSourceId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type DataSourceSummary = {
+    /** Activeknowledgebasereferencecount */
+    activeKnowledgeBaseReferenceCount: number;
+    /** Createdat */
+    createdAt: string;
+    /** Displayname */
+    displayName: string;
+    /** Extension */
+    extension: string;
+    /** Id */
+    id: string;
+    latestParsedVersion?: ParsedSourceVersionSummary | null;
+    /** Mimetype */
+    mimeType: string;
+    /** Origintype */
+    originType: string;
+    /** Originalfilename */
+    originalFileName: string;
+    /** Revision */
+    revision: number;
+    /** Sha256Short */
+    sha256Short: string;
+    /** Sizebytes */
+    sizeBytes: number;
+    /** Sourcepath */
+    sourcePath: string;
+    /** Versioncount */
+    versionCount: number;
+  };
+
+  type dataSourcesUpdateParams = {
+    dataSourceId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type dataSourcesUploadParams = {
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
   };
 
   type DependencyHealthItem = {
@@ -194,6 +346,16 @@ declare namespace API {
 
   type mineruSettingsGetParams = {
     rag_admin_access?: string | null;
+  };
+
+  type mineruSettingsTestParams = {
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type MinerUSettingsTestRequest = {
+    /** Expectedrevision */
+    expectedRevision: number;
   };
 
   type mineruSettingsUpdateParams = {
@@ -535,6 +697,8 @@ declare namespace API {
     | "failed"
     | "cancelled";
 
+  type PageSize = 20 | 50 | 100;
+
   type ParseConfigDto = {
     /** Extraformats */
     extraFormats?: string[];
@@ -556,12 +720,313 @@ declare namespace API {
     tableEnabled: boolean;
   };
 
+  type ParsedArtifactListView = {
+    /** Items */
+    items: ParsedArtifactView[];
+  };
+
+  type ParsedArtifactView = {
+    /** Artifacttype */
+    artifactType: string;
+    /** Createdat */
+    createdAt: string;
+    /** Displayname */
+    displayName: string;
+    /** Downloadable */
+    downloadable: boolean;
+    /** Id */
+    id: string;
+    /** Sha256 */
+    sha256: string;
+    /** Sizebytes */
+    sizeBytes: number;
+  };
+
+  type ParsedAssetPageView = {
+    /** Items */
+    items: ParsedAssetView[];
+    /** Page */
+    page: number;
+    /** Pagesize */
+    pageSize: number;
+    /** Total */
+    total: number;
+  };
+
+  type ParsedAssetView = {
+    /** Assettype */
+    assetType: string;
+    /** Boundingbox */
+    boundingBox?: Record<string, any> | null;
+    /** Caption */
+    caption?: string | null;
+    /** Id */
+    id: string;
+    /** Mimetype */
+    mimeType: string;
+    /** Ocrtext */
+    ocrText?: string | null;
+    /** Orderindex */
+    orderIndex: number;
+    /** Pagenumber */
+    pageNumber?: number | null;
+    /** Sha256 */
+    sha256: string;
+    /** Sizebytes */
+    sizeBytes: number;
+  };
+
+  type ParsedBlockPageView = {
+    /** Items */
+    items: ParsedBlockView[];
+    /** Page */
+    page: number;
+    /** Pagesize */
+    pageSize: number;
+    /** Total */
+    total: number;
+  };
+
+  type ParsedBlockView = {
+    /** Assetids */
+    assetIds: string[];
+    /** Blocktype */
+    blockType: string;
+    /** Boundingbox */
+    boundingBox?: Record<string, any> | null;
+    /** Headinglevel */
+    headingLevel?: number | null;
+    /** Headingpath */
+    headingPath?: string[] | null;
+    /** Id */
+    id: string;
+    /** Markdowncontent */
+    markdownContent?: string | null;
+    /** Orderindex */
+    orderIndex: number;
+    /** Pagenumber */
+    pageNumber?: number | null;
+    /** Rawlocator */
+    rawLocator?: Record<string, any> | null;
+    /** Textcontent */
+    textContent?: string | null;
+  };
+
+  type ParsedFeatureFlagsView = {
+    /** Hasassets */
+    hasAssets: boolean;
+    /** Hasboundingboxes */
+    hasBoundingBoxes: boolean;
+    /** Hasformulas */
+    hasFormulas: boolean;
+    /** Hasheadings */
+    hasHeadings: boolean;
+    /** Haspages */
+    hasPages: boolean;
+    /** Hastables */
+    hasTables: boolean;
+    /** Hastext */
+    hasText: boolean;
+  };
+
+  type ParsedMarkdownView = {
+    /** Markdown */
+    markdown: string;
+    /** Markdowncharcount */
+    markdownCharCount: number;
+    /** Qualitylevel */
+    qualityLevel: string;
+  };
+
+  type ParsedSourceVersionDetailView = {
+    /** Assetcount */
+    assetCount: number;
+    /** Blockcount */
+    blockCount: number;
+    /** Confighash */
+    configHash: string;
+    /** Configsnapshot */
+    configSnapshot: Record<string, any>;
+    /** Createdat */
+    createdAt: string;
+    /** Datasourceid */
+    dataSourceId: string;
+    /** Errorcode */
+    errorCode?: string | null;
+    /** Errormessage */
+    errorMessage?: string | null;
+    featureFlags: ParsedFeatureFlagsView;
+    /** Finishedat */
+    finishedAt?: string | null;
+    /** Id */
+    id: string;
+    /** Markdowncharcount */
+    markdownCharCount: number;
+    /** Normalizerversion */
+    normalizerVersion: string;
+    /** Operationid */
+    operationId?: string | null;
+    /** Pagecount */
+    pageCount: number;
+    /** Parsercode */
+    parserCode: string;
+    /** Parserversion */
+    parserVersion: string;
+    /** Progresscurrent */
+    progressCurrent?: number | null;
+    /** Progresstotal */
+    progressTotal?: number | null;
+    /** Progressunit */
+    progressUnit?: string | null;
+    /** Providerbatchid */
+    providerBatchId?: string | null;
+    /** Providerdataid */
+    providerDataId?: string | null;
+    /** Providertaskid */
+    providerTaskId?: string | null;
+    /** Providertraceid */
+    providerTraceId?: string | null;
+    /** Qualitylevel */
+    qualityLevel?: string | null;
+    /** Selectable */
+    selectable: boolean;
+    /** Status */
+    status: string;
+    /** Versionnumber */
+    versionNumber: number;
+  };
+
+  type parsedSourceVersionsArtifactsParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsAssetContentParams = {
+    parsedSourceVersionId: string;
+    assetId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsAssetsParams = {
+    parsedSourceVersionId: string;
+    page?: number;
+    pageSize?: PageSize;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsBlocksParams = {
+    parsedSourceVersionId: string;
+    pageNumber?: number | null;
+    blockType?: string | null;
+    page?: number;
+    pageSize?: PageSize;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsCreateReparseParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type parsedSourceVersionsDeleteParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type parsedSourceVersionsGetParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsMarkdownParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsReferencesParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type parsedSourceVersionsResumeProviderQueryParams = {
+    parsedSourceVersionId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type ParsedSourceVersionSummary = {
+    /** Assetcount */
+    assetCount: number;
+    /** Blockcount */
+    blockCount: number;
+    /** Confighash */
+    configHash: string;
+    /** Configsnapshot */
+    configSnapshot: Record<string, any>;
+    /** Createdat */
+    createdAt: string;
+    /** Datasourceid */
+    dataSourceId: string;
+    /** Errorcode */
+    errorCode?: string | null;
+    /** Errormessage */
+    errorMessage?: string | null;
+    featureFlags: ParsedFeatureFlagsView;
+    /** Finishedat */
+    finishedAt?: string | null;
+    /** Id */
+    id: string;
+    /** Normalizerversion */
+    normalizerVersion: string;
+    /** Operationid */
+    operationId?: string | null;
+    /** Pagecount */
+    pageCount: number;
+    /** Parsercode */
+    parserCode: string;
+    /** Parserversion */
+    parserVersion: string;
+    /** Qualitylevel */
+    qualityLevel?: string | null;
+    /** Selectable */
+    selectable: boolean;
+    /** Status */
+    status: string;
+    /** Versionnumber */
+    versionNumber: number;
+  };
+
+  type ParseSourceRequest = {
+    config: ParseConfigDto;
+    /** Expectedrevision */
+    expectedRevision: number;
+    /** Reusepolicy */
+    reusePolicy?: "reuse_if_exact" | "force_new";
+  };
+
+  type ParseSourceResponse = {
+    parsedSourceVersion: ParsedSourceVersionSummary;
+    /** Reused */
+    reused: boolean;
+  };
+
   type ProviderOperationRequest = {
     /** Expectedrevision */
     expectedRevision: number;
   };
 
   type ProviderPageSize = 20 | 50 | 100;
+
+  type RejectedUploadView = {
+    /** Code */
+    code: string;
+    /** Filename */
+    fileName: string;
+    /** Message */
+    message: string;
+  };
 
   type ResourceRef = {
     /** Displayname */
@@ -573,6 +1038,13 @@ declare namespace API {
   type SuccessResponse = {
     /** Success */
     success?: boolean;
+  };
+
+  type UpdateDataSourceRequest = {
+    /** Displayname */
+    displayName: string;
+    /** Expectedrevision */
+    expectedRevision: number;
   };
 
   type UpdateMinerUSettingsRequest = {
@@ -617,6 +1089,19 @@ declare namespace API {
     /** Modelname */
     modelName?: string | null;
     modelType?: ModelType | null;
+  };
+
+  type UploadBatchResult = {
+    /** Accepted */
+    accepted: UploadedDataSourceView[];
+    /** Rejected */
+    rejected: RejectedUploadView[];
+  };
+
+  type UploadedDataSourceView = {
+    dataSource: DataSourceSummary;
+    /** Duplicateofdatasourceid */
+    duplicateOfDataSourceId?: string | null;
   };
 
   type ValidationError = {

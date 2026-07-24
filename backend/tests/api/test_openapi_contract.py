@@ -50,15 +50,72 @@ EXPECTED_OPERATIONS = {
     ("delete", "/api/v1/models/{modelId}", "modelsDelete"),
     ("get", "/api/v1/settings/mineru", "mineruSettingsGet"),
     ("patch", "/api/v1/settings/mineru", "mineruSettingsUpdate"),
+    ("post", "/api/v1/settings/mineru:test", "mineruSettingsTest"),
     ("get", "/api/v1/data-sources", "dataSourcesList"),
     ("post", "/api/v1/data-sources/uploads", "dataSourcesUpload"),
     ("get", "/api/v1/data-sources/{dataSourceId}", "dataSourcesGet"),
     ("patch", "/api/v1/data-sources/{dataSourceId}", "dataSourcesUpdate"),
+    ("delete", "/api/v1/data-sources/{dataSourceId}", "dataSourcesDelete"),
     ("post", "/api/v1/data-sources/{dataSourceId}/parse", "dataSourcesParse"),
     (
         "get",
         "/api/v1/data-sources/{dataSourceId}/original",
         "dataSourcesOriginal",
+    ),
+    (
+        "get",
+        "/api/v1/data-sources/{dataSourceId}/references",
+        "dataSourcesReferences",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}",
+        "parsedSourceVersionsGet",
+    ),
+    (
+        "post",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}:resume-provider-query",
+        "parsedSourceVersionsResumeProviderQuery",
+    ),
+    (
+        "post",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}:create-reparse",
+        "parsedSourceVersionsCreateReparse",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/markdown",
+        "parsedSourceVersionsMarkdown",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/blocks",
+        "parsedSourceVersionsBlocks",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/assets",
+        "parsedSourceVersionsAssets",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/assets/{assetId}",
+        "parsedSourceVersionsAssetContent",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/artifacts",
+        "parsedSourceVersionsArtifacts",
+    ),
+    (
+        "get",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}/references",
+        "parsedSourceVersionsReferences",
+    ),
+    (
+        "delete",
+        "/api/v1/parsed-source-versions/{parsedSourceVersionId}",
+        "parsedSourceVersionsDelete",
     ),
 }
 
@@ -85,7 +142,6 @@ def test_openapi_operations_are_explicit_and_stable(tmp_path: Path) -> None:
     }
 
     assert actual == EXPECTED_OPERATIONS
-    assert "/api/v1/settings/mineru:test" not in schema["paths"]
 
 
 def test_openapi_schema_does_not_expose_configuration_secrets(tmp_path: Path) -> None:

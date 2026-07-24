@@ -26,6 +26,28 @@
         "title": "AdminProfile",
         "type": "object"
       },
+      "Body_dataSourcesUpload": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "options": {
+            "default": "{}",
+            "title": "Options",
+            "type": "string"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_dataSourcesUpload",
+        "type": "object"
+      },
       "CapabilityOptionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -300,6 +322,293 @@
         "title": "CreateModelRequest",
         "type": "object"
       },
+      "CreateReparseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/ParseConfigDto"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "config"
+        ],
+        "title": "CreateReparseRequest",
+        "type": "object"
+      },
+      "DataSourceDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "activeKnowledgeBaseReferenceCount": {
+            "title": "Activeknowledgebasereferencecount",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "deletedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deletedat"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "extension": {
+            "title": "Extension",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latestParsedVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParsedSourceVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latestVersions": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedSourceVersionSummary"
+            },
+            "title": "Latestversions",
+            "type": "array"
+          },
+          "mimeType": {
+            "title": "Mimetype",
+            "type": "string"
+          },
+          "originType": {
+            "title": "Origintype",
+            "type": "string"
+          },
+          "originalFileName": {
+            "title": "Originalfilename",
+            "type": "string"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/DataSourceReferenceView"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "sha256Short": {
+            "title": "Sha256Short",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          },
+          "sourcePath": {
+            "title": "Sourcepath",
+            "type": "string"
+          },
+          "versionCount": {
+            "title": "Versioncount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "sourcePath",
+          "originalFileName",
+          "extension",
+          "mimeType",
+          "sizeBytes",
+          "sha256Short",
+          "originType",
+          "versionCount",
+          "activeKnowledgeBaseReferenceCount",
+          "revision",
+          "createdAt",
+          "sha256",
+          "latestVersions",
+          "references"
+        ],
+        "title": "DataSourceDetail",
+        "type": "object"
+      },
+      "DataSourcePageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DataSourceSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "DataSourcePageView",
+        "type": "object"
+      },
+      "DataSourceReferenceView": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "configRevisionId": {
+            "format": "uuid",
+            "title": "Configrevisionid",
+            "type": "string"
+          },
+          "knowledgeBaseId": {
+            "format": "uuid",
+            "title": "Knowledgebaseid",
+            "type": "string"
+          },
+          "knowledgeBaseName": {
+            "title": "Knowledgebasename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "knowledgeBaseId",
+          "knowledgeBaseName",
+          "configRevisionId",
+          "active"
+        ],
+        "title": "DataSourceReferenceView",
+        "type": "object"
+      },
+      "DataSourceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "activeKnowledgeBaseReferenceCount": {
+            "title": "Activeknowledgebasereferencecount",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "extension": {
+            "title": "Extension",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latestParsedVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParsedSourceVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mimeType": {
+            "title": "Mimetype",
+            "type": "string"
+          },
+          "originType": {
+            "title": "Origintype",
+            "type": "string"
+          },
+          "originalFileName": {
+            "title": "Originalfilename",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sha256Short": {
+            "title": "Sha256Short",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          },
+          "sourcePath": {
+            "title": "Sourcepath",
+            "type": "string"
+          },
+          "versionCount": {
+            "title": "Versioncount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "sourcePath",
+          "originalFileName",
+          "extension",
+          "mimeType",
+          "sizeBytes",
+          "sha256Short",
+          "originType",
+          "versionCount",
+          "activeKnowledgeBaseReferenceCount",
+          "revision",
+          "createdAt"
+        ],
+        "title": "DataSourceSummary",
+        "type": "object"
+      },
       "DependencyHealthItem": {
         "additionalProperties": false,
         "properties": {
@@ -560,6 +869,21 @@
           "firstLoginRequired"
         ],
         "title": "LoginResponse",
+        "type": "object"
+      },
+      "MinerUSettingsTestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "MinerUSettingsTestRequest",
         "type": "object"
       },
       "MinerUSettingsView": {
@@ -1217,6 +1541,15 @@
         "title": "OperationStatus",
         "type": "string"
       },
+      "PageSize": {
+        "enum": [
+          20,
+          50,
+          100
+        ],
+        "title": "PageSize",
+        "type": "integer"
+      },
       "ParseConfigDto": {
         "additionalProperties": false,
         "properties": {
@@ -1285,6 +1618,818 @@
         "title": "ParseConfigDto",
         "type": "object"
       },
+      "ParseSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/ParseConfigDto"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "reusePolicy": {
+            "default": "reuse_if_exact",
+            "enum": [
+              "reuse_if_exact",
+              "force_new"
+            ],
+            "title": "Reusepolicy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "config"
+        ],
+        "title": "ParseSourceRequest",
+        "type": "object"
+      },
+      "ParseSourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "parsedSourceVersion": {
+            "$ref": "#/components/schemas/ParsedSourceVersionSummary"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "parsedSourceVersion",
+          "reused"
+        ],
+        "title": "ParseSourceResponse",
+        "type": "object"
+      },
+      "ParsedArtifactListView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedArtifactView"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ParsedArtifactListView",
+        "type": "object"
+      },
+      "ParsedArtifactView": {
+        "additionalProperties": false,
+        "properties": {
+          "artifactType": {
+            "title": "Artifacttype",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "displayName": {
+            "title": "Displayname",
+            "type": "string"
+          },
+          "downloadable": {
+            "title": "Downloadable",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "artifactType",
+          "displayName",
+          "sha256",
+          "sizeBytes",
+          "downloadable",
+          "createdAt"
+        ],
+        "title": "ParsedArtifactView",
+        "type": "object"
+      },
+      "ParsedAssetPageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedAssetView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ParsedAssetPageView",
+        "type": "object"
+      },
+      "ParsedAssetView": {
+        "additionalProperties": false,
+        "properties": {
+          "assetType": {
+            "title": "Assettype",
+            "type": "string"
+          },
+          "boundingBox": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boundingbox"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mimeType": {
+            "title": "Mimetype",
+            "type": "string"
+          },
+          "ocrText": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocrtext"
+          },
+          "orderIndex": {
+            "title": "Orderindex",
+            "type": "integer"
+          },
+          "pageNumber": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagenumber"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "assetType",
+          "mimeType",
+          "sha256",
+          "sizeBytes",
+          "orderIndex"
+        ],
+        "title": "ParsedAssetView",
+        "type": "object"
+      },
+      "ParsedBlockPageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ParsedBlockView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "ParsedBlockPageView",
+        "type": "object"
+      },
+      "ParsedBlockView": {
+        "additionalProperties": false,
+        "properties": {
+          "assetIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Assetids",
+            "type": "array"
+          },
+          "blockType": {
+            "title": "Blocktype",
+            "type": "string"
+          },
+          "boundingBox": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Boundingbox"
+          },
+          "headingLevel": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headinglevel"
+          },
+          "headingPath": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headingpath"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "markdownContent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Markdowncontent"
+          },
+          "orderIndex": {
+            "title": "Orderindex",
+            "type": "integer"
+          },
+          "pageNumber": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagenumber"
+          },
+          "rawLocator": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawlocator"
+          },
+          "textContent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Textcontent"
+          }
+        },
+        "required": [
+          "id",
+          "blockType",
+          "orderIndex",
+          "assetIds"
+        ],
+        "title": "ParsedBlockView",
+        "type": "object"
+      },
+      "ParsedFeatureFlagsView": {
+        "additionalProperties": false,
+        "properties": {
+          "hasAssets": {
+            "title": "Hasassets",
+            "type": "boolean"
+          },
+          "hasBoundingBoxes": {
+            "title": "Hasboundingboxes",
+            "type": "boolean"
+          },
+          "hasFormulas": {
+            "title": "Hasformulas",
+            "type": "boolean"
+          },
+          "hasHeadings": {
+            "title": "Hasheadings",
+            "type": "boolean"
+          },
+          "hasPages": {
+            "title": "Haspages",
+            "type": "boolean"
+          },
+          "hasTables": {
+            "title": "Hastables",
+            "type": "boolean"
+          },
+          "hasText": {
+            "title": "Hastext",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hasText",
+          "hasPages",
+          "hasHeadings",
+          "hasBoundingBoxes",
+          "hasAssets",
+          "hasTables",
+          "hasFormulas"
+        ],
+        "title": "ParsedFeatureFlagsView",
+        "type": "object"
+      },
+      "ParsedMarkdownView": {
+        "additionalProperties": false,
+        "properties": {
+          "markdown": {
+            "title": "Markdown",
+            "type": "string"
+          },
+          "markdownCharCount": {
+            "title": "Markdowncharcount",
+            "type": "integer"
+          },
+          "qualityLevel": {
+            "title": "Qualitylevel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "markdown",
+          "markdownCharCount",
+          "qualityLevel"
+        ],
+        "title": "ParsedMarkdownView",
+        "type": "object"
+      },
+      "ParsedSourceVersionDetailView": {
+        "additionalProperties": false,
+        "properties": {
+          "assetCount": {
+            "title": "Assetcount",
+            "type": "integer"
+          },
+          "blockCount": {
+            "title": "Blockcount",
+            "type": "integer"
+          },
+          "configHash": {
+            "title": "Confighash",
+            "type": "string"
+          },
+          "configSnapshot": {
+            "additionalProperties": true,
+            "title": "Configsnapshot",
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "dataSourceId": {
+            "format": "uuid",
+            "title": "Datasourceid",
+            "type": "string"
+          },
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errorcode"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "featureFlags": {
+            "$ref": "#/components/schemas/ParsedFeatureFlagsView"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "markdownCharCount": {
+            "title": "Markdowncharcount",
+            "type": "integer"
+          },
+          "normalizerVersion": {
+            "title": "Normalizerversion",
+            "type": "string"
+          },
+          "operationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operationid"
+          },
+          "pageCount": {
+            "title": "Pagecount",
+            "type": "integer"
+          },
+          "parserCode": {
+            "title": "Parsercode",
+            "type": "string"
+          },
+          "parserVersion": {
+            "title": "Parserversion",
+            "type": "string"
+          },
+          "progressCurrent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progresscurrent"
+          },
+          "progressTotal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progresstotal"
+          },
+          "progressUnit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progressunit"
+          },
+          "providerBatchId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerbatchid"
+          },
+          "providerDataId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerdataid"
+          },
+          "providerTaskId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providertaskid"
+          },
+          "providerTraceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providertraceid"
+          },
+          "qualityLevel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualitylevel"
+          },
+          "selectable": {
+            "title": "Selectable",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "versionNumber": {
+            "title": "Versionnumber",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dataSourceId",
+          "versionNumber",
+          "parserCode",
+          "parserVersion",
+          "normalizerVersion",
+          "configSnapshot",
+          "configHash",
+          "status",
+          "selectable",
+          "pageCount",
+          "blockCount",
+          "assetCount",
+          "featureFlags",
+          "createdAt",
+          "markdownCharCount"
+        ],
+        "title": "ParsedSourceVersionDetailView",
+        "type": "object"
+      },
+      "ParsedSourceVersionSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "assetCount": {
+            "title": "Assetcount",
+            "type": "integer"
+          },
+          "blockCount": {
+            "title": "Blockcount",
+            "type": "integer"
+          },
+          "configHash": {
+            "title": "Confighash",
+            "type": "string"
+          },
+          "configSnapshot": {
+            "additionalProperties": true,
+            "title": "Configsnapshot",
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "dataSourceId": {
+            "format": "uuid",
+            "title": "Datasourceid",
+            "type": "string"
+          },
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errorcode"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "featureFlags": {
+            "$ref": "#/components/schemas/ParsedFeatureFlagsView"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "normalizerVersion": {
+            "title": "Normalizerversion",
+            "type": "string"
+          },
+          "operationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operationid"
+          },
+          "pageCount": {
+            "title": "Pagecount",
+            "type": "integer"
+          },
+          "parserCode": {
+            "title": "Parsercode",
+            "type": "string"
+          },
+          "parserVersion": {
+            "title": "Parserversion",
+            "type": "string"
+          },
+          "qualityLevel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualitylevel"
+          },
+          "selectable": {
+            "title": "Selectable",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "versionNumber": {
+            "title": "Versionnumber",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dataSourceId",
+          "versionNumber",
+          "parserCode",
+          "parserVersion",
+          "normalizerVersion",
+          "configSnapshot",
+          "configHash",
+          "status",
+          "selectable",
+          "pageCount",
+          "blockCount",
+          "assetCount",
+          "featureFlags",
+          "createdAt"
+        ],
+        "title": "ParsedSourceVersionSummary",
+        "type": "object"
+      },
       "ProviderOperationRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1308,6 +2453,30 @@
         ],
         "title": "ProviderPageSize",
         "type": "integer"
+      },
+      "RejectedUploadView": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "fileName": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileName",
+          "code",
+          "message"
+        ],
+        "title": "RejectedUploadView",
+        "type": "object"
       },
       "ResourceRef": {
         "additionalProperties": false,
@@ -1339,6 +2508,28 @@
           }
         },
         "title": "SuccessResponse",
+        "type": "object"
+      },
+      "UpdateDataSourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Displayname",
+            "type": "string"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "displayName"
+        ],
+        "title": "UpdateDataSourceRequest",
         "type": "object"
       },
       "UpdateMinerUSettingsRequest": {
@@ -1561,6 +2752,56 @@
           "expectedRevision"
         ],
         "title": "UpdateModelRequest",
+        "type": "object"
+      },
+      "UploadBatchResult": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted": {
+            "items": {
+              "$ref": "#/components/schemas/UploadedDataSourceView"
+            },
+            "title": "Accepted",
+            "type": "array"
+          },
+          "rejected": {
+            "items": {
+              "$ref": "#/components/schemas/RejectedUploadView"
+            },
+            "title": "Rejected",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accepted",
+          "rejected"
+        ],
+        "title": "UploadBatchResult",
+        "type": "object"
+      },
+      "UploadedDataSourceView": {
+        "additionalProperties": false,
+        "properties": {
+          "dataSource": {
+            "$ref": "#/components/schemas/DataSourceSummary"
+          },
+          "duplicateOfDataSourceId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicateofdatasourceid"
+          }
+        },
+        "required": [
+          "dataSource"
+        ],
+        "title": "UploadedDataSourceView",
         "type": "object"
       },
       "ValidationError": {
@@ -2026,6 +3267,703 @@
         "summary": "Get Capability",
         "tags": [
           "能力目录"
+        ]
+      }
+    },
+    "/api/v1/data-sources": {
+      "get": {
+        "operationId": "dataSourcesList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "extension",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Extension"
+            }
+          },
+          {
+            "in": "query",
+            "name": "originType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origintype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-created_at",
+              "enum": [
+                "display_name",
+                "-display_name",
+                "created_at",
+                "-created_at"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSourcePageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Data Sources",
+        "tags": [
+          "数据源"
+        ]
+      }
+    },
+    "/api/v1/data-sources/uploads": {
+      "post": {
+        "operationId": "dataSourcesUpload",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_dataSourcesUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadBatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Data Sources",
+        "tags": [
+          "数据源"
+        ]
+      }
+    },
+    "/api/v1/data-sources/{dataSourceId}": {
+      "delete": {
+        "operationId": "dataSourcesDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expectedrevision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Data Source",
+        "tags": [
+          "数据源"
+        ]
+      },
+      "get": {
+        "operationId": "dataSourcesGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSourceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Data Source",
+        "tags": [
+          "数据源"
+        ]
+      },
+      "patch": {
+        "operationId": "dataSourcesUpdate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDataSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSourceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Data Source",
+        "tags": [
+          "数据源"
+        ]
+      }
+    },
+    "/api/v1/data-sources/{dataSourceId}/original": {
+      "get": {
+        "operationId": "dataSourcesOriginal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Original Source",
+        "tags": [
+          "数据源"
+        ]
+      }
+    },
+    "/api/v1/data-sources/{dataSourceId}/parse": {
+      "post": {
+        "operationId": "dataSourcesParse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseSourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Data Source",
+        "tags": [
+          "数据源"
+        ]
+      }
+    },
+    "/api/v1/data-sources/{dataSourceId}/references": {
+      "get": {
+        "operationId": "dataSourcesReferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataSourceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Datasourceid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataSourceReferenceView"
+                  },
+                  "title": "Response Datasourcesreferences",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Data Source References",
+        "tags": [
+          "数据源"
         ]
       }
     },
@@ -4162,6 +6100,781 @@
         ]
       }
     },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}": {
+      "delete": {
+        "operationId": "parsedSourceVersionsDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Parsed Source Version",
+        "tags": [
+          "数据解析"
+        ]
+      },
+      "get": {
+        "operationId": "parsedSourceVersionsGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedSourceVersionDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Parsed Source Version",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/artifacts": {
+      "get": {
+        "operationId": "parsedSourceVersionsArtifacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedArtifactListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Parsed Artifacts",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/assets": {
+      "get": {
+        "operationId": "parsedSourceVersionsAssets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 20
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedAssetPageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Parsed Assets",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/assets/{assetId}": {
+      "get": {
+        "operationId": "parsedSourceVersionsAssetContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Assetid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Parsed Asset",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/blocks": {
+      "get": {
+        "operationId": "parsedSourceVersionsBlocks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageNumber",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pagenumber"
+            }
+          },
+          {
+            "in": "query",
+            "name": "blockType",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Blocktype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PageSize",
+              "default": 20
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedBlockPageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Parsed Blocks",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/markdown": {
+      "get": {
+        "operationId": "parsedSourceVersionsMarkdown",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedMarkdownView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Parsed Markdown",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}/references": {
+      "get": {
+        "operationId": "parsedSourceVersionsReferences",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataSourceReferenceView"
+                  },
+                  "title": "Response Parsedsourceversionsreferences",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Parsed Source References",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}:create-reparse": {
+      "post": {
+        "operationId": "parsedSourceVersionsCreateReparse",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReparseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseSourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Parsed Source Reparse",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
+    "/api/v1/parsed-source-versions/{parsedSourceVersionId}:resume-provider-query": {
+      "post": {
+        "operationId": "parsedSourceVersionsResumeProviderQuery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "parsedSourceVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Parsedsourceversionid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Parsed Source Provider Query",
+        "tags": [
+          "数据解析"
+        ]
+      }
+    },
     "/api/v1/settings/mineru": {
       "get": {
         "operationId": "mineruSettingsGet",
@@ -4295,6 +7008,108 @@
           }
         },
         "summary": "Update Mineru Settings",
+        "tags": [
+          "MinerU 设置"
+        ]
+      }
+    },
+    "/api/v1/settings/mineru:test": {
+      "post": {
+        "operationId": "mineruSettingsTest",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MinerUSettingsTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Mineru Settings",
         "tags": [
           "MinerU 设置"
         ]
