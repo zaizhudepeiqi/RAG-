@@ -226,6 +226,7 @@ type CapabilityOption = {
 - 保存时后端再次验证 capability、版本和配置 schema。
 - `enabled=false` 的能力不能保存。
 - 配置记录保存 capability code、version 和参数快照，不能只保存展示名称。
+- capability 的稳定身份是 `category + code + version`；不同分类可以使用相同 code（例如查询重写和重排都使用 `off`），读取详情和保存校验必须携带 category，不能按 code 全局猜测。
 - schema 发生不兼容变化时发布新 capability version，不静默改变历史配置含义。
 
 ## 8. API 契约

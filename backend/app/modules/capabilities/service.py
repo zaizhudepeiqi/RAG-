@@ -14,5 +14,5 @@ class CapabilityService:
     ) -> tuple[CapabilityOption, ...]:
         return self._registry.list(category=category, include_disabled=include_disabled)
 
-    def get(self, code: str, version: str) -> CapabilityOption:
-        return self._registry.get(code, version)
+    def get(self, category: str, code: str, version: str) -> CapabilityOption:
+        return self._registry.get(category, code, version)

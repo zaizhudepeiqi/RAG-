@@ -46,9 +46,10 @@ def get_capability(
     code: str,
     version: str,
     dependencies: Annotated[CapabilityDependencies, Depends(get_capability_dependencies)],
+    category: str = Query(min_length=1),
 ) -> CapabilityOptionResponse:
     try:
-        option = dependencies.capability_service.get(code, version)
+        option = dependencies.capability_service.get(category, code, version)
     except CapabilityNotFoundError as error:
         raise AppError(
             code="CAPABILITY_NOT_FOUND",

@@ -81,8 +81,36 @@ def test_unknown_capability_version_returns_stable_not_found(tmp_path: Path) -> 
     app.dependency_overrides[require_admin] = lambda: None
     client = TestClient(app)
 
-    response = client.get("/api/v1/capabilities/token/versions/999")
+    response = client.get(
+        "/api/v1/capabilities/token/versions/999",
+        params={"category": "chunk_strategy"},
+    )
 
     assert response.status_code == 404
     assert response.json()["code"] == "CAPABILITY_NOT_FOUND"
+    client.close()
+
+
+def test_production_catalog_can_drive_chunk_strategy_dropdown(tmp_path: Path) -> None:
+    app = create_app(make_settings(tmp_path))
+    app.dependency_overrides[require_admin] = lambda: None
+    client = TestClient(app)
+
+    response = client.get(
+        "/api/v1/capabilities",
+        params={"category": "chunk_strategy"},
+    )
+
+    assert response.status_code == 200
+    options = response.json()
+    assert {option["code"] for option in options} == {
+        "token",
+        "paragraph",
+        "heading",
+        "page",
+        "semantic",
+    }
+    page = next(option for option in options if option["code"] == "page")
+    assert page["requiredSourceFeatures"] == ["hasText", "hasPages"]
+    assert page["configSchema"]["properties"]["maxChunkSize"]["default"] == 1024
     client.close()

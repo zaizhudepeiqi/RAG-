@@ -431,7 +431,7 @@ class ModelProviderService:
         requested: Sequence[ModelType] | None,
     ) -> tuple[ModelType, ...]:
         try:
-            capability = self._capabilities.get(provider_type, "1")
+            capability = self._capabilities.get("model_provider", provider_type, "1")
         except CapabilityNotFoundError as error:
             raise ModelProviderCapabilityError from error
         if not capability.enabled or capability.category != "model_provider":
@@ -851,7 +851,7 @@ class ModelConfigService:
         if self._capabilities is None:
             raise ModelNotSelectableError("MODEL_TYPE_MISMATCH")
         try:
-            capability = self._capabilities.get(model_type.value, version)
+            capability = self._capabilities.get("model_type", model_type.value, version)
         except CapabilityNotFoundError as error:
             raise ModelNotSelectableError("MODEL_TYPE_MISMATCH") from error
         if not capability.enabled or capability.category != "model_type":

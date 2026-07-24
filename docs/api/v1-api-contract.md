@@ -169,11 +169,11 @@ type ChangePasswordRequest = { oldPassword: string; newPassword: string; confirm
 | 方法 | 路径 | Query | Response |
 |---|---|---|---|
 | GET | `/capabilities` | `category? includeDisabled?` | `CapabilityOption[]` |
-| GET | `/capabilities/{code}/versions/{version}` | 无 | `CapabilityOption` |
+| GET | `/capabilities/{code}/versions/{version}` | `category`（必填） | `CapabilityOption` |
 
 category 第一版包括：`parser/input_type/model_provider/model_type/vector_store/vector_index/keyword_store/index_structure/chunk_strategy/retrieval_type/fusion_strategy/query_rewrite/rerank/channel_adapter`。
 
-未知 code/version 返回 `CAPABILITY_NOT_FOUND`；disabled 保存由业务接口返回 `CAPABILITY_DISABLED`。
+稳定身份为 `category + code + version`，允许不同分类复用同一 code（例如 `off`）。未知 category/code/version 返回 `CAPABILITY_NOT_FOUND`；disabled 保存由业务接口返回 `CAPABILITY_DISABLED`。
 
 ## 5. 系统设置
 
