@@ -1,8 +1,7 @@
 import random
 import time
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import dataclass
-from typing import BinaryIO, Literal, cast
+from typing import BinaryIO, cast
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -11,52 +10,16 @@ from app.core.network_security import (
     OutboundUrlPolicyError,
     validate_outbound_base_url,
 )
+from app.modules.parsing.ports import (
+    MinerUError,
+    MinerUPollResult,
+    MinerUSignedUpload,
+    MinerUSubmitRequest,
+)
 from pydantic import SecretStr
 
-MinerUState = Literal["waiting-file", "pending", "running", "converting", "done", "failed"]
 Sleeper = Callable[[float], None]
 Jitter = Callable[[], float]
-
-
-class MinerUError(Exception):
-    def __init__(self, code: str, *, retryable: bool) -> None:
-        super().__init__(code)
-        self.code = code
-        self.retryable = retryable
-
-
-@dataclass(frozen=True)
-class MinerUSubmitRequest:
-    file_name: str
-    data_id: str
-    model_version: str
-    language: str
-    ocr_enabled: bool
-    table_enabled: bool
-    formula_enabled: bool
-    page_ranges: str | None
-    extra_formats: tuple[str, ...]
-    force_provider_refresh: bool = False
-
-
-@dataclass(frozen=True)
-class MinerUSignedUpload:
-    batch_id: str
-    data_id: str
-    upload_url: str
-    trace_id: str | None
-
-
-@dataclass(frozen=True)
-class MinerUPollResult:
-    batch_id: str
-    data_id: str
-    state: MinerUState
-    full_zip_url: str | None
-    error_message: str | None
-    progress_current: int | None
-    progress_total: int | None
-    trace_id: str | None
 
 
 class MinerUPrecisionAdapter:
@@ -169,6 +132,7 @@ class MinerUPrecisionAdapter:
             progress_current=current if isinstance(current, int) else None,
             progress_total=total if isinstance(total, int) else None,
             trace_id=_optional_string(payload, "trace_id"),
+            provider_task_id=_optional_string(matched, "task_id"),
         )
 
     def download_result(self, url: str) -> bytes:

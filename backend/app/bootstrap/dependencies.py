@@ -45,6 +45,7 @@ from app.infrastructure.model_providers.registry import (
     build_model_provider_adapter_registry,
 )
 from app.infrastructure.parsers.builtin_text import BuiltinTextParser
+from app.infrastructure.parsers.mineru_precision import MinerUPrecisionAdapter
 from app.infrastructure.parsers.registry import ParserRegistry
 from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
@@ -203,6 +204,8 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         SqlAlchemyParseTaskStore(session_factory),
         parser_registry,
         source_storage,
+        mineru_adapter_factory=MinerUPrecisionAdapter,
+        credential_encryption_key=settings.credential_encryption_key_bytes,
     )
     task_dispatch_registry = TaskDispatchRegistry()
     task_dispatch_registry.register(

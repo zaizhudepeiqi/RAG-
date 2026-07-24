@@ -17,16 +17,23 @@ from app.infrastructure.database.models.parsing import (
     ParsedSourceVersionModel,
     SourceBlobModel,
 )
+from app.infrastructure.database.models.settings import MinerUSettingsModel
 from app.infrastructure.database.session import transaction
 from app.modules.parsing.domain import (
+    TERMINAL_PARSE_STATES,
     DataSource,
+    MinerURuntimeSettings,
     ParsedSourceVersion,
+    ParseEvent,
+    ParseState,
     ParseTaskSnapshot,
     SourceBlob,
+    transition_parse_state,
 )
 from app.modules.parsing.normalization import NormalizedDocument
-from app.modules.parsing.ports import StoredBlob
+from app.modules.parsing.ports import MinerUPollResult, StoredBlob
 from app.modules.parsing.repository import DataSourceListQuery, DataSourcePage
+from app.modules.parsing.settings_domain import MINERU_SETTINGS_ID
 
 
 class SqlAlchemyDataSourceRepository:
@@ -344,6 +351,26 @@ class SqlAlchemyParseTaskStore:
             if row is None:
                 return None
             version, source, blob = row
+            settings_model = (
+                session.get(MinerUSettingsModel, MINERU_SETTINGS_ID)
+                if version.parser_code == "mineru_precision_api"
+                else None
+            )
+            mineru_settings = (
+                MinerURuntimeSettings(
+                    id=settings_model.id,
+                    base_url=settings_model.base_url,
+                    token_ciphertext=settings_model.token_ciphertext,
+                    token_nonce=settings_model.token_nonce,
+                    token_key_version=settings_model.token_key_version,
+                    poll_timeout_seconds=settings_model.poll_timeout_seconds,
+                    cloud_processing_confirmed=(
+                        settings_model.cloud_processing_confirmed_at is not None
+                    ),
+                )
+                if settings_model is not None
+                else None
+            )
             return ParseTaskSnapshot(
                 operation_id=operation_id,
                 version_id=version.id,
@@ -351,18 +378,156 @@ class SqlAlchemyParseTaskStore:
                 parser_version=version.parser_version,
                 extension=source.extension,
                 source_storage_key=blob.storage_key,
+                source_file_name=source.original_file_name,
+                config_snapshot=dict(version.config_snapshot),
+                status=ParseState(version.status),
+                provider_batch_id=version.provider_batch_id,
+                provider_task_id=version.provider_task_id,
+                provider_data_id=version.provider_data_id,
+                provider_trace_id=version.provider_trace_id,
+                raw_result_storage_key=version.raw_result_storage_key,
+                mineru_settings=mineru_settings,
             )
+
+    def start_mineru(self, version_id: UUID, data_id: str, started_at: datetime) -> bool:
+        with transaction(self._session_factory) as session:
+            model = self._locked_version(session, version_id)
+            if model is None:
+                return False
+            state = ParseState(model.status)
+            if state is ParseState.SUBMITTING:
+                if model.provider_data_id != data_id:
+                    raise RuntimeError("MinerU data checkpoint changed")
+                return False
+            if state is not ParseState.QUEUED:
+                return False
+            model.status = transition_parse_state(state, ParseEvent.SUBMIT).value
+            model.provider_data_id = data_id
+            model.started_at = model.started_at or started_at
+            return True
+
+    def save_upload_checkpoint(
+        self,
+        version_id: UUID,
+        *,
+        batch_id: str,
+        data_id: str,
+        trace_id: str | None,
+    ) -> bool:
+        with transaction(self._session_factory) as session:
+            model = self._locked_version(session, version_id)
+            if model is None:
+                return False
+            if model.provider_data_id != data_id:
+                raise RuntimeError("MinerU data checkpoint changed")
+            state = ParseState(model.status)
+            if state is ParseState.UPLOADING:
+                if model.provider_batch_id != batch_id:
+                    raise RuntimeError("MinerU batch checkpoint changed")
+                return False
+            if state is not ParseState.SUBMITTING:
+                return False
+            model.status = transition_parse_state(state, ParseEvent.UPLOAD).value
+            model.provider_batch_id = batch_id
+            model.provider_trace_id = trace_id or model.provider_trace_id
+            return True
+
+    def mark_provider_pending(self, version_id: UUID) -> bool:
+        with transaction(self._session_factory) as session:
+            model = self._locked_version(session, version_id)
+            if model is None:
+                return False
+            state = ParseState(model.status)
+            if state in {
+                ParseState.PROVIDER_PENDING,
+                ParseState.PARSING,
+                ParseState.DOWNLOADING,
+                ParseState.NORMALIZING,
+            }:
+                return False
+            if state is not ParseState.UPLOADING:
+                return False
+            model.status = transition_parse_state(state, ParseEvent.WAIT_PROVIDER).value
+            return True
+
+    def save_provider_poll(self, version_id: UUID, result: MinerUPollResult) -> ParseState:
+        with transaction(self._session_factory) as session:
+            model = self._locked_version(session, version_id)
+            if model is None:
+                raise RuntimeError("parsed source version does not exist")
+            if (
+                model.provider_batch_id != result.batch_id
+                or model.provider_data_id != result.data_id
+            ):
+                raise RuntimeError("MinerU poll checkpoint changed")
+            if result.provider_task_id is not None:
+                model.provider_task_id = result.provider_task_id
+            if result.trace_id is not None:
+                model.provider_trace_id = result.trace_id
+            if result.progress_current is not None or result.progress_total is not None:
+                if (
+                    result.progress_current is None
+                    or result.progress_total is None
+                    or result.progress_current < 0
+                    or result.progress_total < 1
+                    or result.progress_current > result.progress_total
+                ):
+                    raise RuntimeError("MinerU progress is invalid")
+                model.progress_current = result.progress_current
+                model.progress_total = result.progress_total
+                model.progress_unit = "pages"
+
+            state = ParseState(model.status)
+            if result.state in {"running", "converting"}:
+                if state is ParseState.PROVIDER_PENDING:
+                    event = (
+                        ParseEvent.PROVIDER_RUNNING
+                        if result.state == "running"
+                        else ParseEvent.PROVIDER_CONVERTING
+                    )
+                    state = transition_parse_state(state, event)
+                elif state is ParseState.PARSING:
+                    event = (
+                        ParseEvent.PROVIDER_RUNNING
+                        if result.state == "running"
+                        else ParseEvent.PROVIDER_CONVERTING
+                    )
+                    state = transition_parse_state(state, event)
+            elif result.state == "done" and state in {
+                ParseState.PROVIDER_PENDING,
+                ParseState.PARSING,
+            }:
+                state = transition_parse_state(state, ParseEvent.DOWNLOAD)
+            model.status = state.value
+            return state
+
+    def save_raw_result(self, version_id: UUID, result: StoredBlob) -> bool:
+        with transaction(self._session_factory) as session:
+            model = self._locked_version(session, version_id)
+            if model is None:
+                return False
+            state = ParseState(model.status)
+            if state is ParseState.NORMALIZING:
+                if model.raw_result_storage_key != result.storage_key:
+                    raise RuntimeError("raw result checkpoint changed")
+                return False
+            if state is not ParseState.DOWNLOADING:
+                return False
+            model.raw_result_storage_key = result.storage_key
+            model.status = transition_parse_state(state, ParseEvent.NORMALIZE).value
+            return True
 
     def mark_normalizing(self, version_id: UUID) -> bool:
         with transaction(self._session_factory) as session:
-            model = session.scalar(
-                select(ParsedSourceVersionModel)
-                .where(ParsedSourceVersionModel.id == version_id)
-                .with_for_update()
-            )
-            if model is None or model.status not in {"queued", "normalizing"}:
+            model = self._locked_version(session, version_id)
+            if model is None:
                 return False
-            model.status = "normalizing"
+            state = ParseState(model.status)
+            if state is ParseState.NORMALIZING:
+                return True
+            if state is not ParseState.QUEUED:
+                return False
+            model.status = transition_parse_state(state, ParseEvent.NORMALIZE).value
             return True
 
     def save_succeeded(
@@ -436,13 +601,27 @@ class SqlAlchemyParseTaskStore:
     ) -> None:
         with transaction(self._session_factory) as session:
             model = session.get(ParsedSourceVersionModel, version_id)
-            if model is None or model.status in {"succeeded", "degraded", "failed"}:
+            if model is None or ParseState(model.status) in TERMINAL_PARSE_STATES:
                 return
-            model.status = "failed"
+            model.status = transition_parse_state(
+                ParseState(model.status),
+                ParseEvent.FAIL,
+            ).value
             model.error_code = error_code
             model.error_message = "解析输入无效" if not retryable else "解析暂时失败"
             model.retryable = retryable
             model.finished_at = finished_at
+
+    @staticmethod
+    def _locked_version(
+        session: Session,
+        version_id: UUID,
+    ) -> ParsedSourceVersionModel | None:
+        return session.scalar(
+            select(ParsedSourceVersionModel)
+            .where(ParsedSourceVersionModel.id == version_id)
+            .with_for_update()
+        )
 
 
 class SqlAlchemyDataSourceAuditRepository:

@@ -5,6 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from app.modules.capabilities.registry import BUILTIN_TEXT_EXTENSIONS, MINERU_EXTENSIONS
@@ -14,6 +15,67 @@ PARSER_VERSION = "1"
 NORMALIZER_VERSION = "1"
 ALLOWED_EXTRA_FORMATS = frozenset({"docx", "html", "latex"})
 PAGE_RANGE_PART = re.compile(r"^(?P<start>\d+)(?:-(?P<end>-?\d+))?$")
+
+
+class ParseState(StrEnum):
+    QUEUED = "queued"
+    SUBMITTING = "submitting"
+    UPLOADING = "uploading"
+    PROVIDER_PENDING = "provider_pending"
+    PARSING = "parsing"
+    DOWNLOADING = "downloading"
+    NORMALIZING = "normalizing"
+    SUCCEEDED = "succeeded"
+    DEGRADED = "degraded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ParseEvent(StrEnum):
+    SUBMIT = "submit"
+    UPLOAD = "upload"
+    WAIT_PROVIDER = "wait_provider"
+    PROVIDER_RUNNING = "provider_running"
+    PROVIDER_CONVERTING = "provider_converting"
+    DOWNLOAD = "download"
+    NORMALIZE = "normalize"
+    SUCCEED = "succeed"
+    DEGRADE = "degrade"
+    FAIL = "fail"
+    CANCEL = "cancel"
+    DUPLICATE = "duplicate"
+
+
+TERMINAL_PARSE_STATES = frozenset(
+    {ParseState.SUCCEEDED, ParseState.DEGRADED, ParseState.FAILED, ParseState.CANCELLED}
+)
+PARSE_TRANSITIONS = {
+    (ParseState.QUEUED, ParseEvent.SUBMIT): ParseState.SUBMITTING,
+    (ParseState.QUEUED, ParseEvent.NORMALIZE): ParseState.NORMALIZING,
+    (ParseState.QUEUED, ParseEvent.CANCEL): ParseState.CANCELLED,
+    (ParseState.SUBMITTING, ParseEvent.UPLOAD): ParseState.UPLOADING,
+    (ParseState.UPLOADING, ParseEvent.WAIT_PROVIDER): ParseState.PROVIDER_PENDING,
+    (ParseState.PROVIDER_PENDING, ParseEvent.PROVIDER_RUNNING): ParseState.PARSING,
+    (ParseState.PROVIDER_PENDING, ParseEvent.PROVIDER_CONVERTING): ParseState.PARSING,
+    (ParseState.PROVIDER_PENDING, ParseEvent.DOWNLOAD): ParseState.DOWNLOADING,
+    (ParseState.PARSING, ParseEvent.PROVIDER_RUNNING): ParseState.PARSING,
+    (ParseState.PARSING, ParseEvent.PROVIDER_CONVERTING): ParseState.PARSING,
+    (ParseState.PARSING, ParseEvent.DOWNLOAD): ParseState.DOWNLOADING,
+    (ParseState.DOWNLOADING, ParseEvent.NORMALIZE): ParseState.NORMALIZING,
+    (ParseState.NORMALIZING, ParseEvent.SUCCEED): ParseState.SUCCEEDED,
+    (ParseState.NORMALIZING, ParseEvent.DEGRADE): ParseState.DEGRADED,
+}
+
+
+def transition_parse_state(current: ParseState, event: ParseEvent) -> ParseState:
+    if event is ParseEvent.DUPLICATE and current in TERMINAL_PARSE_STATES:
+        return current
+    if event is ParseEvent.FAIL and current not in TERMINAL_PARSE_STATES:
+        return ParseState.FAILED
+    try:
+        return PARSE_TRANSITIONS[(current, event)]
+    except KeyError as error:
+        raise ValueError("invalid parse state transition") from error
 
 
 @dataclass
@@ -100,6 +162,26 @@ class ParseTaskSnapshot:
     parser_version: str
     extension: str
     source_storage_key: str
+    source_file_name: str
+    config_snapshot: dict[str, object]
+    status: ParseState
+    provider_batch_id: str | None
+    provider_task_id: str | None
+    provider_data_id: str | None
+    provider_trace_id: str | None
+    raw_result_storage_key: str | None
+    mineru_settings: MinerURuntimeSettings | None
+
+
+@dataclass(frozen=True)
+class MinerURuntimeSettings:
+    id: UUID
+    base_url: str
+    token_ciphertext: bytes | None
+    token_nonce: bytes | None
+    token_key_version: str | None
+    poll_timeout_seconds: int
+    cloud_processing_confirmed: bool
 
 
 @dataclass(frozen=True)

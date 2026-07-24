@@ -1,9 +1,10 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import BinaryIO, Protocol
+from typing import BinaryIO, Literal, Protocol
 from uuid import UUID
 
+from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
 
@@ -22,6 +23,67 @@ class SourceStorage(Protocol):
     def delete(self, storage_key: str) -> None: ...
 
     def exists(self, storage_key: str) -> bool: ...
+
+
+MinerUState = Literal["waiting-file", "pending", "running", "converting", "done", "failed"]
+
+
+class MinerUError(Exception):
+    def __init__(self, code: str, *, retryable: bool) -> None:
+        super().__init__(code)
+        self.code = code
+        self.retryable = retryable
+
+
+@dataclass(frozen=True)
+class MinerUSubmitRequest:
+    file_name: str
+    data_id: str
+    model_version: str
+    language: str
+    ocr_enabled: bool
+    table_enabled: bool
+    formula_enabled: bool
+    page_ranges: str | None
+    extra_formats: tuple[str, ...]
+    force_provider_refresh: bool = False
+
+
+@dataclass(frozen=True)
+class MinerUSignedUpload:
+    batch_id: str
+    data_id: str
+    upload_url: str
+    trace_id: str | None
+
+
+@dataclass(frozen=True)
+class MinerUPollResult:
+    batch_id: str
+    data_id: str
+    state: MinerUState
+    full_zip_url: str | None
+    error_message: str | None
+    progress_current: int | None
+    progress_total: int | None
+    trace_id: str | None
+    provider_task_id: str | None = None
+
+
+class MinerUParseClient(Protocol):
+    def request_upload(self, request: MinerUSubmitRequest) -> MinerUSignedUpload: ...
+    def upload(self, upload_url: str, source: BinaryIO) -> None: ...
+    def poll(self, batch_id: str, data_id: str) -> MinerUPollResult: ...
+    def download_result(self, url: str) -> bytes: ...
+
+
+class MinerUAdapterFactory(Protocol):
+    def __call__(
+        self,
+        *,
+        base_url: str,
+        credential: SecretStr,
+    ) -> MinerUParseClient: ...
 
 
 class DataSourceAuditRepository(Protocol):
