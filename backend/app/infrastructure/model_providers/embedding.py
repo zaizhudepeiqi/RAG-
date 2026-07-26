@@ -70,6 +70,34 @@ class ConfiguredDocumentEmbedder:
             )
         return tuple(vectors)
 
+    def embed_query(
+        self,
+        query: str,
+        *,
+        model_id: UUID,
+        model_snapshot: dict[str, object],
+        params: dict[str, object],
+        expected_dimension: int,
+    ) -> tuple[float, ...]:
+        selected = self._select(model_id, model_snapshot)
+        adapter = self._adapters.require(selected.provider.provider_type, ModelType.EMBEDDING)
+        result = adapter.embed(
+            EmbeddingRequest(
+                base_url=selected.provider.base_url,
+                credential=self._credential(selected),
+                model_name=selected.model.model_name,
+                texts=(query,),
+                purpose="query",
+                params={**selected.model.default_params, **params},
+            )
+        )
+        vectors = validate_embedding_result(
+            result,
+            expected_count=1,
+            expected_dimension=expected_dimension,
+        )
+        return vectors[0]
+
     def _select(self, model_id: UUID, model_snapshot: dict[str, object]) -> SelectableModel:
         with transaction(self._session_factory) as session:
             selected = self._selection.require_selectable(session, model_id, ModelType.EMBEDDING)

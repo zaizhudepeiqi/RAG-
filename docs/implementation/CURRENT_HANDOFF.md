@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-12 已完成并通过门禁，下一项是单库检索与融合。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-13 已完成并通过门禁，下一项是查询重写。
 
 ## 3. Phase 02 已交付
 
@@ -94,8 +94,10 @@ e7b0c7d chore: generate parsing api client
 18. Task 12 已完成：暂存 `failed/partial_failed` generation 只将失败 item 重新排队；活动 `partial_ready` 创建继任 repair generation，成功 item 通过 `source_copy_from_item_id` 复制，失败 item 才重新分块/Embedding。
 19. Repair 的数据库 chunks 使用目标 generation 的确定性新 ID；Chroma 复制支持 source/target chunk ID 与 parent ID 映射，避免旧 generation 数据跨代复用；旧代次保持 frozen。
 20. Task 12 门禁：完整 `scripts/check.ps1` 通过；strict mypy `142 source files`；后端非集成 `321 passed`；真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端 Jest `7 suites / 16 tests`、TypeScript、Biome、production build 和 generated API 漂移通过。
-21. 下一项是 Task 13：vector、keyword、hybrid 召回与融合；不得提前混入查询重写或重排。
-22. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+21. Task 13 已完成：新增统一 `RetrievalCandidate` 和单库 `SingleKnowledgeBaseRetriever`，支持 vector、keyword、hybrid 三种召回；各路先执行 Top K/threshold，hybrid 支持可复算 RRF 与 Weighted Score，稳定 ID 排序，核心故障返回明确错误码。
+22. Task 13 门禁：strict mypy `144 source files`；融合/引擎单测 `8 passed`；此前真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端和 OpenAPI 门禁在 Task 12 后保持通过。
+23. 下一项是 Task 14：查询重写；只实现 `off/hyde/multi_query/step_back`，不提前混入重排和上下文扩展。
+24. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 
