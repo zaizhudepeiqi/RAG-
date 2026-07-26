@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
@@ -27,7 +28,17 @@ from app.modules.knowledge_bases.tasks import (
     GenerationItemBuildError,
 )
 from app.modules.models.adapters import ModelProviderError
-from app.modules.retrieval.vector_store import VectorRecord, VectorStoreAdapter
+from app.modules.retrieval.vector_store import (
+    VectorRecord,
+    VectorRecordCopy,
+    VectorStoreAdapter,
+)
+
+
+@dataclass(frozen=True)
+class GenerationChunkCopyPlan:
+    source_collection_name: str
+    records: tuple[VectorRecordCopy, ...]
 
 
 class GenerationItemStore(Protocol):
@@ -43,6 +54,14 @@ class GenerationItemStore(Protocol):
         indexable_chunk_ids: tuple[UUID, ...],
         warnings: tuple[str, ...],
     ) -> None: ...
+
+    def copy_chunks(
+        self,
+        item_id: UUID,
+        generation_id: UUID,
+        source_item_id: UUID,
+        algorithm_version: str,
+    ) -> GenerationChunkCopyPlan: ...
 
     def load_indexable_chunks(self, item_id: UUID) -> tuple[ChunkDraft, ...]: ...
 
@@ -101,9 +120,17 @@ class DefaultGenerationItemExecutor:
         try:
             status = self._store.start_chunking(item.id)
             if status == "chunking":
-                status = self._chunk(snapshot, item)
+                status = (
+                    self._copy_chunks(snapshot, item)
+                    if item.source_copy_from_item_id is not None
+                    else self._chunk(snapshot, item)
+                )
             if status == "embedding":
-                status = self._embed(snapshot, item)
+                status = (
+                    self._copy_vectors(snapshot, item)
+                    if item.source_copy_from_item_id is not None
+                    else self._embed(snapshot, item)
+                )
             if status == "keyword_indexing":
                 self._store.checkpoint_keyword(item.id)
                 status = "vector_indexing"
@@ -137,10 +164,7 @@ class DefaultGenerationItemExecutor:
         context = ChunkingContext(
             generation_id=snapshot.generation_id,
             parsed_source_version_id=item.parsed_source_version_id,
-            algorithm_version=(
-                f"{config.chunk_strategy_code}:{config.chunk_strategy_version}:"
-                f"{config.index_structure}:{config.vector_index_version}"
-            ),
+            algorithm_version=_algorithm_version(config),
             counter=Cl100kTokenCounter(),
         )
         strategy = _build_strategy(config, self._embedder, snapshot)
@@ -156,6 +180,38 @@ class DefaultGenerationItemExecutor:
             chunked.warnings,
         )
         return "embedding"
+
+    def _copy_chunks(self, snapshot: GenerationBuildSnapshot, item: GenerationBuildItem) -> str:
+        source_item_id = item.source_copy_from_item_id
+        if source_item_id is None:
+            raise ValueError("source copy item is missing")
+        self._store.copy_chunks(
+            item.id,
+            snapshot.generation_id,
+            source_item_id,
+            _algorithm_version(snapshot.build_config),
+        )
+        return "embedding"
+
+    def _copy_vectors(self, snapshot: GenerationBuildSnapshot, item: GenerationBuildItem) -> str:
+        source_item_id = item.source_copy_from_item_id
+        if source_item_id is None:
+            raise ValueError("source copy item is missing")
+        plan = self._store.copy_chunks(
+            item.id,
+            snapshot.generation_id,
+            source_item_id,
+            _algorithm_version(snapshot.build_config),
+        )
+        copied = self._vectors.copy_records(
+            plan.source_collection_name,
+            snapshot.collection_name,
+            plan.records,
+        )
+        if copied != len(plan.records) or copied == 0:
+            raise GenerationItemBuildError("GENERATION_VECTOR_COPY_FAILED", retryable=True)
+        self._store.checkpoint_embedding(item.id, copied)
+        return "keyword_indexing"
 
     def _embed(self, snapshot: GenerationBuildSnapshot, item: GenerationBuildItem) -> str:
         chunks = self._store.load_indexable_chunks(item.id)
@@ -247,6 +303,13 @@ def _build_structure(config: BuildConfig) -> ChunkIndexStructure | ParentChildIn
             _int(params, "childChunkOverlap"),
         )
     raise LookupError("index structure is not implemented")
+
+
+def _algorithm_version(config: BuildConfig) -> str:
+    return (
+        f"{config.chunk_strategy_code}:{config.chunk_strategy_version}:"
+        f"{config.index_structure}:{config.vector_index_version}"
+    )
 
 
 def _int(params: dict[str, object], name: str) -> int:

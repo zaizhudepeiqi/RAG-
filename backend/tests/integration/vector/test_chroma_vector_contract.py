@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 from app.infrastructure.vector.chroma import ChromaVectorStoreAdapter
-from app.modules.retrieval.vector_store import VectorRecord
+from app.modules.retrieval.vector_store import VectorRecord, VectorRecordCopy
 
 pytestmark = pytest.mark.integration
 
@@ -48,15 +48,23 @@ def test_real_chroma_cosine_contract_and_collection_isolation() -> None:
             ).record_count
             == 0
         )
-        assert store.copy_records(first_name, second_name, (first_chunk,)) == 1
+        copied_chunk = uuid4()
+        assert (
+            store.copy_records(
+                first_name,
+                second_name,
+                (VectorRecordCopy(first_chunk, copied_chunk, None),),
+            )
+            == 1
+        )
         assert (
             store.validate_collection(
                 second_name, expected_count=1, expected_dimension=2
             ).embedding_dimension
             == 2
         )
-        assert store.query(second_name, (1.0, 0.0), top_k=1)[0].chunk_id == first_chunk
-        store.delete_records(second_name, (first_chunk,))
+        assert store.query(second_name, (1.0, 0.0), top_k=1)[0].chunk_id == copied_chunk
+        store.delete_records(second_name, (copied_chunk,))
         assert (
             store.validate_collection(
                 second_name, expected_count=0, expected_dimension=2

@@ -40,9 +40,17 @@ class SqlAlchemyGenerationBuildStore:
 
     def load(self, operation_id: UUID) -> GenerationBuildSnapshot | None:
         with transaction(self._session_factory) as session:
-            generation = session.scalar(
-                select(IndexGenerationModel).where(
-                    IndexGenerationModel.operation_id == operation_id
+            operation = session.get(OperationModel, operation_id)
+            if operation is None:
+                return None
+            generation = (
+                session.get(IndexGenerationModel, operation.target_id)
+                if operation.task_type == "knowledge_base_build_retry"
+                and operation.target_type == "index_generation"
+                else session.scalar(
+                    select(IndexGenerationModel).where(
+                        IndexGenerationModel.operation_id == operation_id
+                    )
                 )
             )
             if generation is None:
@@ -51,8 +59,7 @@ class SqlAlchemyGenerationBuildStore:
             build = self._knowledge_bases.get_build_config_revision(
                 session, generation.build_config_revision_id
             )
-            operation = session.get(OperationModel, operation_id)
-            if knowledge_base is None or build is None or operation is None:
+            if knowledge_base is None or build is None:
                 return None
             dimension = build.embedding_model_snapshot.get("embeddingDimension")
             if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension <= 0:
@@ -95,6 +102,7 @@ class SqlAlchemyGenerationBuildStore:
                     parsed_source_version_id=item.parsed_source_version_id,
                     status=item.status,
                     stage_progress=dict(item.stage_progress),
+                    source_copy_from_item_id=item.source_copy_from_item_id,
                 )
                 for item in items
             )

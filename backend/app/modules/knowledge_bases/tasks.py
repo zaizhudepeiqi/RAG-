@@ -34,6 +34,7 @@ class GenerationBuildItem:
     parsed_source_version_id: UUID
     status: str
     stage_progress: dict[str, object]
+    source_copy_from_item_id: UUID | None
 
 
 @dataclass(frozen=True)

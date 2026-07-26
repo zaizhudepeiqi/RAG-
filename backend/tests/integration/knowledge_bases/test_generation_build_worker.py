@@ -7,7 +7,9 @@ from uuid import UUID, uuid4
 import pytest
 from app.infrastructure.database.models.knowledge_bases import (
     ChunkModel,
+    IndexGenerationItemModel,
     IndexGenerationModel,
+    KnowledgeBaseBuildConfigRevisionModel,
     KnowledgeBaseModel,
 )
 from app.infrastructure.database.models.parsing import ParsedBlockModel
@@ -17,13 +19,19 @@ from app.infrastructure.database.repositories.generation_builds import (
 from app.infrastructure.database.repositories.generation_items import (
     SqlAlchemyGenerationItemStore,
 )
+from app.infrastructure.database.repositories.generation_retries import (
+    SqlAlchemyGenerationRetryStore,
+)
 from app.infrastructure.database.session import create_session_factory, transaction
 from app.modules.knowledge_bases.generation_items import DefaultGenerationItemExecutor
+from app.modules.knowledge_bases.generation_retries import GenerationRetryHandler
 from app.modules.knowledge_bases.tasks import GenerationBuildHandler
+from app.modules.models.adapters import ModelProviderError
 from app.modules.retrieval.vector_store import (
     VectorCollectionValidation,
     VectorHit,
     VectorRecord,
+    VectorRecordCopy,
 )
 from app.modules.tasks.worker import NonRetryableTaskError
 from sqlalchemy import Engine, func, select
@@ -52,6 +60,19 @@ class FakeEmbedder:
         return tuple((1.0,) + (0.0,) * (expected_dimension - 1) for _ in values)
 
 
+class RecordingEmbedder(FakeEmbedder):
+    def __init__(self, *, fail_text: str | None = None) -> None:
+        self.fail_text = fail_text
+        self.texts: list[str] = []
+
+    def embed_documents(self, **kwargs):  # type: ignore[no-untyped-def]
+        texts = tuple(kwargs["texts"])
+        self.texts.extend(texts)
+        if self.fail_text is not None and any(self.fail_text in text for text in texts):
+            raise ModelProviderError("MODEL_TEMPORARILY_UNAVAILABLE", retryable=True)
+        return super().embed_documents(**kwargs)
+
+
 class InMemoryVectorStore:
     def __init__(self) -> None:
         self.collections: dict[str, dict[UUID, VectorRecord]] = {}
@@ -70,12 +91,25 @@ class InMemoryVectorStore:
         del name, query_embedding, top_k
         return ()
 
-    def copy_records(self, source_name: str, target_name: str, chunk_ids: tuple[UUID, ...]) -> int:
-        records = self.collections[source_name]
-        self.collections.setdefault(target_name, {}).update(
-            {chunk_id: records[chunk_id] for chunk_id in chunk_ids}
-        )
-        return len(chunk_ids)
+    def copy_records(
+        self,
+        source_name: str,
+        target_name: str,
+        copies: tuple[VectorRecordCopy, ...],
+    ) -> int:
+        source = self.collections[source_name]
+        target = self.collections.setdefault(target_name, {})
+        for copy in copies:
+            record = source[copy.source_chunk_id]
+            target[copy.target_chunk_id] = VectorRecord(
+                chunk_id=copy.target_chunk_id,
+                parsed_source_version_id=record.parsed_source_version_id,
+                chunk_kind=record.chunk_kind,
+                parent_chunk_id=copy.target_parent_chunk_id,
+                document=record.document,
+                embedding=record.embedding,
+            )
+        return len(copies)
 
     def delete_records(self, name: str, chunk_ids: tuple[UUID, ...]) -> None:
         collection = self.collections.setdefault(name, {})
@@ -165,15 +199,37 @@ def _prepare_generation(
     return created.knowledge_base.id, generation.id, created.generation_id
 
 
-def _handler(engine: Engine) -> tuple[GenerationBuildHandler, InMemoryVectorStore]:
+def _handler(
+    engine: Engine,
+    *,
+    embedder: FakeEmbedder | None = None,
+    vectors: InMemoryVectorStore | None = None,
+) -> tuple[GenerationBuildHandler, InMemoryVectorStore]:
     session_factory = create_session_factory(engine)
-    vectors = InMemoryVectorStore()
+    vectors = vectors or InMemoryVectorStore()
     items = DefaultGenerationItemExecutor(
-        SqlAlchemyGenerationItemStore(session_factory), FakeEmbedder(), vectors
+        SqlAlchemyGenerationItemStore(session_factory), embedder or FakeEmbedder(), vectors
     )
     return GenerationBuildHandler(
         SqlAlchemyGenerationBuildStore(session_factory), items, vectors
     ), vectors
+
+
+def _request_retry(
+    engine: Engine,
+    knowledge_base_id: UUID,
+    generation_id: UUID,
+    model_id: UUID,
+):  # type: ignore[no-untyped-def]
+    session_factory = create_session_factory(engine)
+    with transaction(session_factory) as session:
+        return service(model_id).request_generation_retry(
+            session,
+            knowledge_base_id,
+            generation_id,
+            administrator_id=uuid4(),
+            idempotency_key=uuid4().hex,
+        )
 
 
 @pytest.mark.parametrize("rebuild", [False, True])
@@ -284,3 +340,115 @@ def test_activation_conflict_keeps_old_generation_serving(database_engine: Engin
         assert generation.validation_report["activationErrorCode"] == (
             "GENERATION_ACTIVATION_CONFLICT"
         )
+
+
+def test_retry_only_failed_items_in_staged_generation(database_engine: Engine) -> None:
+    kb_id, generation_id, old_generation_id = _prepare_generation(
+        database_engine, successful=2, rebuild=True
+    )
+    session_factory = create_session_factory(database_engine)
+    with transaction(session_factory) as session:
+        generation = session.get(IndexGenerationModel, generation_id)
+        assert generation is not None and generation.operation_id is not None
+        operation_id = generation.operation_id
+        build_revision = session.get(
+            KnowledgeBaseBuildConfigRevisionModel,
+            generation.build_config_revision_id,
+        )
+        assert build_revision is not None
+        model_id = build_revision.embedding_model_id
+
+    failing = RecordingEmbedder(fail_text="source 1")
+    initial, vectors = _handler(database_engine, embedder=failing)
+    initial.run(operation_id)
+    with transaction(session_factory) as session:
+        successful_item = session.scalar(
+            select(IndexGenerationItemModel).where(
+                IndexGenerationItemModel.index_generation_id == generation_id,
+                IndexGenerationItemModel.status == "succeeded",
+            )
+        )
+        generation = session.get(IndexGenerationModel, generation_id)
+        assert successful_item is not None and generation is not None
+        assert generation.status == "partial_failed"
+        successful_chunk_ids = tuple(
+            session.scalars(
+                select(ChunkModel.id).where(ChunkModel.generation_item_id == successful_item.id)
+            ).all()
+        )
+
+    retry_operation = _request_retry(database_engine, kb_id, generation_id, model_id)
+    retry_embedder = RecordingEmbedder()
+    retry_build, _ = _handler(database_engine, embedder=retry_embedder, vectors=vectors)
+    result = GenerationRetryHandler(
+        SqlAlchemyGenerationRetryStore(session_factory), retry_build
+    ).run(retry_operation.id)
+
+    assert result["repairCreated"] is False
+    assert retry_embedder.texts == ["Enterprise policy source 1"]
+    with transaction(session_factory) as session:
+        generation = session.get(IndexGenerationModel, generation_id)
+        kb = session.get(KnowledgeBaseModel, kb_id)
+        assert generation is not None and kb is not None
+        assert generation.status == "succeeded"
+        assert kb.active_generation_id == generation_id
+        assert old_generation_id is not None
+        assert (
+            tuple(
+                session.scalars(
+                    select(ChunkModel.id).where(ChunkModel.generation_item_id == successful_item.id)
+                ).all()
+            )
+            == successful_chunk_ids
+        )
+
+
+def test_active_partial_retry_creates_repair_and_copies_success(
+    database_engine: Engine,
+) -> None:
+    kb_id, generation_id, _ = _prepare_generation(database_engine, successful=2, rebuild=False)
+    session_factory = create_session_factory(database_engine)
+    with transaction(session_factory) as session:
+        generation = session.get(IndexGenerationModel, generation_id)
+        assert generation is not None and generation.operation_id is not None
+        operation_id = generation.operation_id
+        build_revision = session.get(
+            KnowledgeBaseBuildConfigRevisionModel,
+            generation.build_config_revision_id,
+        )
+        assert build_revision is not None
+        model_id = build_revision.embedding_model_id
+
+    failing = RecordingEmbedder(fail_text="source 1")
+    initial, vectors = _handler(database_engine, embedder=failing)
+    initial.run(operation_id)
+
+    retry_operation = _request_retry(database_engine, kb_id, generation_id, model_id)
+    retry_embedder = RecordingEmbedder()
+    retry_build, _ = _handler(database_engine, embedder=retry_embedder, vectors=vectors)
+    result = GenerationRetryHandler(
+        SqlAlchemyGenerationRetryStore(session_factory), retry_build
+    ).run(retry_operation.id)
+    repair_id = UUID(str(result["generationId"]))
+
+    assert result["repairCreated"] is True
+    assert repair_id != generation_id
+    assert retry_embedder.texts == ["Enterprise policy source 1"]
+    with transaction(session_factory) as session:
+        source = session.get(IndexGenerationModel, generation_id)
+        repair = session.get(IndexGenerationModel, repair_id)
+        kb = session.get(KnowledgeBaseModel, kb_id)
+        repair_items = session.scalars(
+            select(IndexGenerationItemModel).where(
+                IndexGenerationItemModel.index_generation_id == repair_id
+            )
+        ).all()
+        assert source is not None and repair is not None and kb is not None
+        assert source.status == "partial_ready"
+        assert source.is_frozen is True
+        assert repair.status == "succeeded"
+        assert repair.is_frozen is True
+        assert kb.active_generation_id == repair_id
+        assert sum(item.source_copy_from_item_id is not None for item in repair_items) == 1
+        assert all(item.status == "succeeded" for item in repair_items)
+        assert len(vectors.collections[repair.collection_name]) == 2

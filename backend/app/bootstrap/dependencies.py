@@ -17,6 +17,9 @@ from app.infrastructure.database.repositories.generation_builds import (
 from app.infrastructure.database.repositories.generation_items import (
     SqlAlchemyGenerationItemStore,
 )
+from app.infrastructure.database.repositories.generation_retries import (
+    SqlAlchemyGenerationRetryStore,
+)
 from app.infrastructure.database.repositories.knowledge_bases import (
     SqlAlchemyKnowledgeBaseRepository,
 )
@@ -68,6 +71,7 @@ from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
 from app.modules.knowledge_bases.generation_items import DefaultGenerationItemExecutor
+from app.modules.knowledge_bases.generation_retries import GenerationRetryHandler
 from app.modules.knowledge_bases.service import (
     KnowledgeBaseService,
     RegistryKnowledgeModelSelector,
@@ -122,6 +126,7 @@ class ApplicationDependencies:
     data_source_service: DataSourceService
     knowledge_base_service: KnowledgeBaseService
     generation_build_handler: GenerationBuildHandler
+    generation_retry_handler: GenerationRetryHandler
     source_storage: LocalStorageAdapter
     source_parse_handler: SourceParseHandler
     mineru_connection_test_handler: MinerUConnectionTestHandler
@@ -238,6 +243,10 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         generation_item_executor,
         vector_store,
     )
+    generation_retry_handler = GenerationRetryHandler(
+        SqlAlchemyGenerationRetryStore(session_factory),
+        generation_build_handler,
+    )
     mineru_settings_service = MinerUSettingsService(
         SqlAlchemyMinerUSettingsRepository(),
         SqlAlchemyMinerUSettingsAuditRepository(),
@@ -278,6 +287,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
             event_type="knowledge_base.generation.requested",
             schema_version="1",
             celery_task_name="app.tasks.indexing.build_generation",
+            queue="indexing",
+        )
+    )
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="knowledge_base.generation.retry_failed_requested",
+            schema_version="1",
+            celery_task_name="app.tasks.indexing.retry_generation",
             queue="indexing",
         )
     )
@@ -352,6 +369,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         data_source_service=data_source_service,
         knowledge_base_service=knowledge_base_service,
         generation_build_handler=generation_build_handler,
+        generation_retry_handler=generation_retry_handler,
         source_storage=source_storage,
         source_parse_handler=source_parse_handler,
         mineru_connection_test_handler=mineru_connection_test_handler,

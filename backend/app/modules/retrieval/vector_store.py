@@ -14,6 +14,13 @@ class VectorRecord:
 
 
 @dataclass(frozen=True)
+class VectorRecordCopy:
+    source_chunk_id: UUID
+    target_chunk_id: UUID
+    target_parent_chunk_id: UUID | None
+
+
+@dataclass(frozen=True)
 class VectorHit:
     chunk_id: UUID
     parsed_source_version_id: UUID
@@ -44,7 +51,7 @@ class VectorStoreAdapter(Protocol):
     ) -> tuple[VectorHit, ...]: ...
 
     def copy_records(
-        self, source_name: str, target_name: str, chunk_ids: tuple[UUID, ...]
+        self, source_name: str, target_name: str, records: tuple[VectorRecordCopy, ...]
     ) -> int: ...
 
     def delete_records(self, name: str, chunk_ids: tuple[UUID, ...]) -> None: ...

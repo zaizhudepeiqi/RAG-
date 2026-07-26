@@ -6,7 +6,7 @@ from app.infrastructure.vector.chroma import (
     ChromaVectorStoreAdapter,
     cosine_distance_to_relevance,
 )
-from app.modules.retrieval.vector_store import VectorRecord
+from app.modules.retrieval.vector_store import VectorRecord, VectorRecordCopy
 
 CHUNK_ID = UUID("11111111-1111-1111-1111-111111111111")
 VERSION_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -136,14 +136,25 @@ def test_copy_validate_delete_and_collection_isolation() -> None:
     store.ensure_collection("target_generation")
     store.upsert("source_generation", (record(),))
 
-    assert store.copy_records("source_generation", "target_generation", (CHUNK_ID,)) == 1
+    target_chunk_id = UUID("33333333-3333-3333-3333-333333333333")
+    assert (
+        store.copy_records(
+            "source_generation",
+            "target_generation",
+            (VectorRecordCopy(CHUNK_ID, target_chunk_id, None),),
+        )
+        == 1
+    )
     validation = store.validate_collection(
         "target_generation", expected_count=1, expected_dimension=2
     )
     assert validation.record_count == 1
     assert client.collections["source_generation"] is not client.collections["target_generation"]
 
-    store.delete_records("target_generation", (CHUNK_ID,))
+    assert str(CHUNK_ID) not in client.collections["target_generation"].records
+    assert str(target_chunk_id) in client.collections["target_generation"].records
+
+    store.delete_records("target_generation", (target_chunk_id,))
     assert client.collections["target_generation"].count() == 0
 
     store.delete_collection("target_generation")

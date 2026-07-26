@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-11 已完成并通过门禁，下一项是失败项重试和 repair generation。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-12 已完成并通过门禁，下一项是单库检索与融合。
 
 ## 3. Phase 02 已交付
 
@@ -91,7 +91,11 @@ e7b0c7d chore: generate parsing api client
 15. Task 11 门禁：`scripts/check.ps1` 通过；Ruff、格式和 strict mypy（`140 source files`）通过；后端非集成 `321 passed`；前端 Jest `7 suites / 16 tests`、TypeScript、Biome、production build 和 generated API 漂移通过；Task 11、真实 Chroma、pg_trgm 和 Celery/Redis 组合 `12 passed`。
 16. 仓库凭据扫描已精确区分 `tiktoken`/代码能力键 `token` 与 `api_token`、`access_token` 等凭据字段，并内置分类器回归契约；整体凭据扫描范围未放宽。
 17. 下一项是 Task 12：失败项重试和 repair generation；不得提前混入单库检索。
-18. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+18. Task 12 已完成：暂存 `failed/partial_failed` generation 只将失败 item 重新排队；活动 `partial_ready` 创建继任 repair generation，成功 item 通过 `source_copy_from_item_id` 复制，失败 item 才重新分块/Embedding。
+19. Repair 的数据库 chunks 使用目标 generation 的确定性新 ID；Chroma 复制支持 source/target chunk ID 与 parent ID 映射，避免旧 generation 数据跨代复用；旧代次保持 frozen。
+20. Task 12 门禁：完整 `scripts/check.ps1` 通过；strict mypy `142 source files`；后端非集成 `321 passed`；真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端 Jest `7 suites / 16 tests`、TypeScript、Biome、production build 和 generated API 漂移通过。
+21. 下一项是 Task 13：vector、keyword、hybrid 召回与融合；不得提前混入查询重写或重排。
+22. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 

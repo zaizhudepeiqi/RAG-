@@ -21,7 +21,10 @@ from app.infrastructure.database.models.parsing import (
 )
 from app.infrastructure.database.session import transaction
 from app.modules.chunking.domain import ChunkDraft, SourceAsset, SourceBlock, TokenCount
+from app.modules.chunking.ids import deterministic_chunk_id
 from app.modules.chunking.normalization import normalize_text
+from app.modules.knowledge_bases.generation_items import GenerationChunkCopyPlan
+from app.modules.retrieval.vector_store import VectorRecordCopy
 
 
 class SqlAlchemyGenerationItemStore:
@@ -139,6 +142,174 @@ class SqlAlchemyGenerationItemStore:
                 "indexableChunkCount": len(indexable_chunk_ids),
                 "warnings": list(warnings),
             }
+
+    def copy_chunks(
+        self,
+        item_id: UUID,
+        generation_id: UUID,
+        source_item_id: UUID,
+        algorithm_version: str,
+    ) -> GenerationChunkCopyPlan:
+        with transaction(self._session_factory) as session:
+            item = self._locked_item(session, item_id)
+            source_item = session.get(IndexGenerationItemModel, source_item_id)
+            if (
+                item is None
+                or item.index_generation_id != generation_id
+                or item.source_copy_from_item_id != source_item_id
+                or source_item is None
+                or source_item.status != "succeeded"
+                or source_item.parsed_source_version_id != item.parsed_source_version_id
+            ):
+                raise RuntimeError("generation item copy source is invalid")
+            target_generation = session.get(IndexGenerationModel, generation_id)
+            source_generation = session.get(IndexGenerationModel, source_item.index_generation_id)
+            if (
+                target_generation is None
+                or target_generation.is_frozen
+                or source_generation is None
+                or not source_generation.is_frozen
+            ):
+                raise RuntimeError("generation item copy generations are invalid")
+
+            source_chunks = tuple(
+                session.scalars(
+                    select(ChunkModel)
+                    .where(ChunkModel.generation_item_id == source_item_id)
+                    .order_by(ChunkModel.chunk_kind, ChunkModel.order_index, ChunkModel.id)
+                ).all()
+            )
+            if not source_chunks:
+                raise ValueError("source generation item has no chunks")
+            id_map = {
+                chunk.id: deterministic_chunk_id(
+                    generation_id,
+                    chunk.parsed_source_version_id,
+                    chunk.chunk_kind,
+                    chunk.order_index,
+                    algorithm_version,
+                )
+                for chunk in source_chunks
+            }
+            if item.status == "chunking":
+                self._insert_copied_chunks(
+                    session,
+                    item,
+                    generation_id,
+                    source_chunks,
+                    id_map,
+                )
+            elif item.status != "embedding":
+                raise RuntimeError("generation item is not copying chunks")
+
+            target_chunks = tuple(
+                session.scalars(
+                    select(ChunkModel)
+                    .where(ChunkModel.generation_item_id == item_id)
+                    .order_by(ChunkModel.chunk_kind, ChunkModel.order_index, ChunkModel.id)
+                ).all()
+            )
+            target_by_id = {chunk.id: chunk for chunk in target_chunks}
+            records = tuple(
+                VectorRecordCopy(
+                    source_chunk_id=chunk.id,
+                    target_chunk_id=id_map[chunk.id],
+                    target_parent_chunk_id=target_by_id[id_map[chunk.id]].parent_chunk_id,
+                )
+                for chunk in source_chunks
+                if chunk.chunk_kind in {"chunk", "child"}
+            )
+            if not records or len(target_chunks) != len(source_chunks):
+                raise RuntimeError("generation item chunk copy is incomplete")
+            return GenerationChunkCopyPlan(source_generation.collection_name, records)
+
+    @staticmethod
+    def _insert_copied_chunks(
+        session: Session,
+        item: IndexGenerationItemModel,
+        generation_id: UUID,
+        source_chunks: tuple[ChunkModel, ...],
+        id_map: dict[UUID, UUID],
+    ) -> None:
+        existing = session.scalar(
+            select(func.count())
+            .select_from(ChunkModel)
+            .where(ChunkModel.generation_item_id == item.id)
+        )
+        if existing:
+            raise RuntimeError("copied chunk checkpoint exists in an unexpected state")
+        models = {
+            source.id: ChunkModel(
+                id=id_map[source.id],
+                index_generation_id=generation_id,
+                generation_item_id=item.id,
+                parsed_source_version_id=source.parsed_source_version_id,
+                chunk_kind=source.chunk_kind,
+                parent_chunk_id=None,
+                order_index=source.order_index,
+                text_content=source.text_content,
+                searchable_text=source.searchable_text,
+                normalized_text_hash=source.normalized_text_hash,
+                token_count=source.token_count,
+                token_counter_code=source.token_counter_code,
+                token_counter_version=source.token_counter_version,
+                heading_path=list(source.heading_path) if source.heading_path else None,
+                page_range=list(source.page_range) if source.page_range else None,
+                primary_page_number=source.primary_page_number,
+                bounding_boxes=(
+                    [dict(box) for box in source.bounding_boxes] if source.bounding_boxes else None
+                ),
+                previous_chunk_id=None,
+                next_chunk_id=None,
+            )
+            for source in source_chunks
+        }
+        session.add_all(models.values())
+        session.flush()
+        for source in source_chunks:
+            target = models[source.id]
+            target.parent_chunk_id = (
+                id_map[source.parent_chunk_id] if source.parent_chunk_id is not None else None
+            )
+            target.previous_chunk_id = (
+                id_map[source.previous_chunk_id] if source.previous_chunk_id is not None else None
+            )
+            target.next_chunk_id = (
+                id_map[source.next_chunk_id] if source.next_chunk_id is not None else None
+            )
+        source_ids = tuple(id_map)
+        source_links = session.scalars(
+            select(ChunkSourceBlockModel).where(ChunkSourceBlockModel.chunk_id.in_(source_ids))
+        ).all()
+        source_assets = session.scalars(
+            select(ChunkAssetModel).where(ChunkAssetModel.chunk_id.in_(source_ids))
+        ).all()
+        session.add_all(
+            [
+                ChunkSourceBlockModel(
+                    chunk_id=id_map[link.chunk_id],
+                    parsed_block_id=link.parsed_block_id,
+                    order_index=link.order_index,
+                )
+                for link in source_links
+            ]
+        )
+        session.add_all(
+            [
+                ChunkAssetModel(
+                    chunk_id=id_map[asset.chunk_id],
+                    parsed_asset_id=asset.parsed_asset_id,
+                )
+                for asset in source_assets
+            ]
+        )
+        item.status = "embedding"
+        item.chunk_count = len(source_chunks)
+        item.stage_progress = {
+            "chunking": "copied",
+            "embedding": "queued",
+            "sourceCopyFromItemId": str(item.source_copy_from_item_id),
+        }
 
     def load_indexable_chunks(self, item_id: UUID) -> tuple[ChunkDraft, ...]:
         with transaction(self._session_factory) as session:

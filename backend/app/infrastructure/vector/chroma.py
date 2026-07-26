@@ -16,6 +16,7 @@ from app.modules.retrieval.vector_store import (
     VectorCollectionValidation,
     VectorHit,
     VectorRecord,
+    VectorRecordCopy,
 )
 
 METRIC = "cosine"
@@ -111,30 +112,50 @@ class ChromaVectorStoreAdapter:
         )
         return tuple(sorted(hits, key=lambda hit: (-hit.relevance_score, str(hit.chunk_id))))
 
-    def copy_records(self, source_name: str, target_name: str, chunk_ids: tuple[UUID, ...]) -> int:
-        if not chunk_ids:
+    def copy_records(
+        self,
+        source_name: str,
+        target_name: str,
+        records: tuple[VectorRecordCopy, ...],
+    ) -> int:
+        if not records:
             return 0
+        by_source_id = {str(record.source_chunk_id): record for record in records}
+        target_ids_are_unique = len({record.target_chunk_id for record in records}) == len(records)
+        if len(by_source_id) != len(records) or not target_ids_are_unique:
+            raise ValueError("vector copy ids must be unique")
         source = self._collection(source_name)
         target = self._collection(target_name)
         result = source.get(
-            ids=[str(chunk_id) for chunk_id in chunk_ids],
+            ids=list(by_source_id),
             include=["embeddings", "documents", "metadatas"],
         )
         ids = _flat_list(result.get("ids"), "ids")
         embeddings = _flat_list(result.get("embeddings"), "embeddings")
         documents = _flat_list(result.get("documents"), "documents")
         metadatas = _flat_list(result.get("metadatas"), "metadatas")
-        if len(ids) != len(chunk_ids):
+        if len(ids) != len(records):
             raise ValueError("source collection does not contain every requested chunk")
         if not (len(ids) == len(embeddings) == len(documents) == len(metadatas)):
             raise ValueError("Chroma get response arrays have different lengths")
-        copied_embeddings: list[Sequence[float] | Sequence[int]] = [
-            _embedding(item) for item in embeddings
-        ]
-        copied_metadatas: list[Metadata] = [_copy_metadata(item) for item in metadatas]
+        source_ids = [_string(item, "chunk id") for item in ids]
+        if len(set(source_ids)) != len(source_ids) or set(source_ids) != set(by_source_id):
+            raise ValueError("source collection returned unexpected chunk ids")
+        copied_metadatas: list[Metadata] = []
+        target_ids: list[str] = []
+        for source_id, metadata in zip(source_ids, metadatas, strict=True):
+            record = by_source_id[source_id]
+            copied = _copy_metadata(metadata)
+            copied["parent_chunk_id"] = (
+                str(record.target_parent_chunk_id) if record.target_parent_chunk_id else ""
+            )
+            copied_metadatas.append(copied)
+            target_ids.append(str(record.target_chunk_id))
         target.upsert(
-            ids=[_string(item, "chunk id") for item in ids],
-            embeddings=copied_embeddings,
+            ids=target_ids,
+            embeddings=[
+                cast(Sequence[float] | Sequence[int], _embedding(item)) for item in embeddings
+            ],
             documents=[_string(item, "document") for item in documents],
             metadatas=copied_metadatas,
         )
@@ -285,7 +306,7 @@ def _metadata(value: object) -> dict[str, object]:
     return {str(key): item for key, item in value.items()}
 
 
-def _copy_metadata(value: object) -> Metadata:
+def _copy_metadata(value: object) -> dict[str, str]:
     metadata = _metadata(value)
     values_are_strings = all(isinstance(item, str) for item in metadata.values())
     if set(metadata) != METADATA_KEYS or not values_are_strings:

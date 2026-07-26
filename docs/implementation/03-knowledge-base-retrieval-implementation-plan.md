@@ -211,7 +211,7 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 09：Embedding 与 Chroma
 - [x] Task 10：pg_trgm
 - [x] Task 11：构建 Worker 和激活
-- [ ] Task 12：重试和 repair
+- [x] Task 12：重试和 repair
 - [ ] Task 13：三种检索与融合
 - [ ] Task 14：查询重写
 - [ ] Task 15：重排和上下文扩展
