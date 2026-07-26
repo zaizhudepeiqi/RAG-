@@ -21,6 +21,8 @@ class RetrievalCandidate:
     vector_normalized: float | None
     keyword_normalized: float | None
     fused_score: float
+    rerank_score: float | None = None
+    rerank_rank: int | None = None
 
 
 @dataclass

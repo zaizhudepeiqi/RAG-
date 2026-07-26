@@ -14,6 +14,7 @@ from app.modules.retrieval.engine import (
     SingleKnowledgeBaseRetriever,
 )
 from app.modules.retrieval.keyword_store import KeywordHit
+from app.modules.retrieval.reranking import RerankScore, RerankService
 from app.modules.retrieval.vector_store import (
     VectorHit,
 )
@@ -31,6 +32,24 @@ def config(retrieval_type: str) -> RetrievalConfig:
         rerank=RerankConfig("off", None, {}),
         context_window=0,
         final_top_k=5,
+    )
+
+
+def rerank_config() -> RetrievalConfig:
+    base = config("vector")
+    return RetrievalConfig(
+        retrieval_type=base.retrieval_type,
+        vector=base.vector,
+        keyword=base.keyword,
+        fusion=base.fusion,
+        query_rewrite=base.query_rewrite,
+        rerank=RerankConfig(
+            "rerank_model",
+            UUID("66666666-6666-6666-6666-666666666666"),
+            {"candidateLimit": 2, "topK": 1, "scoreThreshold": 0},
+        ),
+        context_window=base.context_window,
+        final_top_k=base.final_top_k,
     )
 
 
@@ -59,6 +78,33 @@ class FakeVectors:
                 1,
                 "cosine_distance_v1",
             ),
+        )[:top_k]
+
+
+class ManyVectors(FakeVectors):
+    def __init__(self) -> None:
+        super().__init__()
+        self.requested_top_k = 0
+
+    def query(self, name, embedding, *, top_k):  # type: ignore[no-untyped-def]
+        self.requested_top_k = top_k
+        return tuple(
+            VectorHit(
+                UUID(value),
+                UUID("33333333-3333-3333-3333-333333333333"),
+                "chunk",
+                None,
+                f"policy {value}",
+                0,
+                "cosine",
+                score,
+                "cosine_distance_v1",
+            )
+            for value, score in (
+                ("22222222-2222-2222-2222-222222222222", 0.9),
+                ("44444444-4444-4444-4444-444444444444", 0.8),
+                ("55555555-5555-5555-5555-555555555555", 0.7),
+            )
         )[:top_k]
 
 
@@ -117,3 +163,34 @@ def test_vector_store_failure_is_not_reported_as_empty_result() -> None:
             query="policy",
             config=config("vector"),
         )
+
+
+def test_rerank_candidate_limit_is_applied_before_model_and_result_is_final_limited() -> None:
+    vectors = ManyVectors()
+
+    class FakeReranker:
+        def rerank(self, _query, candidates, *, model_id, params):  # type: ignore[no-untyped-def]
+            assert len(candidates) == 2
+            return tuple(
+                RerankScore(item.chunk_id, 1 - index / 10)
+                for index, item in enumerate(reversed(candidates))
+            )
+
+    retriever = SingleKnowledgeBaseRetriever(
+        vectors,
+        FakeKeywords(),
+        FakeQueryEmbedder(),
+        reranker=RerankService({"rerank_model": FakeReranker()}),
+    )
+
+    result = retriever.retrieve(
+        None,  # type: ignore[arg-type]
+        generation_id=GENERATION_ID,
+        collection_name="generation",
+        query="policy",
+        config=rerank_config(),
+    )
+
+    assert vectors.requested_top_k == 10
+    assert len(result.candidates) == 1
+    assert result.rerank_applied is True

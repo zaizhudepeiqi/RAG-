@@ -214,7 +214,15 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 12：重试和 repair
 - [x] Task 13：三种检索与融合
 - [x] Task 14：查询重写
-- [ ] Task 15：重排和上下文扩展
+- [x] Task 15：重排和上下文扩展
 - [ ] Task 16：检索测试 API
 - [ ] Task 17：OpenAPI/generated client
 - [ ] Task 18：全量门禁和交接
+
+### Task 15 交付证据
+
+- `backend/app/modules/retrieval/reranking.py` 固定 `off`、`rerank_model`、`llm_rerank` 的 adapter 契约，执行 candidateLimit 硬限制、topK/scoreThreshold 校验、0-1 分数校验、稳定 ID 排序和可恢复错误 `RERANK_DEGRADED` 降级。
+- `backend/app/modules/retrieval/context.py` 实现 Chunk/Parent-Child 上下文扩展、同 generation/解析版本/Parent 守卫、Parent 去重、命中 Child 合并和稳定文档顺序。
+- `backend/app/infrastructure/database/retrieval_context.py` 提供 SQLAlchemy 上下文加载器，只加载目标 generation 的候选、Parent 和有限邻居。
+- `SingleKnowledgeBaseRetriever` 在重排启用时提升召回请求上限，完成重排后再执行知识库 finalTopK，并返回 rerank 状态、warning 和 contexts。
+- 验证：检索专项 `36 passed`；后端非集成 `341 passed, 135 deselected`；Ruff、格式检查和 strict mypy 通过。需要 PostgreSQL 的 API/集成组需按 `scripts/check.ps1` 或 `scripts/test-integration.ps1` 提供 `RAG_TEST_DATABASE_URL` 后运行。

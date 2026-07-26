@@ -98,8 +98,11 @@ e7b0c7d chore: generate parsing api client
 22. Task 13 门禁：strict mypy `144 source files`；融合/引擎单测 `8 passed`；此前真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端和 OpenAPI 门禁在 Task 12 后保持通过。
 23. Task 14 已完成：新增 query rewrite 服务，支持 `off/hyde/multi_query/step_back`；原 query 始终保留，输出限长/去重，模型可恢复错误降级为原 query 并记录 `QUERY_REWRITE_DEGRADED`，不可恢复错误返回 `QUERY_REWRITE_FAILED`。
 24. Task 14 门禁：strict mypy `145 source files`；检索引擎/融合/query rewrite 单测 `14 passed`；此前完整工程门禁和真实依赖组合保持通过。
-25. 下一项是 Task 15：重排、Parent/Child 上下文扩展、相邻窗口和最终去重；不提前实现机器人上下文预算或回答生成。
-26. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+25. Task 15 已完成：新增 rerank adapter/service，支持 `off`、`rerank_model`、`llm_rerank`，候选硬限制、topK/threshold、0-1 响应校验、稳定排序；可恢复模型故障返回 `RERANK_DEGRADED` 并保留原顺序，不可恢复配置/响应错误返回检索失败。
+26. Task 15 已完成 Parent/Child 上下文扩展、contextWindow 相邻块加载、generation/解析版本/Parent 守卫、Parent 去重和命中 Child 合并；新增 SQLAlchemy ContextStore，仅加载目标 generation 的候选/Parent/有限邻居。
+27. Task 15 门禁：检索专项 `36 passed`；后端非集成 `341 passed, 135 deselected`；Ruff、格式和 strict mypy 通过。完整 API/集成测试需要配置 `RAG_TEST_DATABASE_URL`。
+28. 下一项是 Task 16：检索测试 API；不提前实现机器人、跨知识库融合或回答生成。
+29. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 
