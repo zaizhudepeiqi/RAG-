@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-08 已完成并通过门禁，下一项是 Embedding 与 Chroma Adapter。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-09 已完成并通过门禁，下一项是 PostgreSQL `pg_trgm` KeywordStoreAdapter。
 
 ## 3. Phase 02 已交付
 
@@ -82,8 +82,10 @@ e7b0c7d chore: generate parsing api client
 6. Task 07 门禁：Ruff、strict mypy 通过；后端非集成 `291 passed`；分块单元测试 `26 passed`；知识库集成 API `6 passed`。
 7. Task 08 已完成：Chunk 与 Parent-Child 领域组装；明确全部块、可索引块和上下文块，Child 不跨 Parent，只映射实际相交来源，ID 和相邻链稳定。
 8. Task 08 门禁：Ruff、格式和 strict mypy 通过；后端非集成 `298 passed`；分块/索引结构专项 `33 passed`；知识库集成 API `6 passed`。
-9. 下一项是 Task 09：Embedding 执行与 Chroma Adapter；随后实现 pg_trgm、generation Worker 和单库检索。
-10. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+9. Task 09 已完成：批量 document/query Embedding 契约与响应校验；Chroma cosine HNSW collection、白名单 metadata、幂等 upsert、查询、item copy、validate/delete 和 0-1 relevance score。
+10. Task 09 门禁：Ruff、格式和 strict mypy 通过；后端非集成 `313 passed`；模型/向量专项 `60 passed`；知识库 API 加真实 Chroma 合约 `7 passed`。
+11. 下一项是 Task 10：PostgreSQL `pg_trgm` KeywordStoreAdapter；随后实现 generation Worker 和单库检索。
+12. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 

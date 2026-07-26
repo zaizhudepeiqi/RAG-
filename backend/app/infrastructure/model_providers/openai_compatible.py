@@ -13,6 +13,8 @@ from app.infrastructure.model_providers.base import (
 from app.modules.models.adapters import (
     DiscoveredModel,
     DiscoverModelsRequest,
+    EmbeddingRequest,
+    EmbeddingResult,
     ModelProviderError,
     ModelTypeMismatchError,
     ModelVerificationRequest,
@@ -117,6 +119,30 @@ class OpenAICompatibleAdapter:
             latency_ms=response.latency_ms,
             usage_input_tokens=input_tokens,
             usage_output_tokens=output_tokens,
+        )
+
+    def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
+        if not request.texts or any(not text.strip() for text in request.texts):
+            raise ValueError("embedding texts must be non-empty")
+        path = self._path(ModelType.EMBEDDING, self.descriptor.embedding_path)
+        response = self._transport.request_json(
+            "POST",
+            base_url=request.base_url,
+            path=path,
+            credential=request.credential,
+            json_body={
+                **request.params,
+                "model": request.model_name,
+                "input": list(request.texts),
+            },
+        )
+        vectors = self._indexed_embeddings(response.payload.get("data"), len(request.texts))
+        input_tokens, _ = self._usage(response.payload)
+        return EmbeddingResult(
+            vectors=vectors,
+            provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
+            usage_input_tokens=input_tokens,
         )
 
     def verify_rerank(self, request: ModelVerificationRequest) -> VerificationResult:
@@ -260,6 +286,26 @@ class OpenAICompatibleAdapter:
             numbers.append(float(item))
         return tuple(numbers)
 
+    @classmethod
+    def _indexed_embeddings(
+        cls, value: object, expected_count: int
+    ) -> tuple[tuple[float, ...], ...]:
+        if not isinstance(value, list) or len(value) != expected_count:
+            raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+        indexed: dict[int, tuple[float, ...]] = {}
+        for fallback_index, item in enumerate(value):
+            if not isinstance(item, Mapping):
+                raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            index = item.get("index", item.get("text_index", fallback_index))
+            if isinstance(index, bool) or not isinstance(index, int):
+                raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            if index < 0 or index >= expected_count or index in indexed:
+                raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+            indexed[index] = cls._number_tuple(item.get("embedding"))
+        if len(indexed) != expected_count:
+            raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+        return tuple(indexed[index] for index in range(expected_count))
+
 
 class QwenAdapter(OpenAICompatibleAdapter):
     def verify_embedding(self, request: ModelVerificationRequest) -> VerificationResult:
@@ -281,6 +327,29 @@ class QwenAdapter(OpenAICompatibleAdapter):
         embedding = first.get("embedding") if isinstance(first, Mapping) else None
         return VerificationResult(
             embedding=self._number_tuple(embedding),
+            provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
+        )
+
+    def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
+        if not request.texts or any(not text.strip() for text in request.texts):
+            raise ValueError("embedding texts must be non-empty")
+        path = self._path(ModelType.EMBEDDING, self.descriptor.embedding_path)
+        response = self._transport.request_json(
+            "POST",
+            base_url=request.base_url,
+            path=path,
+            credential=request.credential,
+            json_body={
+                "model": request.model_name,
+                "input": {"texts": list(request.texts)},
+                "parameters": dict(request.params),
+            },
+        )
+        output = response.payload.get("output")
+        embeddings = output.get("embeddings") if isinstance(output, Mapping) else None
+        return EmbeddingResult(
+            vectors=self._indexed_embeddings(embeddings, len(request.texts)),
             provider_request_id=response.provider_request_id,
             latency_ms=response.latency_ms,
         )

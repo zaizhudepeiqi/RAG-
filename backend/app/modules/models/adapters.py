@@ -71,6 +71,24 @@ class VerificationResult:
     usage_output_tokens: int | None = None
 
 
+@dataclass(frozen=True)
+class EmbeddingRequest:
+    base_url: str
+    credential: SecretStr
+    model_name: str
+    texts: tuple[str, ...]
+    purpose: Literal["document", "query"]
+    params: Mapping[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EmbeddingResult:
+    vectors: tuple[tuple[float, ...], ...]
+    provider_request_id: str | None = None
+    latency_ms: int | None = None
+    usage_input_tokens: int | None = None
+
+
 class ModelProviderError(Exception):
     def __init__(self, code: str, *, retryable: bool) -> None:
         super().__init__(code)
@@ -109,6 +127,8 @@ class ModelProviderAdapter(Protocol):
     def verify_rerank(self, request: ModelVerificationRequest) -> VerificationResult: ...
 
     def verify_vision(self, request: ModelVerificationRequest) -> VerificationResult: ...
+
+    def embed(self, request: EmbeddingRequest) -> EmbeddingResult: ...
 
 
 class ModelProviderAdapterResolver(Protocol):
