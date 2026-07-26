@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from uuid import uuid4
 
+import pytest
 from app.modules.tasks.ports import ClaimKind, OperationClaim
 from app.modules.tasks.worker import execute_operation
 
@@ -30,6 +31,11 @@ class Handler:
         return {"ok": True}
 
 
+class FailingHandler:
+    def run(self, _operation_id):  # type: ignore[no-untyped-def]
+        raise RuntimeError("provider payload must not escape the worker")
+
+
 @dataclass
 class Dependencies:
     operations: Operations
@@ -54,3 +60,18 @@ def test_worker_claim_is_atomic_for_same_operation() -> None:
 
     assert handler.side_effects == 1
     assert operations.completed == 1
+
+
+def test_unexpected_worker_failure_does_not_leave_operation_running() -> None:
+    operations = Operations(ClaimKind.CLAIMED)
+
+    with pytest.raises(RuntimeError):
+        execute_operation(
+            uuid4(),
+            "test_task",
+            FailingHandler(),
+            Dependencies(operations),
+        )
+
+    assert operations.failed == 1
+    assert operations.completed == 0

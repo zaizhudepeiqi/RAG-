@@ -140,6 +140,11 @@ class ChromaVectorStoreAdapter:
         )
         return len(ids)
 
+    def delete_records(self, name: str, chunk_ids: tuple[UUID, ...]) -> None:
+        if not chunk_ids:
+            return
+        self._collection(name).delete(ids=[str(chunk_id) for chunk_id in chunk_ids])
+
     def validate_collection(
         self,
         name: str,

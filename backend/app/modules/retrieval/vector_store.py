@@ -47,6 +47,8 @@ class VectorStoreAdapter(Protocol):
         self, source_name: str, target_name: str, chunk_ids: tuple[UUID, ...]
     ) -> int: ...
 
+    def delete_records(self, name: str, chunk_ids: tuple[UUID, ...]) -> None: ...
+
     def validate_collection(
         self,
         name: str,

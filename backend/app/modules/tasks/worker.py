@@ -36,4 +36,7 @@ def execute_operation(
     except NonRetryableTaskError as error:
         dependencies.operations.fail(operation_id, error.code, retryable=False)
         return
+    except Exception:
+        dependencies.operations.fail(operation_id, "UNEXPECTED_TASK_ERROR", retryable=True)
+        raise
     dependencies.operations.complete(operation_id, result)

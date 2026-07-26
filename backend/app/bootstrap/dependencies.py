@@ -11,6 +11,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
+from app.infrastructure.database.repositories.generation_builds import (
+    SqlAlchemyGenerationBuildStore,
+)
+from app.infrastructure.database.repositories.generation_items import (
+    SqlAlchemyGenerationItemStore,
+)
 from app.infrastructure.database.repositories.knowledge_bases import (
     SqlAlchemyKnowledgeBaseRepository,
 )
@@ -46,6 +52,7 @@ from app.infrastructure.health.chroma import ChromaHealthProbe
 from app.infrastructure.health.postgresql import PostgreSQLHealthProbe
 from app.infrastructure.health.redis import RedisHealthProbe
 from app.infrastructure.health.storage import StorageHealthProbe
+from app.infrastructure.model_providers.embedding import ConfiguredDocumentEmbedder
 from app.infrastructure.model_providers.registry import (
     ModelProviderAdapterRegistry,
     build_model_provider_adapter_registry,
@@ -56,14 +63,16 @@ from app.infrastructure.parsers.registry import ParserRegistry
 from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
 from app.infrastructure.storage.local import LocalStorageAdapter
-from app.infrastructure.vector.chroma import ChromaAdapter
+from app.infrastructure.vector.chroma import ChromaAdapter, ChromaVectorStoreAdapter
 from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
+from app.modules.knowledge_bases.generation_items import DefaultGenerationItemExecutor
 from app.modules.knowledge_bases.service import (
     KnowledgeBaseService,
     RegistryKnowledgeModelSelector,
 )
+from app.modules.knowledge_bases.tasks import GenerationBuildHandler
 from app.modules.models.service import (
     ModelConfigService,
     ModelProviderService,
@@ -112,6 +121,7 @@ class ApplicationDependencies:
     mineru_settings_service: MinerUSettingsService
     data_source_service: DataSourceService
     knowledge_base_service: KnowledgeBaseService
+    generation_build_handler: GenerationBuildHandler
     source_storage: LocalStorageAdapter
     source_parse_handler: SourceParseHandler
     mineru_connection_test_handler: MinerUConnectionTestHandler
@@ -211,6 +221,23 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         operation_retention_days=settings.operation_retention_days,
         idempotency=admin_idempotency_service,
     )
+    vector_store = ChromaVectorStoreAdapter(settings.chroma_host, settings.chroma_port)
+    document_embedder = ConfiguredDocumentEmbedder(
+        session_factory,
+        model_selection_service,
+        model_provider_adapter_registry,
+        settings.credential_encryption_key_bytes,
+    )
+    generation_item_executor = DefaultGenerationItemExecutor(
+        SqlAlchemyGenerationItemStore(session_factory),
+        document_embedder,
+        vector_store,
+    )
+    generation_build_handler = GenerationBuildHandler(
+        SqlAlchemyGenerationBuildStore(session_factory),
+        generation_item_executor,
+        vector_store,
+    )
     mineru_settings_service = MinerUSettingsService(
         SqlAlchemyMinerUSettingsRepository(),
         SqlAlchemyMinerUSettingsAuditRepository(),
@@ -246,6 +273,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         source_storage,
     )
     task_dispatch_registry = TaskDispatchRegistry()
+    task_dispatch_registry.register(
+        TaskDispatchDefinition(
+            event_type="knowledge_base.generation.requested",
+            schema_version="1",
+            celery_task_name="app.tasks.indexing.build_generation",
+            queue="indexing",
+        )
+    )
     task_dispatch_registry.register(
         TaskDispatchDefinition(
             event_type="model.provider.test.requested",
@@ -316,6 +351,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         mineru_settings_service=mineru_settings_service,
         data_source_service=data_source_service,
         knowledge_base_service=knowledge_base_service,
+        generation_build_handler=generation_build_handler,
         source_storage=source_storage,
         source_parse_handler=source_parse_handler,
         mineru_connection_test_handler=mineru_connection_test_handler,

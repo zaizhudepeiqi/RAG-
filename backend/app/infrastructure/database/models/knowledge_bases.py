@@ -437,7 +437,7 @@ class ChunkModel(Base):
     heading_path: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     page_range: Mapped[list[int] | None] = mapped_column(ARRAY(Integer))
     primary_page_number: Mapped[int | None] = mapped_column(Integer)
-    bounding_boxes: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB)
+    bounding_boxes: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB(none_as_null=True))
     previous_chunk_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("chunks.id", ondelete="RESTRICT")
     )

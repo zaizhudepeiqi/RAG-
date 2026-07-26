@@ -242,6 +242,39 @@ $credentialPatterns = @(
 )
 $secretAssignmentPattern = '(?i)(?<key>"[A-Za-z_][A-Za-z0-9_-]*"|''[A-Za-z_][A-Za-z0-9_-]*''|[A-Za-z_][A-Za-z0-9_-]*)\s*[:=]\s*(?<value>SecretStr\("[^"]*"\)|"[^"]*"|''[^'']*''|\$\{[^}]+\}|[^\s#,;\}\]]+)'
 $configurationExtensions = @(".cfg", ".conf", ".env", ".example", ".ini", ".json", ".properties", ".toml", ".yaml", ".yml")
+
+function Test-CredentialAssignment {
+  param(
+    [Parameter(Mandatory)][string]$Key,
+    [Parameter(Mandatory)][string]$Extension
+  )
+
+  if ($Key -ieq "token") {
+    return $configurationExtensions -contains $Extension
+  }
+
+  return (
+    $Key -match '(?i)(password|secret)$' -or
+    $Key -match '(?i)[_-]token$' -or
+    $Key -match '(?i)(^|[_-])api[_-]?key$' -or
+    $Key -match '(?i)^(jwt[_-]?signing[_-]?key|credential[_-]?encryption[_-]?key)$'
+  )
+}
+
+@(
+  @{ Key = "tiktoken"; Extension = ".toml"; Expected = $false },
+  @{ Key = "token"; Extension = ".py"; Expected = $false },
+  @{ Key = "token"; Extension = ".env"; Expected = $true },
+  @{ Key = "access_token"; Extension = ".py"; Expected = $true },
+  @{ Key = "api_token"; Extension = ".py"; Expected = $true },
+  @{ Key = "password"; Extension = ".py"; Expected = $true }
+) | ForEach-Object {
+  $actual = Test-CredentialAssignment -Key $_.Key -Extension $_.Extension
+  if ($actual -ne $_.Expected) {
+    throw "Credential assignment classifier contract failed for '$($_.Key)'"
+  }
+}
+
 $localDevelopmentValues = @{
   POSTGRES_PASSWORD = "local-dev-only-change-before-sharing"
   JWT_SIGNING_KEY = "local-development-jwt-key-32-bytes-minimum"
@@ -298,15 +331,14 @@ foreach ($file in $files) {
     }
     foreach ($assignment in [regex]::Matches($line, $secretAssignmentPattern)) {
       $key = $assignment.Groups["key"].Value.Trim('"', "'")
-      $isCredentialKey =
-        $key -match '(?i)(password|secret|token)$' -or
-        $key -match '(?i)(^|[_-])api[_-]?key$' -or
-        $key -match '(?i)^(jwt[_-]?signing[_-]?key|credential[_-]?encryption[_-]?key)$'
+      $rawValue = $assignment.Groups["value"].Value.Trim()
+      $isCredentialKey = Test-CredentialAssignment `
+        -Key $key `
+        -Extension $file.Extension
       if (-not $isCredentialKey) {
         continue
       }
 
-      $rawValue = $assignment.Groups["value"].Value.Trim()
       $secretStrMatch = [regex]::Match($rawValue, '^SecretStr\("(?<value>[^"]*)"\)$')
       $isQuoted = $rawValue.StartsWith('"') -or $rawValue.StartsWith("'") -or $secretStrMatch.Success
       $value = if ($secretStrMatch.Success) {

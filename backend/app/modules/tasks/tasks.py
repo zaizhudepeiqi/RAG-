@@ -7,6 +7,7 @@ from celery import Celery  # type: ignore[import-untyped]
 from app.bootstrap.celery_app import celery_app
 from app.bootstrap.dependencies import build_application_dependencies
 from app.core.config import get_settings
+from app.modules.knowledge_bases.tasks import KNOWLEDGE_BASE_BUILD_TASK
 from app.modules.parsing.tasks import (
     MINERU_CONNECTION_TEST_TASK,
     PARSING_CLEANUP_TASK,
@@ -141,6 +142,20 @@ def parse_source(operationId: str, eventType: str, schemaVersion: str) -> None:
             UUID(operationId),
             SOURCE_PARSE_TASK,
             dependencies.source_parse_handler,
+            ExecutionDependencies(dependencies.operation_execution_store),
+        )
+    finally:
+        dependencies.close()
+
+
+@celery_app.task(name="app.tasks.indexing.build_generation")
+def build_generation(operationId: str, eventType: str, schemaVersion: str) -> None:
+    dependencies = build_application_dependencies(get_settings())
+    try:
+        execute_operation(
+            UUID(operationId),
+            KNOWLEDGE_BASE_BUILD_TASK,
+            dependencies.generation_build_handler,
             ExecutionDependencies(dependencies.operation_execution_store),
         )
     finally:

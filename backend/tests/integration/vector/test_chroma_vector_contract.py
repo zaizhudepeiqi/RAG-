@@ -56,6 +56,13 @@ def test_real_chroma_cosine_contract_and_collection_isolation() -> None:
             == 2
         )
         assert store.query(second_name, (1.0, 0.0), top_k=1)[0].chunk_id == first_chunk
+        store.delete_records(second_name, (first_chunk,))
+        assert (
+            store.validate_collection(
+                second_name, expected_count=0, expected_dimension=2
+            ).record_count
+            == 0
+        )
     finally:
         store.delete_collection(first_name)
         store.delete_collection(second_name)

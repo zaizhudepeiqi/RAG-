@@ -1,6 +1,6 @@
 # 当前开发交接
 
-> 更新时间：2026-07-26（Asia/Shanghai）
+> 更新时间：2026-07-27（Asia/Shanghai）
 > 用途：会话恢复和阶段状态摘要；需求定义以 `docs/requirements` 为唯一真源。
 
 ## 1. 工作位置
@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-10 已完成并通过门禁，下一项是 generation Worker、checkpoint 和原子激活。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-11 已完成并通过门禁，下一项是失败项重试和 repair generation。
 
 ## 3. Phase 02 已交付
 
@@ -86,8 +86,12 @@ e7b0c7d chore: generate parsing api client
 10. Task 09 门禁：Ruff、格式和 strict mypy 通过；后端非集成 `313 passed`；模型/向量专项 `60 passed`；知识库 API 加真实 Chroma 合约 `7 passed`。
 11. Task 10 已完成：PostgreSQL `pg_trgm` KeywordStoreAdapter；包括 Unicode 查询规范化、受限 term/中文 n-gram、短查询 fallback、generation 强过滤、候选硬限制、短语/标题加权和稳定排序。
 12. Task 10 门禁：Ruff、格式和 strict mypy 通过；后端非集成 `320 passed`；知识库 API、真实 Chroma 与真实 pg_trgm 组合集成 `9 passed`；EXPLAIN 证明 generation 索引约束且 trigram GIN 可用。
-13. 下一项是 Task 11：generation Worker、checkpoint 和原子激活；随后实现失败项 repair 和单库检索。
-14. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+13. Task 11 已完成：generation Worker 按 item 执行分块、Embedding、关键词、向量和校验 checkpoint；Celery 已接通 `knowledge_base.generation.requested`；失败 item 清理 PostgreSQL chunks/来源/资产和 Chroma records。
+14. 激活事务同时切换 active generation/retrieval revision、清 pending 指针、冻结新代次并为旧代次设置 7 天保留；首次 partial 可激活，已有活动代次的 partial/no-success 重建继续服务旧索引，迟到 Worker 和激活冲突不能覆盖新指针。
+15. Task 11 门禁：`scripts/check.ps1` 通过；Ruff、格式和 strict mypy（`140 source files`）通过；后端非集成 `321 passed`；前端 Jest `7 suites / 16 tests`、TypeScript、Biome、production build 和 generated API 漂移通过；Task 11、真实 Chroma、pg_trgm 和 Celery/Redis 组合 `12 passed`。
+16. 仓库凭据扫描已精确区分 `tiktoken`/代码能力键 `token` 与 `api_token`、`access_token` 等凭据字段，并内置分类器回归契约；整体凭据扫描范围未放宽。
+17. 下一项是 Task 12：失败项重试和 repair generation；不得提前混入单库检索。
+18. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 

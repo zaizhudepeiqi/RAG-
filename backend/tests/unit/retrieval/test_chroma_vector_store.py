@@ -51,6 +51,10 @@ class FakeCollection:
             "distances": [[0.4]],
         }
 
+    def delete(self, *, ids):
+        for chunk_id in ids:
+            self.records.pop(chunk_id, None)
+
 
 class FakeClient:
     def __init__(self) -> None:
@@ -138,6 +142,9 @@ def test_copy_validate_delete_and_collection_isolation() -> None:
     )
     assert validation.record_count == 1
     assert client.collections["source_generation"] is not client.collections["target_generation"]
+
+    store.delete_records("target_generation", (CHUNK_ID,))
+    assert client.collections["target_generation"].count() == 0
 
     store.delete_collection("target_generation")
     assert "target_generation" not in client.collections

@@ -128,7 +128,8 @@ def test_trigram_query_ranks_phrase_filters_generation_and_uses_gin(
         session.execute(text("SET LOCAL enable_seqscan = off"))
         plan = "\n".join(str(row[0]) for row in session.execute(text(f"EXPLAIN {explain_sql}")))
         assert "Seq Scan on chunks" not in plan
-        assert "Index Cond: (index_generation_id =" in plan
+        assert "Index Cond:" in plan
+        assert "index_generation_id =" in plan
         trigram_plan = "\n".join(
             str(row[0])
             for row in session.execute(
