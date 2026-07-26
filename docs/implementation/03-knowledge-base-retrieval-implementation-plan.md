@@ -203,7 +203,7 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 01：Capability
 - [x] Task 02：0004 迁移和 ORM
 - [x] Task 03：领域配置、状态机和校验
-- [ ] Task 04：知识库创建、查询和生命周期
+- [x] Task 04：知识库创建、查询和生命周期
 - [ ] Task 05：配置修订和 generation API
 - [ ] Task 06：TokenCounter 和输入规范化
 - [ ] Task 07：五种分块

@@ -32,6 +32,7 @@ declare namespace API {
   type capabilitiesGetVersionParams = {
     code: string;
     version: string;
+    category: string;
     rag_admin_access?: string | null;
   };
 
@@ -82,6 +83,22 @@ declare namespace API {
     accepted: boolean;
     /** Termsversion */
     termsVersion: string;
+  };
+
+  type CreateKnowledgeBaseRequest = {
+    buildConfig: KnowledgeBaseBuildConfigDto;
+    /** Description */
+    description?: string | null;
+    /** Name */
+    name: string;
+    /** Parsedsourceversionids */
+    parsedSourceVersionIds: string[];
+    retrievalConfig: RetrievalConfigDto;
+  };
+
+  type CreateKnowledgeBaseResponse = {
+    knowledgeBase: KnowledgeBaseDetailView;
+    operation: OperationRef;
   };
 
   type CreateModelProviderRequest = {
@@ -316,6 +333,199 @@ declare namespace API {
   type HTTPValidationError = {
     /** Detail */
     detail?: ValidationError[];
+  };
+
+  type HybridConfigDto = {
+    /** Finalscorethreshold */
+    finalScoreThreshold: number;
+    /** Fusionstrategy */
+    fusionStrategy: "rrf" | "weighted_score";
+    /** Keywordweight */
+    keywordWeight?: number | null;
+    /** Rrfk */
+    rrfK?: number | null;
+    /** Vectorweight */
+    vectorWeight?: number | null;
+  };
+
+  type KeywordConfigDto = {
+    /** Scorethreshold */
+    scoreThreshold: number;
+    /** Topk */
+    topK: number;
+  };
+
+  type KnowledgeBaseBuildConfigDto = {
+    /** Chunkparams */
+    chunkParams?: Record<string, any>;
+    /** Chunkstrategycode */
+    chunkStrategyCode: string;
+    /** Embeddingmodelid */
+    embeddingModelId: string;
+    /** Embeddingparams */
+    embeddingParams?: Record<string, any>;
+    /** Indexstructure */
+    indexStructure: "chunk" | "parent_child";
+    /** Indexstructureparams */
+    indexStructureParams?: Record<string, any>;
+    /** Keywordstorecode */
+    keywordStoreCode: string;
+    /** Vectorindexcode */
+    vectorIndexCode: string;
+    /** Vectorindexparams */
+    vectorIndexParams?: Record<string, any>;
+    /** Vectorstorecode */
+    vectorStoreCode: string;
+  };
+
+  type KnowledgeBaseDetailView = {
+    /** Activecompleteness */
+    activeCompleteness?: string | null;
+    /** Activegenerationid */
+    activeGenerationId?: string | null;
+    /** Activeretrievalrevisionid */
+    activeRetrievalRevisionId?: string | null;
+    /** Allowedactions */
+    allowedActions: string[];
+    /** Botreferencecount */
+    botReferenceCount: number;
+    /** Chunkcount */
+    chunkCount: number;
+    /** Createdat */
+    createdAt: string;
+    /** Deriveddisplaystatus */
+    derivedDisplayStatus: string;
+    /** Description */
+    description?: string | null;
+    /** Embeddingmodelid */
+    embeddingModelId?: string | null;
+    /** Enabled */
+    enabled: boolean;
+    /** Generationcount */
+    generationCount: number;
+    /** Hasunpublishedbuildchanges */
+    hasUnpublishedBuildChanges: boolean;
+    /** Id */
+    id: string;
+    /** Indexstructure */
+    indexStructure?: string | null;
+    /** Latestbuildat */
+    latestBuildAt?: string | null;
+    /** Latestbuildoperationid */
+    latestBuildOperationId?: string | null;
+    /** Latestgenerationid */
+    latestGenerationId?: string | null;
+    /** Latestgenerationstatus */
+    latestGenerationStatus?: string | null;
+    /** Name */
+    name: string;
+    /** Pendingbuildconfigrevisionid */
+    pendingBuildConfigRevisionId?: string | null;
+    /** Pendingretrievalrevisionid */
+    pendingRetrievalRevisionId?: string | null;
+    /** Retrievaltype */
+    retrievalType?: string | null;
+    /** Revision */
+    revision: number;
+    /** Searchablesourcecount */
+    searchableSourceCount: number;
+    /** Sourcecount */
+    sourceCount: number;
+    /** Updatedat */
+    updatedAt: string;
+  };
+
+  type KnowledgeBasePageView = {
+    /** Items */
+    items: KnowledgeBaseSummaryView[];
+    /** Page */
+    page: number;
+    /** Pagesize */
+    pageSize: number;
+    /** Total */
+    total: number;
+  };
+
+  type knowledgeBasesCreateParams = {
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesDeleteParams = {
+    knowledgeBaseId: string;
+    expectedRevision: number;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesDisableParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesEnableParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesGetParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type knowledgeBasesListParams = {
+    search?: string | null;
+    page?: number;
+    pageSize?: number;
+    rag_admin_access?: string | null;
+  };
+
+  type KnowledgeBaseStateRequest = {
+    /** Expectedrevision */
+    expectedRevision: number;
+  };
+
+  type KnowledgeBaseSummaryView = {
+    /** Allowedactions */
+    allowedActions: string[];
+    /** Botreferencecount */
+    botReferenceCount: number;
+    /** Chunkcount */
+    chunkCount: number;
+    /** Deriveddisplaystatus */
+    derivedDisplayStatus: string;
+    /** Description */
+    description?: string | null;
+    /** Embeddingmodelid */
+    embeddingModelId?: string | null;
+    /** Enabled */
+    enabled: boolean;
+    /** Id */
+    id: string;
+    /** Indexstructure */
+    indexStructure?: string | null;
+    /** Latestbuildat */
+    latestBuildAt?: string | null;
+    /** Name */
+    name: string;
+    /** Retrievaltype */
+    retrievalType?: string | null;
+    /** Revision */
+    revision: number;
+    /** Searchablesourcecount */
+    searchableSourceCount: number;
+    /** Sourcecount */
+    sourceCount: number;
+    /** Updatedat */
+    updatedAt: string;
+  };
+
+  type knowledgeBasesUpdateMetadataParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
   };
 
   type LastModelVerificationView = {
@@ -1019,6 +1229,15 @@ declare namespace API {
 
   type ProviderPageSize = 20 | 50 | 100;
 
+  type QueryRewriteConfigDto = {
+    /** Modelid */
+    modelId?: string | null;
+    /** Params */
+    params?: Record<string, any>;
+    /** Strategycode */
+    strategyCode: "off" | "hyde" | "multi_query" | "step_back";
+  };
+
   type RejectedUploadView = {
     /** Code */
     code: string;
@@ -1028,11 +1247,34 @@ declare namespace API {
     message: string;
   };
 
+  type RerankConfigDto = {
+    /** Modelid */
+    modelId?: string | null;
+    /** Params */
+    params?: Record<string, any>;
+    /** Strategycode */
+    strategyCode: "off" | "rerank_model" | "llm_rerank";
+  };
+
   type ResourceRef = {
     /** Displayname */
     displayName: string;
     /** Id */
     id: string;
+  };
+
+  type RetrievalConfigDto = {
+    /** Contextwindow */
+    contextWindow: number;
+    /** Finaltopk */
+    finalTopK: number;
+    hybrid: HybridConfigDto;
+    keyword: KeywordConfigDto;
+    queryRewrite: QueryRewriteConfigDto;
+    rerank: RerankConfigDto;
+    /** Retrievaltype */
+    retrievalType: "vector" | "keyword" | "hybrid";
+    vector: VectorConfigDto;
   };
 
   type SuccessResponse = {
@@ -1045,6 +1287,15 @@ declare namespace API {
     displayName: string;
     /** Expectedrevision */
     expectedRevision: number;
+  };
+
+  type UpdateKnowledgeBaseMetadataRequest = {
+    /** Description */
+    description?: string | null;
+    /** Expectedrevision */
+    expectedRevision: number;
+    /** Name */
+    name: string;
   };
 
   type UpdateMinerUSettingsRequest = {
@@ -1115,6 +1366,13 @@ declare namespace API {
     msg: string;
     /** Error Type */
     type: string;
+  };
+
+  type VectorConfigDto = {
+    /** Scorethreshold */
+    scoreThreshold: number;
+    /** Topk */
+    topK: number;
   };
 
   type VerificationStatus = "untested" | "passed" | "failed" | "stale";

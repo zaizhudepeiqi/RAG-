@@ -28,7 +28,9 @@ export async function capabilitiesGetVersion(
     `/api/v1/capabilities/${param0}/versions/${param1}`,
     {
       method: "GET",
-      params: { ...queryParams },
+      params: {
+        ...queryParams,
+      },
       ...(options || {}),
     }
   );

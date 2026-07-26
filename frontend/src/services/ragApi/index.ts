@@ -11,11 +11,13 @@ import * as shujujiexi from "./shujujiexi";
 import * as shujuyuan from "./shujuyuan";
 import * as xitongjiankang from "./xitongjiankang";
 import * as yiburenwu from "./yiburenwu";
+import * as zhishiku from "./zhishiku";
 export default {
   guanliyuanrenzheng,
   nenglimulu,
   shujuyuan,
   xitongjiankang,
+  zhishiku,
   moxinggongyingshang,
   moxingpeizhi,
   yiburenwu,

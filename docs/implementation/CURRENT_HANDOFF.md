@@ -1,6 +1,6 @@
 # 当前开发交接
 
-> 更新时间：2026-07-25（Asia/Shanghai）
+> 更新时间：2026-07-26（Asia/Shanghai）
 > 用途：会话恢复和阶段状态摘要；需求定义以 `docs/requirements` 为唯一真源。
 
 ## 1. 工作位置
@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建，知识库、分块、索引和检索详细实施计划已建立，正在从 capability 任务开始执行。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-04 已完成并通过门禁，下一项是配置修订和 generation 管理 API。
 
 ## 3. Phase 02 已交付
 
@@ -74,10 +74,10 @@ e7b0c7d chore: generate parsing api client
 
 ## 5. Phase 3 当前执行顺序
 
-1. 按 `03-knowledge-base-retrieval-implementation-plan.md` Task 01 注册并验证 capability。
-2. 实施 0004 迁移和 ORM，先锁定表、约束、索引和 frozen 写保护。
-3. 依次完成配置/状态机、知识库事务、分块、索引 Adapter、generation Worker 和单库检索。
-4. 最后生成 OpenAPI/客户端，并执行完整非集成、PostgreSQL、Chroma、Celery 和前端门禁。
+1. Task 01-03 已完成：capability、0004 迁移/ORM、领域配置和状态机。
+2. Task 04 已完成：知识库创建事务、幂等、列表/详情、元数据、启用/停用、删除守卫与 OpenAPI/generated client。
+3. 下一项是 Task 05：pending build/retrieval config revision 和 generation 管理 API。
+4. 随后实现分块、索引 Adapter、generation Worker 和单库检索。
 5. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
@@ -88,3 +88,4 @@ e7b0c7d chore: generate parsing api client
 - 前端下拉由 capability 和后端 selector 驱动；前端仍显示下拉控件，但选项不散落硬编码。
 - Token、signed URL、storage key、绝对路径和原始供应商 payload 不得进入 API、日志、Trace 或 Operation 结果。
 - 知识库、检索、机器人、渠道和完整业务页面仍按后续阶段实现，不得用占位实现冒充完成。
+- `knowledge_base.generation.requested` 与 `knowledge_base.cleanup.requested` 的 Worker/dispatch 实现在 Task 11/12；当前 Task 04 只保证 Operation/Outbox 原子落库，不应在本分支未完成前用于生产部署。

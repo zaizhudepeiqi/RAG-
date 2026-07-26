@@ -486,18 +486,14 @@ RETRIEVAL_TYPE_CAPABILITIES = (
         "向量检索",
         "按向量相似度召回",
         "retrieval_type",
-        config_schema=_schema(
-            {"topK": _integer(20, 1, 200), "scoreThreshold": _number(0.3, 0, 1)}
-        ),
+        config_schema=_schema({"topK": _integer(20, 1, 200), "scoreThreshold": _number(0.3, 0, 1)}),
     ),
     _option(
         "keyword",
         "关键词检索",
         "按 pg_trgm 相似度召回",
         "retrieval_type",
-        config_schema=_schema(
-            {"topK": _integer(20, 1, 200), "scoreThreshold": _number(0.1, 0, 1)}
-        ),
+        config_schema=_schema({"topK": _integer(20, 1, 200), "scoreThreshold": _number(0.1, 0, 1)}),
     ),
     _option(
         "hybrid",
@@ -555,9 +551,7 @@ QUERY_REWRITE_CAPABILITIES = (
         "多查询扩展",
         "生成多个改写查询并与原问题共同检索",
         "query_rewrite",
-        config_schema=_schema(
-            {"queryCount": _integer(3, 2, 5), **_REWRITE_COMMON}
-        ),
+        config_schema=_schema({"queryCount": _integer(3, 2, 5), **_REWRITE_COMMON}),
         ui_schema={"modelType": "llm"},
     ),
     _option(
@@ -582,9 +576,7 @@ RERANK_CAPABILITIES = (
         "重排序模型",
         "使用已验证的 Rerank 模型重排候选",
         "rerank",
-        config_schema=_schema(
-            dict(_RERANK_PROPERTIES), rules=("topK <= candidateLimit",)
-        ),
+        config_schema=_schema(dict(_RERANK_PROPERTIES), rules=("topK <= candidateLimit",)),
         ui_schema={"modelType": "rerank"},
     ),
     _option(
@@ -592,9 +584,7 @@ RERANK_CAPABILITIES = (
         "LLM 重排序",
         "使用已验证的大语言模型按候选 ID 重排",
         "rerank",
-        config_schema=_schema(
-            dict(_RERANK_PROPERTIES), rules=("topK <= candidateLimit",)
-        ),
+        config_schema=_schema(dict(_RERANK_PROPERTIES), rules=("topK <= candidateLimit",)),
         ui_schema={"modelType": "llm"},
     ),
 )

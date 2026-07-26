@@ -198,6 +198,68 @@
         "title": "CloudProcessingConsent",
         "type": "object"
       },
+      "CreateKnowledgeBaseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "buildConfig": {
+            "$ref": "#/components/schemas/KnowledgeBaseBuildConfigDto"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parsedSourceVersionIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Parsedsourceversionids",
+            "type": "array"
+          },
+          "retrievalConfig": {
+            "$ref": "#/components/schemas/RetrievalConfigDto"
+          }
+        },
+        "required": [
+          "name",
+          "parsedSourceVersionIds",
+          "buildConfig",
+          "retrievalConfig"
+        ],
+        "title": "CreateKnowledgeBaseRequest",
+        "type": "object"
+      },
+      "CreateKnowledgeBaseResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "knowledgeBase": {
+            "$ref": "#/components/schemas/KnowledgeBaseDetailView"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/OperationRef"
+          }
+        },
+        "required": [
+          "knowledgeBase",
+          "operation"
+        ],
+        "title": "CreateKnowledgeBaseResponse",
+        "type": "object"
+      },
       "CreateModelProviderRequest": {
         "additionalProperties": false,
         "properties": {
@@ -781,6 +843,554 @@
           "traceId"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "HybridConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "finalScoreThreshold": {
+            "title": "Finalscorethreshold",
+            "type": "number"
+          },
+          "fusionStrategy": {
+            "enum": [
+              "rrf",
+              "weighted_score"
+            ],
+            "title": "Fusionstrategy",
+            "type": "string"
+          },
+          "keywordWeight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywordweight"
+          },
+          "rrfK": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rrfk"
+          },
+          "vectorWeight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectorweight"
+          }
+        },
+        "required": [
+          "fusionStrategy",
+          "finalScoreThreshold"
+        ],
+        "title": "HybridConfigDto",
+        "type": "object"
+      },
+      "KeywordConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "scoreThreshold": {
+            "title": "Scorethreshold",
+            "type": "number"
+          },
+          "topK": {
+            "title": "Topk",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "topK",
+          "scoreThreshold"
+        ],
+        "title": "KeywordConfigDto",
+        "type": "object"
+      },
+      "KnowledgeBaseBuildConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "chunkParams": {
+            "additionalProperties": true,
+            "title": "Chunkparams",
+            "type": "object"
+          },
+          "chunkStrategyCode": {
+            "title": "Chunkstrategycode",
+            "type": "string"
+          },
+          "embeddingModelId": {
+            "format": "uuid",
+            "title": "Embeddingmodelid",
+            "type": "string"
+          },
+          "embeddingParams": {
+            "additionalProperties": true,
+            "title": "Embeddingparams",
+            "type": "object"
+          },
+          "indexStructure": {
+            "enum": [
+              "chunk",
+              "parent_child"
+            ],
+            "title": "Indexstructure",
+            "type": "string"
+          },
+          "indexStructureParams": {
+            "additionalProperties": true,
+            "title": "Indexstructureparams",
+            "type": "object"
+          },
+          "keywordStoreCode": {
+            "title": "Keywordstorecode",
+            "type": "string"
+          },
+          "vectorIndexCode": {
+            "title": "Vectorindexcode",
+            "type": "string"
+          },
+          "vectorIndexParams": {
+            "additionalProperties": true,
+            "title": "Vectorindexparams",
+            "type": "object"
+          },
+          "vectorStoreCode": {
+            "title": "Vectorstorecode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "embeddingModelId",
+          "vectorStoreCode",
+          "vectorIndexCode",
+          "keywordStoreCode",
+          "indexStructure",
+          "chunkStrategyCode"
+        ],
+        "title": "KnowledgeBaseBuildConfigDto",
+        "type": "object"
+      },
+      "KnowledgeBaseDetailView": {
+        "additionalProperties": false,
+        "properties": {
+          "activeCompleteness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activecompleteness"
+          },
+          "activeGenerationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activegenerationid"
+          },
+          "activeRetrievalRevisionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activeretrievalrevisionid"
+          },
+          "allowedActions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowedactions",
+            "type": "array"
+          },
+          "botReferenceCount": {
+            "title": "Botreferencecount",
+            "type": "integer"
+          },
+          "chunkCount": {
+            "title": "Chunkcount",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "derivedDisplayStatus": {
+            "title": "Deriveddisplaystatus",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "embeddingModelId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embeddingmodelid"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "generationCount": {
+            "title": "Generationcount",
+            "type": "integer"
+          },
+          "hasUnpublishedBuildChanges": {
+            "title": "Hasunpublishedbuildchanges",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indexStructure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexstructure"
+          },
+          "latestBuildAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestbuildat"
+          },
+          "latestBuildOperationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestbuildoperationid"
+          },
+          "latestGenerationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestgenerationid"
+          },
+          "latestGenerationStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestgenerationstatus"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pendingBuildConfigRevisionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingbuildconfigrevisionid"
+          },
+          "pendingRetrievalRevisionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingretrievalrevisionid"
+          },
+          "retrievalType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrievaltype"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "searchableSourceCount": {
+            "title": "Searchablesourcecount",
+            "type": "integer"
+          },
+          "sourceCount": {
+            "title": "Sourcecount",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "derivedDisplayStatus",
+          "sourceCount",
+          "searchableSourceCount",
+          "chunkCount",
+          "botReferenceCount",
+          "updatedAt",
+          "revision",
+          "allowedActions",
+          "generationCount",
+          "hasUnpublishedBuildChanges",
+          "createdAt"
+        ],
+        "title": "KnowledgeBaseDetailView",
+        "type": "object"
+      },
+      "KnowledgeBasePageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeBaseSummaryView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "title": "KnowledgeBasePageView",
+        "type": "object"
+      },
+      "KnowledgeBaseStateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "title": "KnowledgeBaseStateRequest",
+        "type": "object"
+      },
+      "KnowledgeBaseSummaryView": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedActions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowedactions",
+            "type": "array"
+          },
+          "botReferenceCount": {
+            "title": "Botreferencecount",
+            "type": "integer"
+          },
+          "chunkCount": {
+            "title": "Chunkcount",
+            "type": "integer"
+          },
+          "derivedDisplayStatus": {
+            "title": "Deriveddisplaystatus",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "embeddingModelId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embeddingmodelid"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indexStructure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexstructure"
+          },
+          "latestBuildAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latestbuildat"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "retrievalType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrievaltype"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "searchableSourceCount": {
+            "title": "Searchablesourcecount",
+            "type": "integer"
+          },
+          "sourceCount": {
+            "title": "Sourcecount",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "derivedDisplayStatus",
+          "sourceCount",
+          "searchableSourceCount",
+          "chunkCount",
+          "botReferenceCount",
+          "updatedAt",
+          "revision",
+          "allowedActions"
+        ],
+        "title": "KnowledgeBaseSummaryView",
         "type": "object"
       },
       "LastModelVerificationView": {
@@ -2454,6 +3064,43 @@
         "title": "ProviderPageSize",
         "type": "integer"
       },
+      "QueryRewriteConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "modelId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelid"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "strategyCode": {
+            "enum": [
+              "off",
+              "hyde",
+              "multi_query",
+              "step_back"
+            ],
+            "title": "Strategycode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategyCode"
+        ],
+        "title": "QueryRewriteConfigDto",
+        "type": "object"
+      },
       "RejectedUploadView": {
         "additionalProperties": false,
         "properties": {
@@ -2478,6 +3125,42 @@
         "title": "RejectedUploadView",
         "type": "object"
       },
+      "RerankConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "modelId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelid"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "strategyCode": {
+            "enum": [
+              "off",
+              "rerank_model",
+              "llm_rerank"
+            ],
+            "title": "Strategycode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategyCode"
+        ],
+        "title": "RerankConfigDto",
+        "type": "object"
+      },
       "ResourceRef": {
         "additionalProperties": false,
         "properties": {
@@ -2496,6 +3179,55 @@
           "displayName"
         ],
         "title": "ResourceRef",
+        "type": "object"
+      },
+      "RetrievalConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "contextWindow": {
+            "title": "Contextwindow",
+            "type": "integer"
+          },
+          "finalTopK": {
+            "title": "Finaltopk",
+            "type": "integer"
+          },
+          "hybrid": {
+            "$ref": "#/components/schemas/HybridConfigDto"
+          },
+          "keyword": {
+            "$ref": "#/components/schemas/KeywordConfigDto"
+          },
+          "queryRewrite": {
+            "$ref": "#/components/schemas/QueryRewriteConfigDto"
+          },
+          "rerank": {
+            "$ref": "#/components/schemas/RerankConfigDto"
+          },
+          "retrievalType": {
+            "enum": [
+              "vector",
+              "keyword",
+              "hybrid"
+            ],
+            "title": "Retrievaltype",
+            "type": "string"
+          },
+          "vector": {
+            "$ref": "#/components/schemas/VectorConfigDto"
+          }
+        },
+        "required": [
+          "retrievalType",
+          "vector",
+          "keyword",
+          "hybrid",
+          "queryRewrite",
+          "rerank",
+          "contextWindow",
+          "finalTopK"
+        ],
+        "title": "RetrievalConfigDto",
         "type": "object"
       },
       "SuccessResponse": {
@@ -2530,6 +3262,39 @@
           "displayName"
         ],
         "title": "UpdateDataSourceRequest",
+        "type": "object"
+      },
+      "UpdateKnowledgeBaseMetadataRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "expectedRevision"
+        ],
+        "title": "UpdateKnowledgeBaseMetadataRequest",
         "type": "object"
       },
       "UpdateMinerUSettingsRequest": {
@@ -2842,6 +3607,25 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VectorConfigDto": {
+        "additionalProperties": false,
+        "properties": {
+          "scoreThreshold": {
+            "title": "Scorethreshold",
+            "type": "number"
+          },
+          "topK": {
+            "title": "Topk",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "topK",
+          "scoreThreshold"
+        ],
+        "title": "VectorConfigDto",
         "type": "object"
       },
       "VerificationStatus": {
@@ -3222,6 +4006,16 @@
             "required": true,
             "schema": {
               "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Category",
               "type": "string"
             }
           },
@@ -4027,6 +4821,666 @@
         "summary": "Ready",
         "tags": [
           "系统健康"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases": {
+      "get": {
+        "operationId": "knowledgeBasesList",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Pagesize",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeBasePageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Knowledge Bases",
+        "tags": [
+          "知识库"
+        ]
+      },
+      "post": {
+        "operationId": "knowledgeBasesCreate",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKnowledgeBaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKnowledgeBaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Knowledge Base",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}": {
+      "delete": {
+        "operationId": "knowledgeBasesDelete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expectedrevision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Knowledge Base",
+        "tags": [
+          "知识库"
+        ]
+      },
+      "get": {
+        "operationId": "knowledgeBasesGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeBaseDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Knowledge Base",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/metadata": {
+      "patch": {
+        "operationId": "knowledgeBasesUpdateMetadata",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateKnowledgeBaseMetadataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeBaseDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Knowledge Base Metadata",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}:disable": {
+      "post": {
+        "operationId": "knowledgeBasesDisable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBaseStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeBaseDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disable Knowledge Base",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}:enable": {
+      "post": {
+        "operationId": "knowledgeBasesEnable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBaseStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeBaseDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable Knowledge Base",
+        "tags": [
+          "知识库"
         ]
       }
     },

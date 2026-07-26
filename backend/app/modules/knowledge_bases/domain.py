@@ -106,6 +106,77 @@ class ModelSelectionSnapshot:
     embedding_dimension: int | None
 
 
+@dataclass(frozen=True)
+class SelectedKnowledgeModel:
+    selection: ModelSelectionSnapshot
+    immutable_snapshot: dict[str, object]
+
+
+@dataclass
+class KnowledgeBase:
+    id: UUID
+    name: str
+    description: str | None
+    enabled: bool
+    active_generation_id: UUID | None
+    active_retrieval_revision_id: UUID | None
+    pending_build_config_revision_id: UUID | None
+    pending_retrieval_revision_id: UUID | None
+    latest_build_operation_id: UUID | None
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+
+
+@dataclass(frozen=True)
+class InitialKnowledgeBaseGraph:
+    knowledge_base: KnowledgeBase
+    build_config_revision_id: UUID
+    build_config_hash: str
+    build_config: BuildConfig
+    embedding_model_snapshot: dict[str, object]
+    retrieval_revision_id: UUID
+    retrieval_config_hash: str
+    retrieval_config: RetrievalConfig
+    generation_id: UUID
+    collection_name: str
+    keyword_namespace: UUID
+    source_ids: tuple[UUID, ...]
+    item_ids: tuple[UUID, ...]
+
+
+@dataclass(frozen=True)
+class CreatedKnowledgeBase:
+    knowledge_base: KnowledgeBase
+    generation_id: UUID
+    operation_id: UUID
+
+
+@dataclass(frozen=True)
+class KnowledgeBaseRuntimeSnapshot:
+    latest_generation_id: UUID | None
+    latest_generation_status: str | None
+    latest_generation_created_at: datetime | None
+    active_completeness: str | None
+    source_count: int
+    successful_source_count: int
+    chunk_count: int
+    embedding_model_id: UUID | None
+    index_structure: str | None
+    retrieval_type: str | None
+    bot_reference_count: int
+    generation_count: int
+
+
+@dataclass(frozen=True)
+class KnowledgeBaseDetails:
+    knowledge_base: KnowledgeBase
+    runtime: KnowledgeBaseRuntimeSnapshot
+    derived_display_status: str
+    allowed_actions: tuple[str, ...]
+
+
 def canonical_config_hash(value: object) -> str:
     canonical = json.dumps(
         _canonical_value(value),

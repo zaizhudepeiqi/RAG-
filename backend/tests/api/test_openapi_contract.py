@@ -19,6 +19,33 @@ EXPECTED_OPERATIONS = {
         "/api/v1/capabilities/{code}/versions/{version}",
         "capabilitiesGetVersion",
     ),
+    ("get", "/api/v1/knowledge-bases", "knowledgeBasesList"),
+    ("post", "/api/v1/knowledge-bases", "knowledgeBasesCreate"),
+    (
+        "get",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}",
+        "knowledgeBasesGet",
+    ),
+    (
+        "patch",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/metadata",
+        "knowledgeBasesUpdateMetadata",
+    ),
+    (
+        "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}:enable",
+        "knowledgeBasesEnable",
+    ),
+    (
+        "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}:disable",
+        "knowledgeBasesDisable",
+    ),
+    (
+        "delete",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}",
+        "knowledgeBasesDelete",
+    ),
     ("get", "/api/v1/operations", "operationsList"),
     ("get", "/api/v1/operations/{operationId}", "operationsGet"),
     ("post", "/api/v1/operations/{operationId}:cancel", "operationsCancel"),

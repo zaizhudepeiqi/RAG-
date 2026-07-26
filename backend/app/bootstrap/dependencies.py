@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.infrastructure.database.repositories.audit import SqlAlchemyAuditRepository
 from app.infrastructure.database.repositories.auth import SqlAlchemyAdministratorRepository
+from app.infrastructure.database.repositories.knowledge_bases import (
+    SqlAlchemyKnowledgeBaseRepository,
+)
 from app.infrastructure.database.repositories.mineru_settings import (
     SqlAlchemyMinerUSettingsAuditRepository,
     SqlAlchemyMinerUSettingsRepository,
@@ -57,6 +60,10 @@ from app.infrastructure.vector.chroma import ChromaAdapter
 from app.modules.auth.service import AuthService
 from app.modules.capabilities.registry import build_capability_registry
 from app.modules.capabilities.service import CapabilityService
+from app.modules.knowledge_bases.service import (
+    KnowledgeBaseService,
+    RegistryKnowledgeModelSelector,
+)
 from app.modules.models.service import (
     ModelConfigService,
     ModelProviderService,
@@ -104,6 +111,7 @@ class ApplicationDependencies:
     model_verification_handler: ModelVerificationHandler
     mineru_settings_service: MinerUSettingsService
     data_source_service: DataSourceService
+    knowledge_base_service: KnowledgeBaseService
     source_storage: LocalStorageAdapter
     source_parse_handler: SourceParseHandler
     mineru_connection_test_handler: MinerUConnectionTestHandler
@@ -195,6 +203,14 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         operation_retention_days=settings.operation_retention_days,
     )
     model_selection_service = ModelSelectionService(model_repository, provider_repository)
+    knowledge_base_service = KnowledgeBaseService(
+        SqlAlchemyKnowledgeBaseRepository(),
+        RegistryKnowledgeModelSelector(model_selection_service),
+        build_capability_registry(),
+        task_service,
+        operation_retention_days=settings.operation_retention_days,
+        idempotency=admin_idempotency_service,
+    )
     mineru_settings_service = MinerUSettingsService(
         SqlAlchemyMinerUSettingsRepository(),
         SqlAlchemyMinerUSettingsAuditRepository(),
@@ -299,6 +315,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_verification_handler=model_verification_handler,
         mineru_settings_service=mineru_settings_service,
         data_source_service=data_source_service,
+        knowledge_base_service=knowledge_base_service,
         source_storage=source_storage,
         source_parse_handler=source_parse_handler,
         mineru_connection_test_handler=mineru_connection_test_handler,
