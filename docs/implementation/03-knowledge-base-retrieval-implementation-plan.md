@@ -209,7 +209,7 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 07：五种分块
 - [x] Task 08：两种索引结构
 - [x] Task 09：Embedding 与 Chroma
-- [ ] Task 10：pg_trgm
+- [x] Task 10：pg_trgm
 - [ ] Task 11：构建 Worker 和激活
 - [ ] Task 12：重试和 repair
 - [ ] Task 13：三种检索与融合
