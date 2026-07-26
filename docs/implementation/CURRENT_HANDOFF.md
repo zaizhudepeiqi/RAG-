@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-13 已完成并通过门禁，下一项是查询重写。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-14 已完成并通过门禁，下一项是重排和上下文扩展。
 
 ## 3. Phase 02 已交付
 
@@ -96,8 +96,10 @@ e7b0c7d chore: generate parsing api client
 20. Task 12 门禁：完整 `scripts/check.ps1` 通过；strict mypy `142 source files`；后端非集成 `321 passed`；真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端 Jest `7 suites / 16 tests`、TypeScript、Biome、production build 和 generated API 漂移通过。
 21. Task 13 已完成：新增统一 `RetrievalCandidate` 和单库 `SingleKnowledgeBaseRetriever`，支持 vector、keyword、hybrid 三种召回；各路先执行 Top K/threshold，hybrid 支持可复算 RRF 与 Weighted Score，稳定 ID 排序，核心故障返回明确错误码。
 22. Task 13 门禁：strict mypy `144 source files`；融合/引擎单测 `8 passed`；此前真实 PostgreSQL/Chroma/pg_trgm/Celery 组合 `14 passed`；前端和 OpenAPI 门禁在 Task 12 后保持通过。
-23. 下一项是 Task 14：查询重写；只实现 `off/hyde/multi_query/step_back`，不提前混入重排和上下文扩展。
-24. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+23. Task 14 已完成：新增 query rewrite 服务，支持 `off/hyde/multi_query/step_back`；原 query 始终保留，输出限长/去重，模型可恢复错误降级为原 query 并记录 `QUERY_REWRITE_DEGRADED`，不可恢复错误返回 `QUERY_REWRITE_FAILED`。
+24. Task 14 门禁：strict mypy `145 source files`；检索引擎/融合/query rewrite 单测 `14 passed`；此前完整工程门禁和真实依赖组合保持通过。
+25. 下一项是 Task 15：重排、Parent/Child 上下文扩展、相邻窗口和最终去重；不提前实现机器人上下文预算或回答生成。
+26. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 
