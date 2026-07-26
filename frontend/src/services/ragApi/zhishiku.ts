@@ -72,6 +72,127 @@ export async function knowledgeBasesDelete(
   });
 }
 
+/** Get Build Config GET /api/v1/knowledge-bases/${param0}/build-config */
+export async function knowledgeBasesGetBuildConfig(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesGetBuildConfigParams,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.BuildConfigView>(
+    `/api/v1/knowledge-bases/${param0}/build-config`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
+/** List Generations GET /api/v1/knowledge-bases/${param0}/generations */
+export async function knowledgeBasesListGenerations(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesListGenerationsParams,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.GenerationPageView>(
+    `/api/v1/knowledge-bases/${param0}/generations`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
+/** Create Generation POST /api/v1/knowledge-bases/${param0}/generations */
+export async function knowledgeBasesCreateGeneration(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesCreateGenerationParams,
+  body: API.CreateGenerationRequest,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<any>(`/api/v1/knowledge-bases/${param0}/generations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    params: { ...queryParams },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** Get Generation GET /api/v1/knowledge-bases/${param0}/generations/${param1} */
+export async function knowledgeBasesGetGeneration(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesGetGenerationParams,
+  options?: { [key: string]: any }
+) {
+  const {
+    knowledgeBaseId: param0,
+    generationId: param1,
+    ...queryParams
+  } = params;
+  return request<API.GenerationDetailView>(
+    `/api/v1/knowledge-bases/${param0}/generations/${param1}`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
+/** Discard Generation POST /api/v1/knowledge-bases/${param0}/generations/${param1}%3Adiscard */
+export async function knowledgeBasesDiscardGeneration(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesDiscardGenerationParams,
+  body: API.KnowledgeBaseStateRequest,
+  options?: { [key: string]: any }
+) {
+  const {
+    knowledgeBaseId: param0,
+    generationId: param1,
+    ...queryParams
+  } = params;
+  return request<API.GenerationSummaryView>(
+    `/api/v1/knowledge-bases/${param0}/generations/${param1}%3Adiscard`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      params: { ...queryParams },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** Retry Generation Failed Items POST /api/v1/knowledge-bases/${param0}/generations/${param1}%3Aretry-failed */
+export async function knowledgeBasesRetryGenerationFailedItems(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesRetryGenerationFailedItemsParams,
+  options?: { [key: string]: any }
+) {
+  const {
+    knowledgeBaseId: param0,
+    generationId: param1,
+    ...queryParams
+  } = params;
+  return request<any>(
+    `/api/v1/knowledge-bases/${param0}/generations/${param1}%3Aretry-failed`,
+    {
+      method: "POST",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
 /** Update Knowledge Base Metadata PATCH /api/v1/knowledge-bases/${param0}/metadata */
 export async function knowledgeBasesUpdateMetadata(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -84,6 +205,86 @@ export async function knowledgeBasesUpdateMetadata(
     `/api/v1/knowledge-bases/${param0}/metadata`,
     {
       method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      params: { ...queryParams },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** Save Pending Build Config PUT /api/v1/knowledge-bases/${param0}/pending-build-config */
+export async function knowledgeBasesSavePendingBuildConfig(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesSavePendingBuildConfigParams,
+  body: API.UpdatePendingBuildConfigRequest,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.BuildConfigView>(
+    `/api/v1/knowledge-bases/${param0}/pending-build-config`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      params: { ...queryParams },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
+/** Discard Pending Build Config DELETE /api/v1/knowledge-bases/${param0}/pending-build-config */
+export async function knowledgeBasesDiscardPendingBuildConfig(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesDiscardPendingBuildConfigParams,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<any>(
+    `/api/v1/knowledge-bases/${param0}/pending-build-config`,
+    {
+      method: "DELETE",
+      params: {
+        ...queryParams,
+      },
+      ...(options || {}),
+    }
+  );
+}
+
+/** Get Retrieval Config GET /api/v1/knowledge-bases/${param0}/retrieval-config */
+export async function knowledgeBasesGetRetrievalConfig(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesGetRetrievalConfigParams,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.RetrievalConfigView>(
+    `/api/v1/knowledge-bases/${param0}/retrieval-config`,
+    {
+      method: "GET",
+      params: { ...queryParams },
+      ...(options || {}),
+    }
+  );
+}
+
+/** Save Retrieval Config PUT /api/v1/knowledge-bases/${param0}/retrieval-config */
+export async function knowledgeBasesSaveRetrievalConfig(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesSaveRetrievalConfigParams,
+  body: API.UpdateRetrievalConfigRequest,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.RetrievalConfigRevisionView>(
+    `/api/v1/knowledge-bases/${param0}/retrieval-config`,
+    {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },

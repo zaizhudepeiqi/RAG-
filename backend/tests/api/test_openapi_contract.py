@@ -46,6 +46,56 @@ EXPECTED_OPERATIONS = {
         "/api/v1/knowledge-bases/{knowledgeBaseId}",
         "knowledgeBasesDelete",
     ),
+    (
+        "get",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/build-config",
+        "knowledgeBasesGetBuildConfig",
+    ),
+    (
+        "put",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/pending-build-config",
+        "knowledgeBasesSavePendingBuildConfig",
+    ),
+    (
+        "delete",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/pending-build-config",
+        "knowledgeBasesDiscardPendingBuildConfig",
+    ),
+    (
+        "get",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-config",
+        "knowledgeBasesGetRetrievalConfig",
+    ),
+    (
+        "put",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-config",
+        "knowledgeBasesSaveRetrievalConfig",
+    ),
+    (
+        "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/generations",
+        "knowledgeBasesCreateGeneration",
+    ),
+    (
+        "get",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/generations",
+        "knowledgeBasesListGenerations",
+    ),
+    (
+        "get",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}",
+        "knowledgeBasesGetGeneration",
+    ),
+    (
+        "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}:retry-failed",
+        "knowledgeBasesRetryGenerationFailedItems",
+    ),
+    (
+        "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}:discard",
+        "knowledgeBasesDiscardGeneration",
+    ),
     ("get", "/api/v1/operations", "operationsList"),
     ("get", "/api/v1/operations/{operationId}", "operationsGet"),
     ("post", "/api/v1/operations/{operationId}:cancel", "operationsCancel"),

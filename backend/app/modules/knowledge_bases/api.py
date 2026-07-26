@@ -1,7 +1,7 @@
 from typing import Annotated, Protocol, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Path, Query, Request, status
+from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -12,19 +12,36 @@ from app.modules.auth.domain import Administrator
 from app.modules.knowledge_bases.errors import KnowledgeBaseConfigError
 from app.modules.knowledge_bases.repository import KnowledgeBaseListQuery
 from app.modules.knowledge_bases.schemas import (
+    BuildConfigView,
+    CreateGenerationRequest,
+    CreateGenerationResponse,
     CreateKnowledgeBaseRequest,
     CreateKnowledgeBaseResponse,
+    GenerationDetailView,
+    GenerationPageView,
+    GenerationSummaryView,
     KnowledgeBaseDetailView,
     KnowledgeBasePageView,
     KnowledgeBaseStateRequest,
+    RetrievalConfigRevisionView,
+    RetrievalConfigView,
     UpdateKnowledgeBaseMetadataRequest,
+    UpdatePendingBuildConfigRequest,
+    UpdateRetrievalConfigRequest,
     build_config_domain,
+    build_config_revision_view,
+    generation_detail_view,
+    generation_summary_view,
     knowledge_base_detail,
     knowledge_base_summary,
     retrieval_config_domain,
+    retrieval_config_revision_view,
 )
 from app.modules.knowledge_bases.service import (
+    KnowledgeBaseConfigLockedError,
     KnowledgeBaseDeleteBlockedError,
+    KnowledgeBaseGenerationConflictError,
+    KnowledgeBaseGenerationNotFoundError,
     KnowledgeBaseNameConflictError,
     KnowledgeBaseNotFoundError,
     KnowledgeBaseRevisionConflictError,
@@ -253,10 +270,359 @@ def delete_knowledge_base(
             status_code=409,
             details={"reason": error.reason},
         ) from error
+
+
+@router.get(
+    "/{knowledgeBaseId}/build-config",
+    response_model=BuildConfigView,
+    operation_id="knowledgeBasesGetBuildConfig",
+)
+def get_build_config(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> BuildConfigView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            active, pending = dependencies.knowledge_base_service.get_build_configs(
+                session, knowledge_base_id
+            )
+            return BuildConfigView(
+                active=build_config_revision_view(active) if active else None,
+                pending=build_config_revision_view(pending) if pending else None,
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.put(
+    "/{knowledgeBaseId}/pending-build-config",
+    response_model=BuildConfigView,
+    operation_id="knowledgeBasesSavePendingBuildConfig",
+    dependencies=[Depends(require_csrf)],
+)
+def save_pending_build_config(
+    payload: UpdatePendingBuildConfigRequest,
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> BuildConfigView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            saved = dependencies.knowledge_base_service.save_pending_build_config(
+                session,
+                knowledge_base_id,
+                expected_revision=payload.expected_revision,
+                source_ids=tuple(payload.parsed_source_version_ids),
+                config=build_config_domain(payload.build_config),
+            )
+            active, _pending = dependencies.knowledge_base_service.get_build_configs(
+                session, knowledge_base_id
+            )
+            return BuildConfigView(
+                active=build_config_revision_view(active) if active else None,
+                pending=build_config_revision_view(saved.revision),
+                warnings=list(saved.warnings),
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except KnowledgeBaseConfigError as error:
+        raise _config_error(error) from error
+    except ModelNotSelectableError as error:
+        raise AppError(
+            code=error.code,
+            message="所选模型不存在、类型不符或尚未验证通过",
+            status_code=422,
+        ) from error
+
+
+@router.delete(
+    "/{knowledgeBaseId}/pending-build-config",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="knowledgeBasesDiscardPendingBuildConfig",
+    dependencies=[Depends(require_csrf)],
+)
+def discard_pending_build_config(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    expected_revision: Annotated[int, Query(alias="expectedRevision", ge=1)],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> Response:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            dependencies.knowledge_base_service.discard_pending_build_config(
+                session, knowledge_base_id, expected_revision=expected_revision
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except KnowledgeBaseConfigLockedError as error:
+        raise AppError(
+            code="KNOWLEDGE_BASE_CONFIG_LOCKED",
+            message="构建运行期间不能放弃待发布配置",
+            status_code=409,
+        ) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/{knowledgeBaseId}/retrieval-config",
+    response_model=RetrievalConfigView,
+    operation_id="knowledgeBasesGetRetrievalConfig",
+)
+def get_retrieval_config(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> RetrievalConfigView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            knowledge_base = dependencies.knowledge_base_service.get(session, knowledge_base_id)
+            active, pending = dependencies.knowledge_base_service.get_retrieval_configs(
+                session, knowledge_base_id
+            )
+            return RetrievalConfigView(
+                active=(
+                    retrieval_config_revision_view(
+                        active,
+                        activation_status="active",
+                        active_generation_id=knowledge_base.active_generation_id,
+                    )
+                    if active
+                    else None
+                ),
+                pending=(
+                    retrieval_config_revision_view(
+                        pending,
+                        activation_status="pending_generation",
+                        active_generation_id=None,
+                    )
+                    if pending
+                    else None
+                ),
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.put(
+    "/{knowledgeBaseId}/retrieval-config",
+    response_model=RetrievalConfigRevisionView,
+    operation_id="knowledgeBasesSaveRetrievalConfig",
+    dependencies=[Depends(require_csrf)],
+)
+def save_retrieval_config(
+    payload: UpdateRetrievalConfigRequest,
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> RetrievalConfigRevisionView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            revision, activation_status = dependencies.knowledge_base_service.save_retrieval_config(
+                session,
+                knowledge_base_id,
+                expected_revision=payload.expected_revision,
+                config=retrieval_config_domain(payload.config),
+                activation_mode=payload.activation_mode,
+            )
+            knowledge_base = dependencies.knowledge_base_service.get(session, knowledge_base_id)
+            return retrieval_config_revision_view(
+                revision,
+                activation_status=activation_status,
+                active_generation_id=(
+                    knowledge_base.active_generation_id if activation_status == "active" else None
+                ),
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except KnowledgeBaseConfigError as error:
+        raise _config_error(error) from error
+    except ModelNotSelectableError as error:
+        raise AppError(
+            code=error.code,
+            message="所选模型不存在、类型不符或尚未验证通过",
+            status_code=422,
+        ) from error
     except IdempotencyKeyReusedError as error:
         raise AppError(
             code="IDEMPOTENCY_KEY_REUSED",
             message="同一幂等键不能用于不同请求",
+            status_code=409,
+        ) from error
+
+
+@router.post(
+    "/{knowledgeBaseId}/generations",
+    response_model=CreateGenerationResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="knowledgeBasesCreateGeneration",
+    dependencies=[Depends(require_csrf)],
+)
+def create_generation(
+    payload: CreateGenerationRequest,
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> CreateGenerationResponse:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            generation, operation = dependencies.knowledge_base_service.create_generation(
+                session,
+                knowledge_base_id,
+                expected_revision=payload.expected_revision,
+                pending_build_config_revision_id=payload.pending_build_config_revision_id,
+                pending_retrieval_revision_id=payload.pending_retrieval_revision_id,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+            )
+            return CreateGenerationResponse(
+                generation=generation_summary_view(generation),
+                operation=_operation_ref(operation),
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except KnowledgeBaseGenerationConflictError as error:
+        raise AppError(
+            code="KNOWLEDGE_BASE_BUILD_ALREADY_RUNNING",
+            message="同一知识库只能有一个运行中的构建",
+            status_code=409,
+        ) from error
+    except IdempotencyKeyReusedError as error:
+        raise AppError(
+            code="IDEMPOTENCY_KEY_REUSED",
+            message="同一幂等键不能用于不同请求",
+            status_code=409,
+        ) from error
+
+
+@router.get(
+    "/{knowledgeBaseId}/generations",
+    response_model=GenerationPageView,
+    operation_id="knowledgeBasesListGenerations",
+)
+def list_generations(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> GenerationPageView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            generations = dependencies.knowledge_base_service.list_generations(
+                session, knowledge_base_id
+            )
+            return GenerationPageView(
+                items=[generation_summary_view(item) for item in generations],
+                total=len(generations),
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+
+
+@router.get(
+    "/{knowledgeBaseId}/generations/{generationId}",
+    response_model=GenerationDetailView,
+    operation_id="knowledgeBasesGetGeneration",
+)
+def get_generation(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    generation_id: Annotated[UUID, Path(alias="generationId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> GenerationDetailView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            return generation_detail_view(
+                dependencies.knowledge_base_service.get_generation(
+                    session, knowledge_base_id, generation_id
+                )
+            )
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseGenerationNotFoundError as error:
+        raise AppError(
+            code="KNOWLEDGE_BASE_GENERATION_NOT_FOUND",
+            message="知识库构建代次不存在",
+            status_code=404,
+        ) from error
+
+
+@router.post(
+    "/{knowledgeBaseId}/generations/{generationId}:retry-failed",
+    response_model=OperationRef,
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="knowledgeBasesRetryGenerationFailedItems",
+    dependencies=[Depends(require_csrf)],
+)
+def retry_generation_failed_items(
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    generation_id: Annotated[UUID, Path(alias="generationId")],
+    administrator: Annotated[Administrator, Depends(require_admin)],
+    idempotency_key: Annotated[
+        str,
+        Header(alias="Idempotency-Key", min_length=8, max_length=128),
+    ],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> OperationRef:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            operation = dependencies.knowledge_base_service.request_generation_retry(
+                session,
+                knowledge_base_id,
+                generation_id,
+                administrator_id=administrator.id,
+                idempotency_key=idempotency_key,
+            )
+            return _operation_ref(operation)
+    except (KnowledgeBaseNotFoundError, KnowledgeBaseGenerationNotFoundError) as error:
+        raise _not_found() from error
+    except KnowledgeBaseGenerationConflictError as error:
+        raise AppError(
+            code="KNOWLEDGE_BASE_GENERATION_STATE_CONFLICT",
+            message="当前构建代次状态不允许该操作",
+            status_code=409,
+        ) from error
+    except IdempotencyKeyReusedError as error:
+        raise AppError(
+            code="IDEMPOTENCY_KEY_REUSED",
+            message="同一幂等键不能用于不同请求",
+            status_code=409,
+        ) from error
+
+
+@router.post(
+    "/{knowledgeBaseId}/generations/{generationId}:discard",
+    response_model=GenerationSummaryView,
+    operation_id="knowledgeBasesDiscardGeneration",
+    dependencies=[Depends(require_csrf)],
+)
+def discard_generation(
+    payload: KnowledgeBaseStateRequest,
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    generation_id: Annotated[UUID, Path(alias="generationId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> GenerationSummaryView:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            generation = dependencies.knowledge_base_service.discard_generation(
+                session,
+                knowledge_base_id,
+                generation_id,
+                expected_revision=payload.expected_revision,
+            )
+            return generation_summary_view(generation)
+    except (KnowledgeBaseNotFoundError, KnowledgeBaseGenerationNotFoundError) as error:
+        raise _not_found() from error
+    except KnowledgeBaseRevisionConflictError as error:
+        raise _revision_conflict() from error
+    except KnowledgeBaseGenerationConflictError as error:
+        raise AppError(
+            code="KNOWLEDGE_BASE_GENERATION_STATE_CONFLICT",
+            message="当前构建代次状态不允许该操作",
             status_code=409,
         ) from error
 

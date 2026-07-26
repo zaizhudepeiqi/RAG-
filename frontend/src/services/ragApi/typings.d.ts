@@ -29,6 +29,29 @@ declare namespace API {
     options?: string;
   };
 
+  type BuildConfigRevisionView = {
+    config: KnowledgeBaseBuildConfigDto;
+    /** Confighash */
+    configHash: string;
+    /** Createdat */
+    createdAt: string;
+    /** Embeddingmodelsnapshot */
+    embeddingModelSnapshot: Record<string, any>;
+    /** Id */
+    id: string;
+    /** Parsedsourceversionids */
+    parsedSourceVersionIds: string[];
+    /** Revisionnumber */
+    revisionNumber: number;
+  };
+
+  type BuildConfigView = {
+    active?: BuildConfigRevisionView | null;
+    pending?: BuildConfigRevisionView | null;
+    /** Warnings */
+    warnings?: string[];
+  };
+
   type capabilitiesGetVersionParams = {
     code: string;
     version: string;
@@ -83,6 +106,20 @@ declare namespace API {
     accepted: boolean;
     /** Termsversion */
     termsVersion: string;
+  };
+
+  type CreateGenerationRequest = {
+    /** Expectedrevision */
+    expectedRevision: number;
+    /** Pendingbuildconfigrevisionid */
+    pendingBuildConfigRevisionId: string;
+    /** Pendingretrievalrevisionid */
+    pendingRetrievalRevisionId?: string | null;
+  };
+
+  type CreateGenerationResponse = {
+    generation: GenerationSummaryView;
+    operation: OperationRef;
   };
 
   type CreateKnowledgeBaseRequest = {
@@ -319,6 +356,112 @@ declare namespace API {
     supportedModelTypes: ModelType[];
   };
 
+  type GenerationDetailView = {
+    /** Activatedat */
+    activatedAt?: string | null;
+    /** Buildconfigrevisionid */
+    buildConfigRevisionId: string;
+    /** Chunkcount */
+    chunkCount: number;
+    /** Completeness */
+    completeness?: string | null;
+    /** Createdat */
+    createdAt: string;
+    /** Failedsourcecount */
+    failedSourceCount: number;
+    /** Finishedat */
+    finishedAt?: string | null;
+    /** Generationnumber */
+    generationNumber: number;
+    /** Id */
+    id: string;
+    /** Isfrozen */
+    isFrozen: boolean;
+    /** Items */
+    items: GenerationItemView[];
+    /** Operationid */
+    operationId?: string | null;
+    /** Retrievalrevisionid */
+    retrievalRevisionId: string;
+    /** Sourcecount */
+    sourceCount: number;
+    /** Startedat */
+    startedAt?: string | null;
+    /** Status */
+    status: string;
+    /** Successfulsourcecount */
+    successfulSourceCount: number;
+    /** Validationreport */
+    validationReport: Record<string, any>;
+    /** Vectorcount */
+    vectorCount: number;
+  };
+
+  type GenerationItemView = {
+    /** Chunkcount */
+    chunkCount: number;
+    /** Errorcode */
+    errorCode?: string | null;
+    /** Errormessage */
+    errorMessage?: string | null;
+    /** Id */
+    id: string;
+    /** Parsedsourceversionid */
+    parsedSourceVersionId: string;
+    /** Retryable */
+    retryable: boolean;
+    /** Stageprogress */
+    stageProgress: Record<string, any>;
+    /** Status */
+    status: string;
+    /** Vectorcount */
+    vectorCount: number;
+  };
+
+  type GenerationPageView = {
+    /** Items */
+    items: GenerationSummaryView[];
+    /** Total */
+    total: number;
+  };
+
+  type GenerationSummaryView = {
+    /** Activatedat */
+    activatedAt?: string | null;
+    /** Buildconfigrevisionid */
+    buildConfigRevisionId: string;
+    /** Chunkcount */
+    chunkCount: number;
+    /** Completeness */
+    completeness?: string | null;
+    /** Createdat */
+    createdAt: string;
+    /** Failedsourcecount */
+    failedSourceCount: number;
+    /** Finishedat */
+    finishedAt?: string | null;
+    /** Generationnumber */
+    generationNumber: number;
+    /** Id */
+    id: string;
+    /** Isfrozen */
+    isFrozen: boolean;
+    /** Operationid */
+    operationId?: string | null;
+    /** Retrievalrevisionid */
+    retrievalRevisionId: string;
+    /** Sourcecount */
+    sourceCount: number;
+    /** Startedat */
+    startedAt?: string | null;
+    /** Status */
+    status: string;
+    /** Successfulsourcecount */
+    successfulSourceCount: number;
+    /** Vectorcount */
+    vectorCount: number;
+  };
+
   type HealthResponse = {
     /** Status */
     status: "healthy" | "degraded" | "unhealthy";
@@ -446,6 +589,12 @@ declare namespace API {
     total: number;
   };
 
+  type knowledgeBasesCreateGenerationParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
   type knowledgeBasesCreateParams = {
     rag_admin_access?: string | null;
     rag_csrf?: string | null;
@@ -464,13 +613,48 @@ declare namespace API {
     rag_csrf?: string | null;
   };
 
+  type knowledgeBasesDiscardGenerationParams = {
+    knowledgeBaseId: string;
+    generationId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesDiscardPendingBuildConfigParams = {
+    knowledgeBaseId: string;
+    expectedRevision: number;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
   type knowledgeBasesEnableParams = {
     knowledgeBaseId: string;
     rag_admin_access?: string | null;
     rag_csrf?: string | null;
   };
 
+  type knowledgeBasesGetBuildConfigParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type knowledgeBasesGetGenerationParams = {
+    knowledgeBaseId: string;
+    generationId: string;
+    rag_admin_access?: string | null;
+  };
+
   type knowledgeBasesGetParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type knowledgeBasesGetRetrievalConfigParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+  };
+
+  type knowledgeBasesListGenerationsParams = {
     knowledgeBaseId: string;
     rag_admin_access?: string | null;
   };
@@ -480,6 +664,25 @@ declare namespace API {
     page?: number;
     pageSize?: number;
     rag_admin_access?: string | null;
+  };
+
+  type knowledgeBasesRetryGenerationFailedItemsParams = {
+    knowledgeBaseId: string;
+    generationId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesSavePendingBuildConfigParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
+  type knowledgeBasesSaveRetrievalConfigParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
   };
 
   type KnowledgeBaseStateRequest = {
@@ -1277,6 +1480,27 @@ declare namespace API {
     vector: VectorConfigDto;
   };
 
+  type RetrievalConfigRevisionView = {
+    /** Activationstatus */
+    activationStatus: "active" | "pending_generation";
+    /** Activegenerationid */
+    activeGenerationId?: string | null;
+    config: RetrievalConfigDto;
+    /** Confighash */
+    configHash: string;
+    /** Createdat */
+    createdAt: string;
+    /** Id */
+    id: string;
+    /** Revisionnumber */
+    revisionNumber: number;
+  };
+
+  type RetrievalConfigView = {
+    active?: RetrievalConfigRevisionView | null;
+    pending?: RetrievalConfigRevisionView | null;
+  };
+
   type SuccessResponse = {
     /** Success */
     success?: boolean;
@@ -1340,6 +1564,22 @@ declare namespace API {
     /** Modelname */
     modelName?: string | null;
     modelType?: ModelType | null;
+  };
+
+  type UpdatePendingBuildConfigRequest = {
+    buildConfig: KnowledgeBaseBuildConfigDto;
+    /** Expectedrevision */
+    expectedRevision: number;
+    /** Parsedsourceversionids */
+    parsedSourceVersionIds: string[];
+  };
+
+  type UpdateRetrievalConfigRequest = {
+    /** Activationmode */
+    activationMode?: "auto" | "with_pending_generation";
+    config: RetrievalConfigDto;
+    /** Expectedrevision */
+    expectedRevision: number;
   };
 
   type UploadBatchResult = {

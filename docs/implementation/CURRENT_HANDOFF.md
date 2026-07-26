@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-04 已完成并通过门禁，下一项是配置修订和 generation 管理 API。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-05 已完成并通过门禁，下一项是 TokenCounter 与标准化分块输入。
 
 ## 3. Phase 02 已交付
 
@@ -76,8 +76,8 @@ e7b0c7d chore: generate parsing api client
 
 1. Task 01-03 已完成：capability、0004 迁移/ORM、领域配置和状态机。
 2. Task 04 已完成：知识库创建事务、幂等、列表/详情、元数据、启用/停用、删除守卫与 OpenAPI/generated client。
-3. 下一项是 Task 05：pending build/retrieval config revision 和 generation 管理 API。
-4. 随后实现分块、索引 Adapter、generation Worker 和单库检索。
+3. Task 05 已完成：pending build/retrieval revision、显式 generation 创建、列表/详情、重试请求和 discard。
+4. 下一项是 Task 06：TokenCounter 与标准化分块输入；随后实现五种分块、索引 Adapter、generation Worker 和单库检索。
 5. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界

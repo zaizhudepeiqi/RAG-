@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
@@ -7,13 +8,20 @@ from sqlalchemy.orm import Session
 from app.modules.capabilities.registry import CapabilityRegistry
 from app.modules.knowledge_bases.domain import (
     BuildConfig,
+    BuildConfigRevision,
     CreatedKnowledgeBase,
+    GenerationDetails,
+    GenerationRecord,
     InitialKnowledgeBaseGraph,
     KnowledgeBase,
     KnowledgeBaseDetails,
     ModelSelectionSnapshot,
+    NewGenerationGraph,
     RetrievalConfig,
+    RetrievalConfigRevision,
+    SavedBuildConfig,
     SelectedKnowledgeModel,
+    SourceSelectionSnapshot,
     canonical_config_hash,
     derive_allowed_actions,
     derive_display_status,
@@ -48,6 +56,18 @@ class KnowledgeBaseDeleteBlockedError(ValueError):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class KnowledgeBaseConfigLockedError(ValueError):
+    pass
+
+
+class KnowledgeBaseGenerationConflictError(ValueError):
+    pass
+
+
+class KnowledgeBaseGenerationNotFoundError(LookupError):
+    pass
 
 
 class KnowledgeModelSelector(Protocol):
@@ -390,6 +410,426 @@ class KnowledgeBaseService:
         knowledge_base.revision += 1
         self._repository.save(session, knowledge_base)
         return operation
+
+    def get_build_configs(
+        self, session: Session, knowledge_base_id: UUID
+    ) -> tuple[BuildConfigRevision | None, BuildConfigRevision | None]:
+        knowledge_base = self.get(session, knowledge_base_id)
+        runtime = self._repository.runtime_snapshot(session, knowledge_base)
+        active_id = (
+            runtime.selected_build_config_revision_id
+            if knowledge_base.active_generation_id is not None
+            else None
+        )
+        active = (
+            self._repository.get_build_config_revision(session, active_id)
+            if active_id is not None
+            else None
+        )
+        pending = (
+            self._repository.get_build_config_revision(
+                session, knowledge_base.pending_build_config_revision_id
+            )
+            if knowledge_base.pending_build_config_revision_id is not None
+            else None
+        )
+        return active, pending
+
+    def save_pending_build_config(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        *,
+        expected_revision: int,
+        source_ids: tuple[UUID, ...],
+        config: BuildConfig,
+        now: datetime | None = None,
+    ) -> SavedBuildConfig:
+        now = now or datetime.now(UTC)
+        knowledge_base = self._require_for_update(session, knowledge_base_id, expected_revision)
+        sources = self._validated_sources(session, source_ids)
+        embedding = self._model_selector.require(session, config.embedding_model_id, "embedding")
+        retrieval = self._current_retrieval_revision(session, knowledge_base)
+        referenced_models = self._load_retrieval_models(session, retrieval.config)
+        warnings = validate_configs(
+            config,
+            retrieval.config,
+            sources,
+            embedding.selection,
+            {model.selection.id: model.selection for model in referenced_models.values()},
+            self._capabilities,
+        )
+        config_hash = canonical_config_hash({"sources": source_ids, "config": config})
+        revision = self._repository.find_build_config_revision_by_hash(
+            session, knowledge_base.id, config_hash
+        )
+        if revision is None:
+            revision = BuildConfigRevision(
+                id=uuid4(),
+                knowledge_base_id=knowledge_base.id,
+                revision_number=self._repository.next_build_revision_number(
+                    session, knowledge_base.id
+                ),
+                config_hash=config_hash,
+                config=config,
+                embedding_model_snapshot=embedding.immutable_snapshot,
+                source_ids=source_ids,
+                created_at=now,
+            )
+            self._repository.add_build_config_revision(session, revision)
+        if knowledge_base.pending_build_config_revision_id != revision.id:
+            knowledge_base.pending_build_config_revision_id = revision.id
+            knowledge_base.revision += 1
+            knowledge_base.updated_at = now
+            self._repository.save(session, knowledge_base)
+        return SavedBuildConfig(revision, warnings)
+
+    def discard_pending_build_config(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        *,
+        expected_revision: int,
+        now: datetime | None = None,
+    ) -> KnowledgeBase:
+        knowledge_base = self._require_for_update(session, knowledge_base_id, expected_revision)
+        runtime = self._repository.runtime_snapshot(session, knowledge_base)
+        if runtime.latest_generation_status in {"queued", "building", "validating"}:
+            raise KnowledgeBaseConfigLockedError
+        if knowledge_base.pending_build_config_revision_id is None:
+            return knowledge_base
+        knowledge_base.pending_build_config_revision_id = None
+        knowledge_base.pending_retrieval_revision_id = None
+        knowledge_base.revision += 1
+        knowledge_base.updated_at = now or datetime.now(UTC)
+        self._repository.save(session, knowledge_base)
+        return knowledge_base
+
+    def get_retrieval_configs(
+        self, session: Session, knowledge_base_id: UUID
+    ) -> tuple[RetrievalConfigRevision | None, RetrievalConfigRevision | None]:
+        knowledge_base = self.get(session, knowledge_base_id)
+        active = (
+            self._repository.get_retrieval_config_revision(
+                session, knowledge_base.active_retrieval_revision_id
+            )
+            if knowledge_base.active_retrieval_revision_id is not None
+            else None
+        )
+        pending = (
+            self._repository.get_retrieval_config_revision(
+                session, knowledge_base.pending_retrieval_revision_id
+            )
+            if knowledge_base.pending_retrieval_revision_id is not None
+            else None
+        )
+        return active, pending
+
+    def save_retrieval_config(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        *,
+        expected_revision: int,
+        config: RetrievalConfig,
+        activation_mode: str,
+        now: datetime | None = None,
+    ) -> tuple[RetrievalConfigRevision, Literal["active", "pending_generation"]]:
+        now = now or datetime.now(UTC)
+        knowledge_base = self._require_for_update(session, knowledge_base_id, expected_revision)
+        runtime = self._repository.runtime_snapshot(session, knowledge_base)
+        build_revision_id = runtime.selected_build_config_revision_id
+        if build_revision_id is None:
+            raise KnowledgeBaseConfigError(
+                "BUILD_CONFIG_INVALID", {"buildConfig": ["知识库缺少构建配置"]}
+            )
+        build = self._repository.get_build_config_revision(session, build_revision_id)
+        if build is None:
+            raise RuntimeError("selected build config revision is missing")
+        sources = self._validated_sources(session, build.source_ids)
+        embedding = self._model_selector.require(
+            session, build.config.embedding_model_id, "embedding"
+        )
+        referenced_models = self._load_retrieval_models(session, config)
+        validate_configs(
+            build.config,
+            config,
+            sources,
+            embedding.selection,
+            {model.selection.id: model.selection for model in referenced_models.values()},
+            self._capabilities,
+        )
+        config_hash = canonical_config_hash(config)
+        revision = self._repository.find_retrieval_config_revision_by_hash(
+            session, knowledge_base.id, config_hash
+        )
+        if revision is None:
+            revision = RetrievalConfigRevision(
+                id=uuid4(),
+                knowledge_base_id=knowledge_base.id,
+                revision_number=self._repository.next_retrieval_revision_number(
+                    session, knowledge_base.id
+                ),
+                config_hash=config_hash,
+                config=config,
+                created_at=now,
+            )
+            self._repository.add_retrieval_config_revision(session, revision)
+        has_pending_build = knowledge_base.pending_build_config_revision_id is not None
+        activation_status: Literal["active", "pending_generation"]
+        if has_pending_build or activation_mode == "with_pending_generation":
+            knowledge_base.pending_retrieval_revision_id = revision.id
+            activation_status = "pending_generation"
+        else:
+            knowledge_base.active_retrieval_revision_id = revision.id
+            knowledge_base.pending_retrieval_revision_id = None
+            activation_status = "active"
+        knowledge_base.revision += 1
+        knowledge_base.updated_at = now
+        self._repository.save(session, knowledge_base)
+        return revision, activation_status
+
+    def create_generation(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        *,
+        expected_revision: int,
+        pending_build_config_revision_id: UUID,
+        pending_retrieval_revision_id: UUID | None,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime | None = None,
+    ) -> tuple[GenerationRecord, Operation]:
+        now = now or datetime.now(UTC)
+        request_body: dict[str, object] = {
+            "knowledgeBaseId": str(knowledge_base_id),
+            "expectedRevision": expected_revision,
+            "pendingBuildConfigRevisionId": str(pending_build_config_revision_id),
+            "pendingRetrievalRevisionId": (
+                str(pending_retrieval_revision_id)
+                if pending_retrieval_revision_id is not None
+                else None
+            ),
+        }
+        if self._idempotency is not None:
+            existing = self._idempotency.find(
+                session,
+                administrator_id=administrator_id,
+                endpoint_code="knowledge_bases.generations.create",
+                idempotency_key=idempotency_key,
+                request_body=request_body,
+            )
+            if existing is not None and existing.operation_id is not None:
+                operation = self._tasks.get(session, existing.operation_id)
+                generation_id = self._repository.find_generation_id_by_operation(
+                    session, operation.id
+                )
+                if generation_id is None:
+                    raise RuntimeError("idempotent generation operation is incomplete")
+                details = self._repository.get_generation(session, knowledge_base_id, generation_id)
+                if details is None:
+                    raise RuntimeError("idempotent generation is missing")
+                return details.generation, operation
+        knowledge_base = self._require_for_update(session, knowledge_base_id, expected_revision)
+        runtime = self._repository.runtime_snapshot(session, knowledge_base)
+        if runtime.latest_generation_status in {"queued", "building", "validating"}:
+            raise KnowledgeBaseGenerationConflictError
+        if knowledge_base.pending_build_config_revision_id != pending_build_config_revision_id:
+            raise KnowledgeBaseRevisionConflictError
+        retrieval_revision_id = (
+            pending_retrieval_revision_id
+            or knowledge_base.pending_retrieval_revision_id
+            or knowledge_base.active_retrieval_revision_id
+        )
+        if retrieval_revision_id is None or (
+            pending_retrieval_revision_id is not None
+            and knowledge_base.pending_retrieval_revision_id != pending_retrieval_revision_id
+        ):
+            raise KnowledgeBaseRevisionConflictError
+        build = self._repository.get_build_config_revision(
+            session, pending_build_config_revision_id
+        )
+        if build is None or build.knowledge_base_id != knowledge_base.id:
+            raise KnowledgeBaseRevisionConflictError
+        generation_number = runtime.generation_count + 1
+        generation_id = uuid4()
+        graph = NewGenerationGraph(
+            generation_id=generation_id,
+            knowledge_base_id=knowledge_base.id,
+            generation_number=generation_number,
+            build_config_revision_id=build.id,
+            retrieval_revision_id=retrieval_revision_id,
+            collection_name=f"kb_{knowledge_base.id.hex}_gen_{generation_number}",
+            keyword_namespace=uuid4(),
+            source_ids=build.source_ids,
+            item_ids=tuple(uuid4() for _ in build.source_ids),
+            created_at=now,
+        )
+        self._repository.add_generation(session, graph)
+        operation = self._tasks.create_operation(
+            session,
+            task_type="knowledge_base_build",
+            target_type="knowledge_base",
+            target_id=knowledge_base.id,
+            target_revision=knowledge_base.revision,
+            business_key=(
+                f"admin:{administrator_id}:knowledge_bases.generations.create:{idempotency_key}"
+            ),
+            event_type="knowledge_base.generation.requested",
+            payload={
+                "knowledgeBaseId": str(knowledge_base.id),
+                "generationId": str(generation_id),
+                "expectedRevision": knowledge_base.revision,
+            },
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        self._repository.attach_generation_operation(session, generation_id, operation.id)
+        if self._idempotency is not None:
+            self._idempotency.reserve(
+                session,
+                administrator_id=administrator_id,
+                endpoint_code="knowledge_bases.generations.create",
+                idempotency_key=idempotency_key,
+                request_body=request_body,
+                operation_id=operation.id,
+                now=now,
+            )
+        knowledge_base.latest_build_operation_id = operation.id
+        knowledge_base.revision += 1
+        knowledge_base.updated_at = now
+        self._repository.save(session, knowledge_base)
+        details = self._repository.get_generation(session, knowledge_base.id, generation_id)
+        if details is None:
+            raise RuntimeError("new generation is missing")
+        return details.generation, operation
+
+    def list_generations(
+        self, session: Session, knowledge_base_id: UUID
+    ) -> Sequence[GenerationRecord]:
+        self.get(session, knowledge_base_id)
+        return self._repository.list_generations(session, knowledge_base_id)
+
+    def get_generation(
+        self, session: Session, knowledge_base_id: UUID, generation_id: UUID
+    ) -> GenerationDetails:
+        self.get(session, knowledge_base_id)
+        details = self._repository.get_generation(session, knowledge_base_id, generation_id)
+        if details is None:
+            raise KnowledgeBaseGenerationNotFoundError
+        return details
+
+    def request_generation_retry(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        generation_id: UUID,
+        *,
+        administrator_id: UUID,
+        idempotency_key: str,
+        now: datetime | None = None,
+    ) -> Operation:
+        now = now or datetime.now(UTC)
+        request_body: dict[str, object] = {
+            "knowledgeBaseId": str(knowledge_base_id),
+            "generationId": str(generation_id),
+        }
+        if self._idempotency is not None:
+            existing = self._idempotency.find(
+                session,
+                administrator_id=administrator_id,
+                endpoint_code="knowledge_bases.generations.retry_failed",
+                idempotency_key=idempotency_key,
+                request_body=request_body,
+            )
+            if existing is not None and existing.operation_id is not None:
+                return self._tasks.get(session, existing.operation_id)
+        knowledge_base = self.get(session, knowledge_base_id)
+        generation = self.get_generation(session, knowledge_base_id, generation_id).generation
+        if generation.status not in {"failed", "partial_failed", "partial_ready"}:
+            raise KnowledgeBaseGenerationConflictError
+        operation = self._tasks.create_operation(
+            session,
+            task_type="knowledge_base_build_retry",
+            target_type="index_generation",
+            target_id=generation.id,
+            target_revision=knowledge_base.revision,
+            business_key=(
+                f"admin:{administrator_id}:knowledge_bases.generations.retry_failed:"
+                f"{idempotency_key}"
+            ),
+            event_type="knowledge_base.generation.retry_failed_requested",
+            payload={
+                "knowledgeBaseId": str(knowledge_base.id),
+                "generationId": str(generation.id),
+            },
+            now=now,
+            expires_at=now + timedelta(days=self._operation_retention_days),
+        )
+        if self._idempotency is not None:
+            self._idempotency.reserve(
+                session,
+                administrator_id=administrator_id,
+                endpoint_code="knowledge_bases.generations.retry_failed",
+                idempotency_key=idempotency_key,
+                request_body=request_body,
+                operation_id=operation.id,
+                now=now,
+            )
+        return operation
+
+    def discard_generation(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        generation_id: UUID,
+        *,
+        expected_revision: int,
+        now: datetime | None = None,
+    ) -> GenerationRecord:
+        knowledge_base = self._require_for_update(session, knowledge_base_id, expected_revision)
+        generation = self.get_generation(session, knowledge_base_id, generation_id).generation
+        if (
+            generation.id == knowledge_base.active_generation_id
+            or generation.is_frozen
+            or generation.status not in {"failed", "partial_failed"}
+        ):
+            raise KnowledgeBaseGenerationConflictError
+        discarded = self._repository.set_generation_status(session, generation.id, "discarded")
+        knowledge_base.revision += 1
+        knowledge_base.updated_at = now or datetime.now(UTC)
+        self._repository.save(session, knowledge_base)
+        return discarded
+
+    def _current_retrieval_revision(
+        self, session: Session, knowledge_base: KnowledgeBase
+    ) -> RetrievalConfigRevision:
+        revision_id = (
+            knowledge_base.pending_retrieval_revision_id
+            or knowledge_base.active_retrieval_revision_id
+        )
+        if revision_id is None:
+            raise KnowledgeBaseConfigError(
+                "RETRIEVAL_CONFIG_INVALID", {"retrievalConfig": ["知识库缺少检索配置"]}
+            )
+        revision = self._repository.get_retrieval_config_revision(session, revision_id)
+        if revision is None:
+            raise RuntimeError("selected retrieval config revision is missing")
+        return revision
+
+    def _validated_sources(
+        self, session: Session, source_ids: tuple[UUID, ...]
+    ) -> tuple[SourceSelectionSnapshot, ...]:
+        sources = self._repository.load_source_snapshots(session, source_ids)
+        loaded_ids = {source.parsed_source_version_id for source in sources}
+        missing = [str(source_id) for source_id in source_ids if source_id not in loaded_ids]
+        if missing:
+            raise KnowledgeBaseConfigError(
+                "BUILD_CONFIG_INVALID",
+                {"parsedSourceVersionIds": ["包含不存在的解析版本: " + ", ".join(missing)]},
+            )
+        return sources
 
     def _require_for_update(
         self,

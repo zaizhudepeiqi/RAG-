@@ -167,6 +167,7 @@ class KnowledgeBaseRuntimeSnapshot:
     retrieval_type: str | None
     bot_reference_count: int
     generation_count: int
+    selected_build_config_revision_id: UUID | None
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,90 @@ class KnowledgeBaseDetails:
     runtime: KnowledgeBaseRuntimeSnapshot
     derived_display_status: str
     allowed_actions: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BuildConfigRevision:
+    id: UUID
+    knowledge_base_id: UUID
+    revision_number: int
+    config_hash: str
+    config: BuildConfig
+    embedding_model_snapshot: dict[str, object]
+    source_ids: tuple[UUID, ...]
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class RetrievalConfigRevision:
+    id: UUID
+    knowledge_base_id: UUID
+    revision_number: int
+    config_hash: str
+    config: RetrievalConfig
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class SavedBuildConfig:
+    revision: BuildConfigRevision
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GenerationRecord:
+    id: UUID
+    knowledge_base_id: UUID
+    generation_number: int
+    build_config_revision_id: UUID
+    retrieval_revision_id: UUID
+    status: str
+    completeness: str | None
+    source_count: int
+    successful_source_count: int
+    failed_source_count: int
+    chunk_count: int
+    vector_count: int
+    validation_report: dict[str, object]
+    operation_id: UUID | None
+    is_frozen: bool
+    started_at: datetime | None
+    finished_at: datetime | None
+    activated_at: datetime | None
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class GenerationItemRecord:
+    id: UUID
+    parsed_source_version_id: UUID
+    status: str
+    stage_progress: dict[str, object]
+    chunk_count: int
+    vector_count: int
+    error_code: str | None
+    error_message: str | None
+    retryable: bool
+
+
+@dataclass(frozen=True)
+class GenerationDetails:
+    generation: GenerationRecord
+    items: tuple[GenerationItemRecord, ...]
+
+
+@dataclass(frozen=True)
+class NewGenerationGraph:
+    generation_id: UUID
+    knowledge_base_id: UUID
+    generation_number: int
+    build_config_revision_id: UUID
+    retrieval_revision_id: UUID
+    collection_name: str
+    keyword_namespace: UUID
+    source_ids: tuple[UUID, ...]
+    item_ids: tuple[UUID, ...]
+    created_at: datetime
 
 
 def canonical_config_hash(value: object) -> str:

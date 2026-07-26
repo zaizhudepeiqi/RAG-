@@ -302,3 +302,164 @@ def test_delete_rejects_running_build_then_soft_deletes_without_deleting_sources
             )
             == 2
         )
+
+
+def test_pending_build_and_retrieval_revisions_do_not_change_active_configuration(
+    knowledge_base_client: tuple[TestClient, Engine, UUID, tuple[UUID, UUID]],
+) -> None:
+    client, engine, model_id, version_ids = knowledge_base_client
+    payload = create_payload(model_id, version_ids)
+    created = client.post(
+        "/api/v1/knowledge-bases",
+        headers=csrf(client, "knowledge-base-create-0005"),
+        json=payload,
+    ).json()["knowledgeBase"]
+    knowledge_base_id = created["id"]
+
+    initial_build = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/build-config")
+    initial_retrieval = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/retrieval-config")
+    assert initial_build.status_code == 200
+    assert initial_build.json()["active"] is None
+    assert initial_build.json()["pending"]["revisionNumber"] == 1
+    assert initial_retrieval.status_code == 200
+    assert initial_retrieval.json()["active"] is None
+    assert initial_retrieval.json()["pending"]["revisionNumber"] == 1
+
+    build_payload = payload["buildConfig"]
+    assert isinstance(build_payload, dict)
+    chunk_params = build_payload["chunkParams"]
+    assert isinstance(chunk_params, dict)
+    chunk_params["chunkSize"] = 768
+    saved_build = client.put(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/pending-build-config",
+        headers=csrf(client),
+        json={
+            "expectedRevision": 1,
+            "parsedSourceVersionIds": [str(item) for item in version_ids],
+            "buildConfig": build_payload,
+        },
+    )
+    assert saved_build.status_code == 200, saved_build.json()
+    assert saved_build.json()["pending"]["revisionNumber"] == 2
+    assert saved_build.json()["active"] is None
+
+    retrieval_payload = payload["retrievalConfig"]
+    assert isinstance(retrieval_payload, dict)
+    retrieval_payload["finalTopK"] = 12
+    saved_retrieval = client.put(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/retrieval-config",
+        headers=csrf(client),
+        json={
+            "expectedRevision": 2,
+            "config": retrieval_payload,
+            "activationMode": "auto",
+        },
+    )
+    assert saved_retrieval.status_code == 200, saved_retrieval.json()
+    assert saved_retrieval.json()["revisionNumber"] == 2
+    assert saved_retrieval.json()["activationStatus"] == "pending_generation"
+
+    locked = client.delete(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/pending-build-config",
+        headers=csrf(client),
+        params={"expectedRevision": 3},
+    )
+    assert locked.status_code == 409
+    assert locked.json()["code"] == "KNOWLEDGE_BASE_CONFIG_LOCKED"
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE index_generations SET status = 'failed' "
+                "WHERE knowledge_base_id = :knowledge_base_id"
+            ),
+            {"knowledge_base_id": UUID(knowledge_base_id)},
+        )
+    discarded = client.delete(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/pending-build-config",
+        headers=csrf(client),
+        params={"expectedRevision": 3},
+    )
+    assert discarded.status_code == 204
+    after_build = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/build-config")
+    after_retrieval = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/retrieval-config")
+    assert after_build.json() == {"active": None, "pending": None, "warnings": []}
+    assert after_retrieval.json() == {"active": None, "pending": None}
+
+
+def test_generation_creation_is_explicit_idempotent_and_queryable(
+    knowledge_base_client: tuple[TestClient, Engine, UUID, tuple[UUID, UUID]],
+) -> None:
+    client, engine, model_id, version_ids = knowledge_base_client
+    created = client.post(
+        "/api/v1/knowledge-bases",
+        headers=csrf(client, "knowledge-base-create-0006"),
+        json=create_payload(model_id, version_ids),
+    ).json()["knowledgeBase"]
+    knowledge_base_id = created["id"]
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE index_generations SET status = 'failed' "
+                "WHERE knowledge_base_id = :knowledge_base_id"
+            ),
+            {"knowledge_base_id": UUID(knowledge_base_id)},
+        )
+
+    initial = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/generations")
+    initial_generation_id = initial.json()["items"][0]["id"]
+    initial_detail = client.get(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations/{initial_generation_id}"
+    )
+    assert initial.status_code == 200
+    assert initial.json()["total"] == 1
+    assert initial_detail.status_code == 200
+    assert len(initial_detail.json()["items"]) == 2
+
+    request = {
+        "expectedRevision": 1,
+        "pendingBuildConfigRevisionId": created["pendingBuildConfigRevisionId"],
+        "pendingRetrievalRevisionId": created["pendingRetrievalRevisionId"],
+    }
+    generated = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations",
+        headers=csrf(client, "knowledge-base-generation-0001"),
+        json=request,
+    )
+    repeated = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations",
+        headers=csrf(client, "knowledge-base-generation-0001"),
+        json=request,
+    )
+    assert generated.status_code == 202, generated.json()
+    assert repeated.status_code == 202
+    assert repeated.json() == generated.json()
+    assert generated.json()["generation"]["generationNumber"] == 2
+    assert generated.json()["generation"]["status"] == "queued"
+    listed = client.get(f"/api/v1/knowledge-bases/{knowledge_base_id}/generations")
+    assert listed.json()["total"] == 2
+
+    generation_id = generated.json()["generation"]["id"]
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE index_generations SET status = 'failed' WHERE id = :id"),
+            {"id": UUID(generation_id)},
+        )
+    retried = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations/{generation_id}:retry-failed",
+        headers=csrf(client, "knowledge-base-generation-retry-0001"),
+    )
+    repeated_retry = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations/{generation_id}:retry-failed",
+        headers=csrf(client, "knowledge-base-generation-retry-0001"),
+    )
+    assert retried.status_code == 202
+    assert repeated_retry.json() == retried.json()
+
+    discarded = client.post(
+        f"/api/v1/knowledge-bases/{knowledge_base_id}/generations/{generation_id}:discard",
+        headers=csrf(client),
+        json={"expectedRevision": 2},
+    )
+    assert discarded.status_code == 200
+    assert discarded.json()["status"] == "discarded"

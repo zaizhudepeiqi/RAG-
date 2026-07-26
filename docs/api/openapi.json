@@ -48,6 +48,90 @@
         "title": "Body_dataSourcesUpload",
         "type": "object"
       },
+      "BuildConfigRevisionView": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/KnowledgeBaseBuildConfigDto"
+          },
+          "configHash": {
+            "title": "Confighash",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "embeddingModelSnapshot": {
+            "additionalProperties": true,
+            "title": "Embeddingmodelsnapshot",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "parsedSourceVersionIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Parsedsourceversionids",
+            "type": "array"
+          },
+          "revisionNumber": {
+            "title": "Revisionnumber",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revisionNumber",
+          "parsedSourceVersionIds",
+          "config",
+          "configHash",
+          "embeddingModelSnapshot",
+          "createdAt"
+        ],
+        "title": "BuildConfigRevisionView",
+        "type": "object"
+      },
+      "BuildConfigView": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildConfigRevisionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildConfigRevisionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "title": "BuildConfigView",
+        "type": "object"
+      },
       "CapabilityOptionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -196,6 +280,56 @@
           "termsVersion"
         ],
         "title": "CloudProcessingConsent",
+        "type": "object"
+      },
+      "CreateGenerationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "pendingBuildConfigRevisionId": {
+            "format": "uuid",
+            "title": "Pendingbuildconfigrevisionid",
+            "type": "string"
+          },
+          "pendingRetrievalRevisionId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendingretrievalrevisionid"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "pendingBuildConfigRevisionId"
+        ],
+        "title": "CreateGenerationRequest",
+        "type": "object"
+      },
+      "CreateGenerationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "generation": {
+            "$ref": "#/components/schemas/GenerationSummaryView"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/OperationRef"
+          }
+        },
+        "required": [
+          "generation",
+          "operation"
+        ],
+        "title": "CreateGenerationResponse",
         "type": "object"
       },
       "CreateKnowledgeBaseRequest": {
@@ -794,6 +928,375 @@
           "discoveryMetadata"
         ],
         "title": "DiscoveredModelView",
+        "type": "object"
+      },
+      "GenerationDetailView": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activatedat"
+          },
+          "buildConfigRevisionId": {
+            "format": "uuid",
+            "title": "Buildconfigrevisionid",
+            "type": "string"
+          },
+          "chunkCount": {
+            "title": "Chunkcount",
+            "type": "integer"
+          },
+          "completeness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completeness"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "failedSourceCount": {
+            "title": "Failedsourcecount",
+            "type": "integer"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "generationNumber": {
+            "title": "Generationnumber",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isFrozen": {
+            "title": "Isfrozen",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationItemView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "operationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operationid"
+          },
+          "retrievalRevisionId": {
+            "format": "uuid",
+            "title": "Retrievalrevisionid",
+            "type": "string"
+          },
+          "sourceCount": {
+            "title": "Sourcecount",
+            "type": "integer"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "successfulSourceCount": {
+            "title": "Successfulsourcecount",
+            "type": "integer"
+          },
+          "validationReport": {
+            "additionalProperties": true,
+            "title": "Validationreport",
+            "type": "object"
+          },
+          "vectorCount": {
+            "title": "Vectorcount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "generationNumber",
+          "status",
+          "buildConfigRevisionId",
+          "retrievalRevisionId",
+          "sourceCount",
+          "successfulSourceCount",
+          "failedSourceCount",
+          "chunkCount",
+          "vectorCount",
+          "isFrozen",
+          "createdAt",
+          "validationReport",
+          "items"
+        ],
+        "title": "GenerationDetailView",
+        "type": "object"
+      },
+      "GenerationItemView": {
+        "additionalProperties": false,
+        "properties": {
+          "chunkCount": {
+            "title": "Chunkcount",
+            "type": "integer"
+          },
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errorcode"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "parsedSourceVersionId": {
+            "format": "uuid",
+            "title": "Parsedsourceversionid",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "stageProgress": {
+            "additionalProperties": true,
+            "title": "Stageprogress",
+            "type": "object"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "vectorCount": {
+            "title": "Vectorcount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "parsedSourceVersionId",
+          "status",
+          "stageProgress",
+          "chunkCount",
+          "vectorCount",
+          "retryable"
+        ],
+        "title": "GenerationItemView",
+        "type": "object"
+      },
+      "GenerationPageView": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationSummaryView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "GenerationPageView",
+        "type": "object"
+      },
+      "GenerationSummaryView": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activatedat"
+          },
+          "buildConfigRevisionId": {
+            "format": "uuid",
+            "title": "Buildconfigrevisionid",
+            "type": "string"
+          },
+          "chunkCount": {
+            "title": "Chunkcount",
+            "type": "integer"
+          },
+          "completeness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completeness"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "failedSourceCount": {
+            "title": "Failedsourcecount",
+            "type": "integer"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finishedat"
+          },
+          "generationNumber": {
+            "title": "Generationnumber",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "isFrozen": {
+            "title": "Isfrozen",
+            "type": "boolean"
+          },
+          "operationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operationid"
+          },
+          "retrievalRevisionId": {
+            "format": "uuid",
+            "title": "Retrievalrevisionid",
+            "type": "string"
+          },
+          "sourceCount": {
+            "title": "Sourcecount",
+            "type": "integer"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "successfulSourceCount": {
+            "title": "Successfulsourcecount",
+            "type": "integer"
+          },
+          "vectorCount": {
+            "title": "Vectorcount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "generationNumber",
+          "status",
+          "buildConfigRevisionId",
+          "retrievalRevisionId",
+          "sourceCount",
+          "successfulSourceCount",
+          "failedSourceCount",
+          "chunkCount",
+          "vectorCount",
+          "isFrozen",
+          "createdAt"
+        ],
+        "title": "GenerationSummaryView",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -3230,6 +3733,89 @@
         "title": "RetrievalConfigDto",
         "type": "object"
       },
+      "RetrievalConfigRevisionView": {
+        "additionalProperties": false,
+        "properties": {
+          "activationStatus": {
+            "enum": [
+              "active",
+              "pending_generation"
+            ],
+            "title": "Activationstatus",
+            "type": "string"
+          },
+          "activeGenerationId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activegenerationid"
+          },
+          "config": {
+            "$ref": "#/components/schemas/RetrievalConfigDto"
+          },
+          "configHash": {
+            "title": "Confighash",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revisionNumber": {
+            "title": "Revisionnumber",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revisionNumber",
+          "config",
+          "configHash",
+          "activationStatus",
+          "createdAt"
+        ],
+        "title": "RetrievalConfigRevisionView",
+        "type": "object"
+      },
+      "RetrievalConfigView": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetrievalConfigRevisionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetrievalConfigRevisionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RetrievalConfigView",
+        "type": "object"
+      },
       "SuccessResponse": {
         "additionalProperties": false,
         "properties": {
@@ -3517,6 +4103,63 @@
           "expectedRevision"
         ],
         "title": "UpdateModelRequest",
+        "type": "object"
+      },
+      "UpdatePendingBuildConfigRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "buildConfig": {
+            "$ref": "#/components/schemas/KnowledgeBaseBuildConfigDto"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          },
+          "parsedSourceVersionIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Parsedsourceversionids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "parsedSourceVersionIds",
+          "buildConfig"
+        ],
+        "title": "UpdatePendingBuildConfigRequest",
+        "type": "object"
+      },
+      "UpdateRetrievalConfigRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "activationMode": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "with_pending_generation"
+            ],
+            "title": "Activationmode",
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/RetrievalConfigDto"
+          },
+          "expectedRevision": {
+            "minimum": 1.0,
+            "title": "Expectedrevision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "config"
+        ],
+        "title": "UpdateRetrievalConfigRequest",
         "type": "object"
       },
       "UploadBatchResult": {
@@ -5181,6 +5824,526 @@
         ]
       }
     },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/build-config": {
+      "get": {
+        "operationId": "knowledgeBasesGetBuildConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildConfigView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Build Config",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/generations": {
+      "get": {
+        "operationId": "knowledgeBasesListGenerations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationPageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Generations",
+        "tags": [
+          "知识库"
+        ]
+      },
+      "post": {
+        "operationId": "knowledgeBasesCreateGeneration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGenerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateGenerationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Generation",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}": {
+      "get": {
+        "operationId": "knowledgeBasesGetGeneration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "generationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Generationid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Generation",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}:discard": {
+      "post": {
+        "operationId": "knowledgeBasesDiscardGeneration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "generationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Generationid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBaseStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationSummaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Generation",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/generations/{generationId}:retry-failed": {
+      "post": {
+        "operationId": "knowledgeBasesRetryGenerationFailedItems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "generationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Generationid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationRef"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Generation Failed Items",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
     "/api/v1/knowledge-bases/{knowledgeBaseId}/metadata": {
       "patch": {
         "operationId": "knowledgeBasesUpdateMetadata",
@@ -5277,6 +6440,357 @@
           }
         },
         "summary": "Update Knowledge Base Metadata",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/pending-build-config": {
+      "delete": {
+        "operationId": "knowledgeBasesDiscardPendingBuildConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedRevision",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Expectedrevision",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discard Pending Build Config",
+        "tags": [
+          "知识库"
+        ]
+      },
+      "put": {
+        "operationId": "knowledgeBasesSavePendingBuildConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePendingBuildConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildConfigView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Pending Build Config",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-config": {
+      "get": {
+        "operationId": "knowledgeBasesGetRetrievalConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalConfigView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Retrieval Config",
+        "tags": [
+          "知识库"
+        ]
+      },
+      "put": {
+        "operationId": "knowledgeBasesSaveRetrievalConfig",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRetrievalConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalConfigRevisionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Retrieval Config",
         "tags": [
           "知识库"
         ]
