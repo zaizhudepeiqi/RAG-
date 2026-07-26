@@ -206,7 +206,7 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 04：知识库创建、查询和生命周期
 - [x] Task 05：配置修订和 generation API
 - [x] Task 06：TokenCounter 和输入规范化
-- [ ] Task 07：五种分块
+- [x] Task 07：五种分块
 - [ ] Task 08：两种索引结构
 - [ ] Task 09：Embedding 与 Chroma
 - [ ] Task 10：pg_trgm
