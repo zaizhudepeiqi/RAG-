@@ -16,7 +16,7 @@
 
 当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-05 已完成并通过门禁，下一项是 TokenCounter 与标准化分块输入。
+Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-06 已完成并通过门禁，下一项是五种分块策略。
 
 ## 3. Phase 02 已交付
 
@@ -77,8 +77,9 @@ e7b0c7d chore: generate parsing api client
 1. Task 01-03 已完成：capability、0004 迁移/ORM、领域配置和状态机。
 2. Task 04 已完成：知识库创建事务、幂等、列表/详情、元数据、启用/停用、删除守卫与 OpenAPI/generated client。
 3. Task 05 已完成：pending build/retrieval revision、显式 generation 创建、列表/详情、重试请求和 discard。
-4. 下一项是 Task 06：TokenCounter 与标准化分块输入；随后实现五种分块、索引 Adapter、generation Worker 和单库检索。
-5. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+4. Task 06 已完成：锁定 tiktoken、统一计数快照、Unicode/空白规范化、来源映射、确定性 ID 和相邻链。
+5. 下一项是 Task 07：Token/段落/标题/按页/语义五种分块；随后实现索引结构、Adapter、generation Worker 和单库检索。
+6. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 

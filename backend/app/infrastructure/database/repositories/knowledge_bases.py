@@ -14,6 +14,7 @@ from app.infrastructure.database.models.knowledge_bases import (
     KnowledgeBaseRetrievalRevisionModel,
 )
 from app.infrastructure.database.models.parsing import ParsedSourceVersionModel
+from app.modules.chunking.token_counter import Cl100kTokenCounter
 from app.modules.knowledge_bases.domain import (
     BuildConfig,
     BuildConfigRevision,
@@ -145,9 +146,9 @@ class SqlAlchemyKnowledgeBaseRepository:
                 chunk_strategy_version=build.chunk_strategy_version,
                 chunk_params=build.chunk_params,
                 token_counter_snapshot={
-                    "code": "tiktoken_cl100k_base",
-                    "version": "1",
-                    "estimated": True,
+                    "code": Cl100kTokenCounter.code,
+                    "version": Cl100kTokenCounter.version,
+                    "estimated": Cl100kTokenCounter.estimated,
                 },
                 config_hash=graph.build_config_hash,
                 created_at=knowledge_base.created_at,
@@ -363,9 +364,9 @@ class SqlAlchemyKnowledgeBaseRepository:
                 chunk_strategy_version=config.chunk_strategy_version,
                 chunk_params=config.chunk_params,
                 token_counter_snapshot={
-                    "code": "tiktoken_cl100k_base",
-                    "version": "1",
-                    "estimated": True,
+                    "code": Cl100kTokenCounter.code,
+                    "version": Cl100kTokenCounter.version,
+                    "estimated": Cl100kTokenCounter.estimated,
                 },
                 config_hash=revision.config_hash,
                 created_at=revision.created_at,
