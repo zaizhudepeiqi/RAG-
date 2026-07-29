@@ -1,6 +1,6 @@
 # 当前开发交接
 
-> 更新时间：2026-07-27（Asia/Shanghai）
+> 更新时间：2026-07-29（Asia/Shanghai）
 > 用途：会话恢复和阶段状态摘要；需求定义以 `docs/requirements` 为唯一真源。
 
 ## 1. 工作位置
@@ -14,9 +14,9 @@
 
 ## 2. 当前状态
 
-当前状态：**IMPLEMENTATION IN PROGRESS (PHASE 3)**。
+当前状态：**PHASE 03 ACCEPTED / READY FOR PHASE 04 PLANNING**。
 
-Phase 01 和 Phase 02 已合并并推送到 `main`。Phase 03 独立分支和 worktree 已创建；Task 01-14 已完成并通过门禁，下一项是重排和上下文扩展。
+Phase 01、Phase 02 和 Phase 03 的实现及验收均已完成。Phase 03 源提交为 `6d2d021`；本次交接完成后合并并推送到 `main`。下一次开发先编写并确认 Phase 04 实施计划，不直接开始机器人代码。
 
 ## 3. Phase 02 已交付
 
@@ -105,9 +105,11 @@ e7b0c7d chore: generate parsing api client
 29. Task 16 已完成：多查询先独立召回并以 RRF 融合，之后只执行一次 rerank/context expansion；原单 query 检索 API 保持兼容。运行时已接通全局模型配置的 Embedding、LLM rewrite/LLM rerank 和 Rerank model，Provider 响应结构与鉴权错误不伪装为 no-hit。
 30. Task 17 已完成：OpenAPI、新生成前端 service 与 operationId 契约同步；新增 API 集成测试验证活动代次读取和不新增 Operation。
 31. 本轮验证：检索单元 `39 passed`；知识库 API 集成 `7 passed`；完整 PostgreSQL 集成 `136 passed`；后端非集成 `344 passed`；前端 `npm run check`（Biome、TypeScript、Jest `7 suites / 16 tests`、build）通过；strict mypy `152 source files` 通过。
-32. `scripts/check.ps1` 最终重跑在用户要求收尾前被主动中断，已完成 repository/docs/compose/dependency sync/format，Task 18 必须从头完整重跑并记录结果，不能将本轮状态表述为完整门禁通过。
-33. 后续入口：先完成 Task 18 全量门禁和 Phase 03 验收证据，再开始 Phase 04（机器人、多知识库融合、会话记忆、回答生成与引用）；不提前实现渠道或前端业务页面。
-34. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+32. Task 18 已完成：`scripts/check.ps1` 从干净提交完整通过；Ruff、strict mypy `152 source files`、后端非集成 `344 passed`、前端 Jest `7 suites / 16 tests`、Biome、TypeScript、production build 和 generated API 零漂移全部通过。
+33. 真实 PostgreSQL、Redis、Chroma 组合集成 `136 passed`；Alembic 已升级到 `0004_knowledge_retrieval` 且 `alembic check` 无新增操作。
+34. 后端生产依赖审计无已知漏洞，保留既有 `PYSEC-2026-311` 临时例外；前端生产依赖按 high 门槛通过，保留既有 1 项 `dompurify` moderate 上游问题。
+35. 后续入口：先为 Phase 04（机器人、多知识库融合、会话记忆、回答生成与引用）编写独立实施计划并确认边界；渠道和前端业务页面仍属于后续阶段，不得提前混入。
+36. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 
