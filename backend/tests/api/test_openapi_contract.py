@@ -73,6 +73,11 @@ EXPECTED_OPERATIONS = {
     ),
     (
         "post",
+        "/api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-tests",
+        "knowledgeBasesRunRetrievalTest",
+    ),
+    (
+        "post",
         "/api/v1/knowledge-bases/{knowledgeBaseId}/generations",
         "knowledgeBasesCreateGeneration",
     ),

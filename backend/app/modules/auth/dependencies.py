@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Cookie, Depends, Header, Request
 
@@ -13,7 +13,7 @@ CSRF_COOKIE = "rag_csrf"
 
 
 def get_auth_service(request: Request) -> AuthService:
-    return request.app.state.dependencies.auth_service
+    return cast(AuthService, request.app.state.dependencies.auth_service)
 
 
 def get_current_admin(

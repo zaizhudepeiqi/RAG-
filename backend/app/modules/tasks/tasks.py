@@ -32,7 +32,7 @@ class ExecutionDependencies:
     operations: OperationExecutionStore
 
 
-@celery_app.task(name="app.tasks.maintenance.dispatch_outbox")
+@celery_app.task(name="app.tasks.maintenance.dispatch_outbox")  # type: ignore[untyped-decorator]
 def dispatch_outbox() -> int:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -46,7 +46,7 @@ def dispatch_outbox() -> int:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.reconcile_outbox")
+@celery_app.task(name="app.tasks.maintenance.reconcile_outbox")  # type: ignore[untyped-decorator]
 def reconcile_outbox() -> int:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -55,7 +55,7 @@ def reconcile_outbox() -> int:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.worker_heartbeat")
+@celery_app.task(name="app.tasks.maintenance.worker_heartbeat")  # type: ignore[untyped-decorator]
 def worker_heartbeat() -> None:
     settings = get_settings()
     dependencies = build_application_dependencies(settings)
@@ -65,7 +65,7 @@ def worker_heartbeat() -> None:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.test_model_provider")
+@celery_app.task(name="app.tasks.maintenance.test_model_provider")  # type: ignore[untyped-decorator]
 def test_model_provider(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -79,7 +79,7 @@ def test_model_provider(operationId: str, eventType: str, schemaVersion: str) ->
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.discover_provider_models")
+@celery_app.task(name="app.tasks.maintenance.discover_provider_models")  # type: ignore[untyped-decorator]
 def discover_provider_models(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -93,7 +93,7 @@ def discover_provider_models(operationId: str, eventType: str, schemaVersion: st
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.verify_model")
+@celery_app.task(name="app.tasks.maintenance.verify_model")  # type: ignore[untyped-decorator]
 def verify_model(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -107,7 +107,7 @@ def verify_model(operationId: str, eventType: str, schemaVersion: str) -> None:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.test_mineru")
+@celery_app.task(name="app.tasks.maintenance.test_mineru")  # type: ignore[untyped-decorator]
 def test_mineru(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -121,7 +121,7 @@ def test_mineru(operationId: str, eventType: str, schemaVersion: str) -> None:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.maintenance.cleanup_parsing")
+@celery_app.task(name="app.tasks.maintenance.cleanup_parsing")  # type: ignore[untyped-decorator]
 def cleanup_parsing(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -135,7 +135,7 @@ def cleanup_parsing(operationId: str, eventType: str, schemaVersion: str) -> Non
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.parsing.parse_source")
+@celery_app.task(name="app.tasks.parsing.parse_source")  # type: ignore[untyped-decorator]
 def parse_source(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -149,7 +149,7 @@ def parse_source(operationId: str, eventType: str, schemaVersion: str) -> None:
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.indexing.build_generation")
+@celery_app.task(name="app.tasks.indexing.build_generation")  # type: ignore[untyped-decorator]
 def build_generation(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:
@@ -163,7 +163,7 @@ def build_generation(operationId: str, eventType: str, schemaVersion: str) -> No
         dependencies.close()
 
 
-@celery_app.task(name="app.tasks.indexing.retry_generation")
+@celery_app.task(name="app.tasks.indexing.retry_generation")  # type: ignore[untyped-decorator]
 def retry_generation(operationId: str, eventType: str, schemaVersion: str) -> None:
     dependencies = build_application_dependencies(get_settings())
     try:

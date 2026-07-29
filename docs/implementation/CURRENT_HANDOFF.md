@@ -101,8 +101,13 @@ e7b0c7d chore: generate parsing api client
 25. Task 15 已完成：新增 rerank adapter/service，支持 `off`、`rerank_model`、`llm_rerank`，候选硬限制、topK/threshold、0-1 响应校验、稳定排序；可恢复模型故障返回 `RERANK_DEGRADED` 并保留原顺序，不可恢复配置/响应错误返回检索失败。
 26. Task 15 已完成 Parent/Child 上下文扩展、contextWindow 相邻块加载、generation/解析版本/Parent 守卫、Parent 去重和命中 Child 合并；新增 SQLAlchemy ContextStore，仅加载目标 generation 的候选/Parent/有限邻居。
 27. Task 15 门禁：检索专项 `36 passed`；后端非集成 `341 passed, 135 deselected`；Ruff、格式和 strict mypy 通过。完整 API/集成测试需要配置 `RAG_TEST_DATABASE_URL`。
-28. 下一项是 Task 16：检索测试 API；不提前实现机器人、跨知识库融合或回答生成。
-29. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
+28. Task 16 已完成：`POST /api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-tests` 使用活动 generation/retrieval revision 快照，允许临时完整查询期配置覆盖；不写 ChatRun、Operation、Outbox 或任何配置修订。返回实际配置、rewrite、逐候选分数/rank、contexts、block/asset/page 来源和 warning。
+29. Task 16 已完成：多查询先独立召回并以 RRF 融合，之后只执行一次 rerank/context expansion；原单 query 检索 API 保持兼容。运行时已接通全局模型配置的 Embedding、LLM rewrite/LLM rerank 和 Rerank model，Provider 响应结构与鉴权错误不伪装为 no-hit。
+30. Task 17 已完成：OpenAPI、新生成前端 service 与 operationId 契约同步；新增 API 集成测试验证活动代次读取和不新增 Operation。
+31. 本轮验证：检索单元 `39 passed`；知识库 API 集成 `7 passed`；完整 PostgreSQL 集成 `136 passed`；后端非集成 `344 passed`；前端 `npm run check`（Biome、TypeScript、Jest `7 suites / 16 tests`、build）通过；strict mypy `152 source files` 通过。
+32. `scripts/check.ps1` 最终重跑在用户要求收尾前被主动中断，已完成 repository/docs/compose/dependency sync/format，Task 18 必须从头完整重跑并记录结果，不能将本轮状态表述为完整门禁通过。
+33. 后续入口：先完成 Task 18 全量门禁和 Phase 03 验收证据，再开始 Phase 04（机器人、多知识库融合、会话记忆、回答生成与引用）；不提前实现渠道或前端业务页面。
+34. 模型配置可复用，但知识库索引、chunks、generation 和任务必须独立。
 
 ## 6. 保持不变的边界
 

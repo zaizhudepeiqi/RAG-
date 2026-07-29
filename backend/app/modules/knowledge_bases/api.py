@@ -25,6 +25,8 @@ from app.modules.knowledge_bases.schemas import (
     KnowledgeBaseStateRequest,
     RetrievalConfigRevisionView,
     RetrievalConfigView,
+    RetrievalTestRequest,
+    RetrievalTestResponse,
     UpdateKnowledgeBaseMetadataRequest,
     UpdatePendingBuildConfigRequest,
     UpdateRetrievalConfigRequest,
@@ -36,6 +38,7 @@ from app.modules.knowledge_bases.schemas import (
     knowledge_base_summary,
     retrieval_config_domain,
     retrieval_config_revision_view,
+    retrieval_test_view,
 )
 from app.modules.knowledge_bases.service import (
     KnowledgeBaseConfigLockedError,
@@ -48,6 +51,9 @@ from app.modules.knowledge_bases.service import (
     KnowledgeBaseService,
 )
 from app.modules.models.service import ModelNotSelectableError
+from app.modules.retrieval.engine import RetrievalExecutionError
+from app.modules.retrieval.query_rewrite import QueryRewriteError
+from app.modules.retrieval.testing import RetrievalTestService, RetrievalTestUnavailableError
 from app.modules.tasks.domain import Operation
 from app.modules.tasks.errors import IdempotencyKeyReusedError
 from app.modules.tasks.schemas import OperationRef
@@ -57,6 +63,7 @@ from app.modules.tasks.service import TaskService
 class KnowledgeBaseDependencies(Protocol):
     session_factory: sessionmaker[Session]
     knowledge_base_service: KnowledgeBaseService
+    retrieval_test_service: RetrievalTestService
     task_service: TaskService
 
 
@@ -449,6 +456,65 @@ def save_retrieval_config(
             code="IDEMPOTENCY_KEY_REUSED",
             message="同一幂等键不能用于不同请求",
             status_code=409,
+        ) from error
+
+
+@router.post(
+    "/{knowledgeBaseId}/retrieval-tests",
+    response_model=RetrievalTestResponse,
+    operation_id="knowledgeBasesRunRetrievalTest",
+    dependencies=[Depends(require_csrf)],
+)
+def run_retrieval_test(
+    payload: RetrievalTestRequest,
+    knowledge_base_id: Annotated[UUID, Path(alias="knowledgeBaseId")],
+    dependencies: Annotated[KnowledgeBaseDependencies, Depends(get_dependencies)],
+) -> RetrievalTestResponse:
+    try:
+        with transaction(dependencies.session_factory) as session:
+            override = (
+                retrieval_config_domain(payload.config_override)
+                if payload.config_override is not None
+                else None
+            )
+            if override is not None:
+                dependencies.knowledge_base_service.validate_retrieval_config_for_test(
+                    session, knowledge_base_id, override
+                )
+            run = dependencies.retrieval_test_service.run(
+                session,
+                knowledge_base_id=knowledge_base_id,
+                query=payload.query,
+                override=override,
+            )
+            return retrieval_test_view(run)
+    except KnowledgeBaseNotFoundError as error:
+        raise _not_found() from error
+    except KnowledgeBaseConfigError as error:
+        raise _config_error(error) from error
+    except ModelNotSelectableError as error:
+        raise AppError(
+            code=error.code,
+            message="所选模型不存在、类型不符或尚未验证通过",
+            status_code=422,
+        ) from error
+    except RetrievalTestUnavailableError as error:
+        raise AppError(
+            code=error.code,
+            message="知识库没有可用于检索测试的活动索引",
+            status_code=409,
+        ) from error
+    except QueryRewriteError as error:
+        raise AppError(
+            code=error.code,
+            message="查询重写执行失败",
+            status_code=503,
+        ) from error
+    except RetrievalExecutionError as error:
+        raise AppError(
+            code=error.code,
+            message="知识库检索执行失败",
+            status_code=503,
         ) from error
 
 

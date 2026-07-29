@@ -215,8 +215,8 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - [x] Task 13：三种检索与融合
 - [x] Task 14：查询重写
 - [x] Task 15：重排和上下文扩展
-- [ ] Task 16：检索测试 API
-- [ ] Task 17：OpenAPI/generated client
+- [x] Task 16：检索测试 API
+- [x] Task 17：OpenAPI/generated client
 - [ ] Task 18：全量门禁和交接
 
 ### Task 15 交付证据
@@ -226,3 +226,11 @@ npm --prefix frontend audit --omit=dev --audit-level=high
 - `backend/app/infrastructure/database/retrieval_context.py` 提供 SQLAlchemy 上下文加载器，只加载目标 generation 的候选、Parent 和有限邻居。
 - `SingleKnowledgeBaseRetriever` 在重排启用时提升召回请求上限，完成重排后再执行知识库 finalTopK，并返回 rerank 状态、warning 和 contexts。
 - 验证：检索专项 `36 passed`；后端非集成 `341 passed, 135 deselected`；Ruff、格式检查和 strict mypy 通过。需要 PostgreSQL 的 API/集成组需按 `scripts/check.ps1` 或 `scripts/test-integration.ps1` 提供 `RAG_TEST_DATABASE_URL` 后运行。
+
+### Task 16-17 交付证据
+
+- `POST /api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-tests` 使用活动 knowledge base/generation/retrieval revision 快照，接受仅本次请求有效的 `configOverride`，不创建 ChatRun、Operation、Outbox 或配置修订。
+- 查询重写后的多个 query 先独立召回，以 RRF 合并后仅执行一次重排和上下文扩展；单 query `retrieve` 调用保持兼容。
+- Runtime adapter 已对接模型配置中的 Embedding、LLM 和 Rerank 调用，LLM 重排严格只接受包含候选 UUID 与 0-1 分数的 JSON；Provider 鉴权、类型和响应结构错误明确失败。
+- 检索响应包含实际配置、改写结果、候选阶段分数/排序、上下文预览、解析版本、block/asset/page 来源和降级 warning；OpenAPI 与 `frontend/src/services/ragApi` 已同步。
+- 验证：检索单元 `39 passed`；知识库 API 集成 `7 passed`；完整 PostgreSQL 集成 `136 passed`；后端非集成 `344 passed`；前端 `npm run check` 通过（Biome、TypeScript、Jest `7 suites / 16 tests`、production build）；strict mypy `152 source files` 通过。`scripts/check.ps1` 在最终重跑时被用户主动中断，Task 18 必须重新完整执行后才可标记阶段完成。

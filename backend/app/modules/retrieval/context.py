@@ -21,6 +21,11 @@ class ContextChunk:
     document: str
     previous_chunk_id: UUID | None = None
     next_chunk_id: UUID | None = None
+    source_block_ids: tuple[UUID, ...] = ()
+    asset_ids: tuple[UUID, ...] = ()
+    page_range: tuple[int, ...] = ()
+    primary_page_number: int | None = None
+    normalized_text_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,11 @@ class RetrievedContext:
     rerank_score: float | None
     matched_child_ids: tuple[UUID, ...]
     expanded_from_chunk_ids: tuple[UUID, ...]
+    source_block_ids: tuple[UUID, ...]
+    asset_ids: tuple[UUID, ...]
+    page_range: tuple[int, ...]
+    primary_page_number: int | None
+    normalized_text_hash: str | None
 
 
 class ContextStore(Protocol):
@@ -86,6 +96,11 @@ def expand_context(
                 expanded_from_chunk_ids=_append_unique(
                     current.expanded_from_chunk_ids if current else (), candidate.chunk_id
                 ),
+                source_block_ids=parent.source_block_ids,
+                asset_ids=parent.asset_ids,
+                page_range=parent.page_range,
+                primary_page_number=parent.primary_page_number,
+                normalized_text_hash=parent.normalized_text_hash,
             )
             continue
 
@@ -108,6 +123,11 @@ def expand_context(
                 expanded_from_chunk_ids=_append_unique(
                     current.expanded_from_chunk_ids if current else (), candidate.chunk_id
                 ),
+                source_block_ids=expanded_chunk.source_block_ids,
+                asset_ids=expanded_chunk.asset_ids,
+                page_range=expanded_chunk.page_range,
+                primary_page_number=expanded_chunk.primary_page_number,
+                normalized_text_hash=expanded_chunk.normalized_text_hash,
             )
     return tuple(
         sorted(

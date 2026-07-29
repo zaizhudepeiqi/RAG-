@@ -295,6 +295,28 @@ export async function knowledgeBasesSaveRetrievalConfig(
   );
 }
 
+/** Run Retrieval Test POST /api/v1/knowledge-bases/${param0}/retrieval-tests */
+export async function knowledgeBasesRunRetrievalTest(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.knowledgeBasesRunRetrievalTestParams,
+  body: API.RetrievalTestRequest,
+  options?: { [key: string]: any }
+) {
+  const { knowledgeBaseId: param0, ...queryParams } = params;
+  return request<API.RetrievalTestResponse>(
+    `/api/v1/knowledge-bases/${param0}/retrieval-tests`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      params: { ...queryParams },
+      data: body,
+      ...(options || {}),
+    }
+  );
+}
+
 /** Disable Knowledge Base POST /api/v1/knowledge-bases/${param0}%3Adisable */
 export async function knowledgeBasesDisable(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)

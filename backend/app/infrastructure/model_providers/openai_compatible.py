@@ -21,6 +21,10 @@ from app.modules.models.adapters import (
     ProviderConnectionRequest,
     ProviderConnectionResult,
     ProviderDescriptor,
+    RerankRequest,
+    RerankResult,
+    TextGenerationRequest,
+    TextGenerationResult,
     VerificationResult,
 )
 from app.modules.models.domain import ModelType
@@ -145,6 +149,62 @@ class OpenAICompatibleAdapter:
             usage_input_tokens=input_tokens,
         )
 
+    def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult:
+        if not request.prompt.strip() or request.max_tokens <= 0:
+            raise ValueError("generation prompt and max_tokens must be valid")
+        path = self._path(ModelType.LLM, self.descriptor.llm_path)
+        response = self._transport.request_json(
+            "POST",
+            base_url=request.base_url,
+            path=path,
+            credential=request.credential,
+            json_body={
+                **request.params,
+                "model": request.model_name,
+                "messages": [{"role": "user", "content": request.prompt}],
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+            },
+        )
+        result = self._text_result(
+            response.payload,
+            response.provider_request_id,
+            response.latency_ms,
+        )
+        if result.output_text is None:
+            raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
+        return TextGenerationResult(
+            text=result.output_text,
+            provider_request_id=result.provider_request_id,
+            latency_ms=result.latency_ms,
+            usage_input_tokens=result.usage_input_tokens,
+            usage_output_tokens=result.usage_output_tokens,
+        )
+
+    def rerank(self, request: RerankRequest) -> RerankResult:
+        if not request.query.strip() or not request.documents:
+            raise ValueError("rerank query and documents must be non-empty")
+        path = self._path(ModelType.RERANK, self.descriptor.rerank_path)
+        response = self._transport.request_json(
+            "POST",
+            base_url=request.base_url,
+            path=path,
+            credential=request.credential,
+            json_body={
+                **request.params,
+                "model": request.model_name,
+                "query": request.query,
+                "documents": list(request.documents),
+            },
+        )
+        indices, scores = self._rerank_values(response.payload.get("results"))
+        return RerankResult(
+            indices=indices,
+            scores=scores,
+            provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
+        )
+
     def verify_rerank(self, request: ModelVerificationRequest) -> VerificationResult:
         path = self._path(ModelType.RERANK, self.descriptor.rerank_path)
         response = self._transport.request_json(
@@ -159,12 +219,21 @@ class OpenAICompatibleAdapter:
                 "documents": ["知识库可以检索文档", "今天的天气晴朗"],
             },
         )
-        results = response.payload.get("results")
-        if not isinstance(results, list) or not results:
+        indices, scores = self._rerank_values(response.payload.get("results"))
+        return VerificationResult(
+            rerank_indices=indices,
+            rerank_scores=scores,
+            provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
+        )
+
+    @staticmethod
+    def _rerank_values(value: object) -> tuple[tuple[int, ...], tuple[float, ...]]:
+        if not isinstance(value, list) or not value:
             raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
         indices = []
         scores = []
-        for item in results:
+        for item in value:
             if not isinstance(item, Mapping):
                 raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
             score = item.get("relevance_score", item.get("score"))
@@ -175,12 +244,7 @@ class OpenAICompatibleAdapter:
                 raise ModelProviderError("MODEL_RESPONSE_INVALID", retryable=False)
             indices.append(index)
             scores.append(float(score))
-        return VerificationResult(
-            rerank_indices=tuple(indices),
-            rerank_scores=tuple(scores),
-            provider_request_id=response.provider_request_id,
-            latency_ms=response.latency_ms,
-        )
+        return tuple(indices), tuple(scores)
 
     def verify_vision(self, request: ModelVerificationRequest) -> VerificationResult:
         path = self._path(ModelType.VISION, self.descriptor.vision_path)
@@ -388,6 +452,34 @@ class QwenAdapter(OpenAICompatibleAdapter):
         return VerificationResult(
             rerank_indices=tuple(indices),
             rerank_scores=tuple(scores),
+            provider_request_id=response.provider_request_id,
+            latency_ms=response.latency_ms,
+        )
+
+    def rerank(self, request: RerankRequest) -> RerankResult:
+        if not request.query.strip() or not request.documents:
+            raise ValueError("rerank query and documents must be non-empty")
+        path = self._path(ModelType.RERANK, self.descriptor.rerank_path)
+        response = self._transport.request_json(
+            "POST",
+            base_url=request.base_url,
+            path=path,
+            credential=request.credential,
+            json_body={
+                "model": request.model_name,
+                "input": {
+                    "query": request.query,
+                    "documents": list(request.documents),
+                },
+                "parameters": dict(request.params),
+            },
+        )
+        output = response.payload.get("output")
+        results = output.get("results") if isinstance(output, Mapping) else None
+        indices, scores = self._rerank_values(results)
+        return RerankResult(
+            indices=indices,
+            scores=scores,
             provider_request_id=response.provider_request_id,
             latency_ms=response.latency_ms,
         )

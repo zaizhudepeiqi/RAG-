@@ -673,6 +673,12 @@ declare namespace API {
     rag_csrf?: string | null;
   };
 
+  type knowledgeBasesRunRetrievalTestParams = {
+    knowledgeBaseId: string;
+    rag_admin_access?: string | null;
+    rag_csrf?: string | null;
+  };
+
   type knowledgeBasesSavePendingBuildConfigParams = {
     knowledgeBaseId: string;
     rag_admin_access?: string | null;
@@ -1499,6 +1505,118 @@ declare namespace API {
   type RetrievalConfigView = {
     active?: RetrievalConfigRevisionView | null;
     pending?: RetrievalConfigRevisionView | null;
+  };
+
+  type RetrievalTestCandidateView = {
+    /** Chunkid */
+    chunkId: string;
+    /** Chunkkind */
+    chunkKind: string;
+    /** Fusedscore */
+    fusedScore: number;
+    /** Keywordnormalized */
+    keywordNormalized?: number | null;
+    /** Keywordrank */
+    keywordRank?: number | null;
+    /** Keywordscore */
+    keywordScore?: number | null;
+    /** Parentchunkid */
+    parentChunkId?: string | null;
+    /** Parsedsourceversionid */
+    parsedSourceVersionId: string;
+    /** Queryranks */
+    queryRanks?: number[];
+    /** Rerankrank */
+    rerankRank?: number | null;
+    /** Rerankscore */
+    rerankScore?: number | null;
+    /** Vectornormalized */
+    vectorNormalized?: number | null;
+    /** Vectorrank */
+    vectorRank?: number | null;
+    /** Vectorscore */
+    vectorScore?: number | null;
+  };
+
+  type RetrievalTestContextView = {
+    /** Assetids */
+    assetIds: string[];
+    /** Chunkid */
+    chunkId: string;
+    /** Chunkkind */
+    chunkKind: string;
+    /** Expandedfromchunkids */
+    expandedFromChunkIds: string[];
+    /** Fusedscore */
+    fusedScore: number;
+    /** Matchedchildids */
+    matchedChildIds: string[];
+    /** Normalizedtexthash */
+    normalizedTextHash?: string | null;
+    /** Pagerange */
+    pageRange: number[];
+    /** Parentchunkid */
+    parentChunkId?: string | null;
+    /** Parsedsourceversionid */
+    parsedSourceVersionId: string;
+    /** Preview */
+    preview: string;
+    /** Primarypagenumber */
+    primaryPageNumber?: number | null;
+    /** Rerankscore */
+    rerankScore?: number | null;
+    /** Sourceblockids */
+    sourceBlockIds: string[];
+  };
+
+  type RetrievalTestRequest = {
+    configOverride?: RetrievalConfigDto | null;
+    /** Query */
+    query: string;
+  };
+
+  type RetrievalTestResponse = {
+    /** Activegenerationid */
+    activeGenerationId: string;
+    /** Candidates */
+    candidates: RetrievalTestCandidateView[];
+    config: RetrievalConfigDto;
+    /** Contexts */
+    contexts: RetrievalTestContextView[];
+    /** Keywordcandidatecount */
+    keywordCandidateCount: number;
+    /** Knowledgebaseid */
+    knowledgeBaseId: string;
+    /** Query */
+    query: string;
+    /** Querycandidatecounts */
+    queryCandidateCounts: number[];
+    /** Rerankapplied */
+    rerankApplied: boolean;
+    /** Rerankdegraded */
+    rerankDegraded: boolean;
+    /** Retrievalrevisionid */
+    retrievalRevisionId: string;
+    rewrite: RetrievalTestRewriteView;
+    /** Standalonequery */
+    standaloneQuery: string;
+    /** Vectorcandidatecount */
+    vectorCandidateCount: number;
+    /** Warnings */
+    warnings: string[];
+  };
+
+  type RetrievalTestRewriteView = {
+    /** Degraded */
+    degraded: boolean;
+    /** Generatedqueries */
+    generatedQueries: string[];
+    /** Originalquery */
+    originalQuery: string;
+    /** Queries */
+    queries: string[];
+    /** Warningcode */
+    warningCode?: string | null;
   };
 
   type SuccessResponse = {

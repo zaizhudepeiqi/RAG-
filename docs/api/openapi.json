@@ -3816,6 +3816,438 @@
         "title": "RetrievalConfigView",
         "type": "object"
       },
+      "RetrievalTestCandidateView": {
+        "additionalProperties": false,
+        "properties": {
+          "chunkId": {
+            "format": "uuid",
+            "title": "Chunkid",
+            "type": "string"
+          },
+          "chunkKind": {
+            "title": "Chunkkind",
+            "type": "string"
+          },
+          "fusedScore": {
+            "title": "Fusedscore",
+            "type": "number"
+          },
+          "keywordNormalized": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywordnormalized"
+          },
+          "keywordRank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywordrank"
+          },
+          "keywordScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keywordscore"
+          },
+          "parentChunkId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentchunkid"
+          },
+          "parsedSourceVersionId": {
+            "format": "uuid",
+            "title": "Parsedsourceversionid",
+            "type": "string"
+          },
+          "queryRanks": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Queryranks",
+            "type": "array"
+          },
+          "rerankRank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerankrank"
+          },
+          "rerankScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerankscore"
+          },
+          "vectorNormalized": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectornormalized"
+          },
+          "vectorRank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectorrank"
+          },
+          "vectorScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectorscore"
+          }
+        },
+        "required": [
+          "chunkId",
+          "parsedSourceVersionId",
+          "chunkKind",
+          "fusedScore"
+        ],
+        "title": "RetrievalTestCandidateView",
+        "type": "object"
+      },
+      "RetrievalTestContextView": {
+        "additionalProperties": false,
+        "properties": {
+          "assetIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Assetids",
+            "type": "array"
+          },
+          "chunkId": {
+            "format": "uuid",
+            "title": "Chunkid",
+            "type": "string"
+          },
+          "chunkKind": {
+            "title": "Chunkkind",
+            "type": "string"
+          },
+          "expandedFromChunkIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Expandedfromchunkids",
+            "type": "array"
+          },
+          "fusedScore": {
+            "title": "Fusedscore",
+            "type": "number"
+          },
+          "matchedChildIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Matchedchildids",
+            "type": "array"
+          },
+          "normalizedTextHash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normalizedtexthash"
+          },
+          "pageRange": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Pagerange",
+            "type": "array"
+          },
+          "parentChunkId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentchunkid"
+          },
+          "parsedSourceVersionId": {
+            "format": "uuid",
+            "title": "Parsedsourceversionid",
+            "type": "string"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
+          },
+          "primaryPageNumber": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primarypagenumber"
+          },
+          "rerankScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerankscore"
+          },
+          "sourceBlockIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Sourceblockids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chunkId",
+          "parsedSourceVersionId",
+          "chunkKind",
+          "preview",
+          "fusedScore",
+          "matchedChildIds",
+          "expandedFromChunkIds",
+          "sourceBlockIds",
+          "assetIds",
+          "pageRange"
+        ],
+        "title": "RetrievalTestContextView",
+        "type": "object"
+      },
+      "RetrievalTestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "configOverride": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetrievalConfigDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "query": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "RetrievalTestRequest",
+        "type": "object"
+      },
+      "RetrievalTestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "activeGenerationId": {
+            "format": "uuid",
+            "title": "Activegenerationid",
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalTestCandidateView"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "config": {
+            "$ref": "#/components/schemas/RetrievalConfigDto"
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/RetrievalTestContextView"
+            },
+            "title": "Contexts",
+            "type": "array"
+          },
+          "keywordCandidateCount": {
+            "title": "Keywordcandidatecount",
+            "type": "integer"
+          },
+          "knowledgeBaseId": {
+            "format": "uuid",
+            "title": "Knowledgebaseid",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "queryCandidateCounts": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Querycandidatecounts",
+            "type": "array"
+          },
+          "rerankApplied": {
+            "title": "Rerankapplied",
+            "type": "boolean"
+          },
+          "rerankDegraded": {
+            "title": "Rerankdegraded",
+            "type": "boolean"
+          },
+          "retrievalRevisionId": {
+            "format": "uuid",
+            "title": "Retrievalrevisionid",
+            "type": "string"
+          },
+          "rewrite": {
+            "$ref": "#/components/schemas/RetrievalTestRewriteView"
+          },
+          "standaloneQuery": {
+            "title": "Standalonequery",
+            "type": "string"
+          },
+          "vectorCandidateCount": {
+            "title": "Vectorcandidatecount",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "knowledgeBaseId",
+          "activeGenerationId",
+          "retrievalRevisionId",
+          "query",
+          "standaloneQuery",
+          "config",
+          "rewrite",
+          "vectorCandidateCount",
+          "keywordCandidateCount",
+          "queryCandidateCounts",
+          "rerankApplied",
+          "rerankDegraded",
+          "warnings",
+          "candidates",
+          "contexts"
+        ],
+        "title": "RetrievalTestResponse",
+        "type": "object"
+      },
+      "RetrievalTestRewriteView": {
+        "additionalProperties": false,
+        "properties": {
+          "degraded": {
+            "title": "Degraded",
+            "type": "boolean"
+          },
+          "generatedQueries": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Generatedqueries",
+            "type": "array"
+          },
+          "originalQuery": {
+            "title": "Originalquery",
+            "type": "string"
+          },
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Queries",
+            "type": "array"
+          },
+          "warningCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warningcode"
+          }
+        },
+        "required": [
+          "originalQuery",
+          "queries",
+          "generatedQueries",
+          "degraded"
+        ],
+        "title": "RetrievalTestRewriteView",
+        "type": "object"
+      },
       "SuccessResponse": {
         "additionalProperties": false,
         "properties": {
@@ -6791,6 +7223,107 @@
           }
         },
         "summary": "Save Retrieval Config",
+        "tags": [
+          "知识库"
+        ]
+      }
+    },
+    "/api/v1/knowledge-bases/{knowledgeBaseId}/retrieval-tests": {
+      "post": {
+        "operationId": "knowledgeBasesRunRetrievalTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "knowledgeBaseId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Knowledgebaseid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_admin_access",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Admin Access"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "rag_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rag Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievalTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievalTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Retrieval Test",
         "tags": [
           "知识库"
         ]

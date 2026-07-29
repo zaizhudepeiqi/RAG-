@@ -589,6 +589,42 @@ class KnowledgeBaseService:
         self._repository.save(session, knowledge_base)
         return revision, activation_status
 
+    def validate_retrieval_config_for_test(
+        self,
+        session: Session,
+        knowledge_base_id: UUID,
+        config: RetrievalConfig,
+    ) -> None:
+        knowledge_base = self.get(session, knowledge_base_id)
+        if knowledge_base.active_generation_id is None:
+            raise KnowledgeBaseConfigError(
+                "RETRIEVAL_TEST_UNAVAILABLE",
+                {"knowledgeBase": ["知识库没有可用的活动构建代次"]},
+            )
+        generation = self.get_generation(
+            session, knowledge_base_id, knowledge_base.active_generation_id
+        ).generation
+        build = self._repository.get_build_config_revision(
+            session, generation.build_config_revision_id
+        )
+        if build is None:
+            raise KnowledgeBaseConfigError(
+                "BUILD_CONFIG_INVALID", {"buildConfig": ["活动构建配置不存在"]}
+            )
+        sources = self._validated_sources(session, build.source_ids)
+        embedding = self._model_selector.require(
+            session, build.config.embedding_model_id, "embedding"
+        )
+        referenced_models = self._load_retrieval_models(session, config)
+        validate_configs(
+            build.config,
+            config,
+            sources,
+            embedding.selection,
+            {model.selection.id: model.selection for model in referenced_models.values()},
+            self._capabilities,
+        )
+
     def create_generation(
         self,
         session: Session,

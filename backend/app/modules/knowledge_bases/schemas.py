@@ -19,6 +19,7 @@ from app.modules.knowledge_bases.domain import (
     RetrievalConfigRevision,
     VectorConfig,
 )
+from app.modules.retrieval.testing import RetrievalTestRun
 from app.modules.tasks.schemas import OperationRef
 
 
@@ -74,6 +75,71 @@ class RetrievalConfigDto(ApiModel):
     rerank: RerankConfigDto
     context_window: int
     final_top_k: int
+
+
+class RetrievalTestRequest(ApiModel):
+    query: str = Field(min_length=1, max_length=512)
+    config_override: RetrievalConfigDto | None = None
+
+
+class RetrievalTestRewriteView(ApiModel):
+    original_query: str
+    queries: list[str]
+    generated_queries: list[str]
+    degraded: bool
+    warning_code: str | None = None
+
+
+class RetrievalTestCandidateView(ApiModel):
+    chunk_id: UUID
+    parsed_source_version_id: UUID
+    chunk_kind: str
+    parent_chunk_id: UUID | None = None
+    vector_score: float | None = None
+    keyword_score: float | None = None
+    vector_rank: int | None = None
+    keyword_rank: int | None = None
+    vector_normalized: float | None = None
+    keyword_normalized: float | None = None
+    fused_score: float
+    rerank_score: float | None = None
+    rerank_rank: int | None = None
+    query_ranks: list[int] = Field(default_factory=list)
+
+
+class RetrievalTestContextView(ApiModel):
+    chunk_id: UUID
+    parsed_source_version_id: UUID
+    chunk_kind: str
+    parent_chunk_id: UUID | None = None
+    preview: str
+    fused_score: float
+    rerank_score: float | None = None
+    matched_child_ids: list[UUID]
+    expanded_from_chunk_ids: list[UUID]
+    source_block_ids: list[UUID]
+    asset_ids: list[UUID]
+    page_range: list[int]
+    primary_page_number: int | None = None
+    normalized_text_hash: str | None = None
+
+
+class RetrievalTestResponse(ApiModel):
+    knowledge_base_id: UUID
+    active_generation_id: UUID
+    retrieval_revision_id: UUID
+    query: str
+    standalone_query: str
+    config: RetrievalConfigDto
+    rewrite: RetrievalTestRewriteView
+    vector_candidate_count: int
+    keyword_candidate_count: int
+    query_candidate_counts: list[int]
+    rerank_applied: bool
+    rerank_degraded: bool
+    warnings: list[str]
+    candidates: list[RetrievalTestCandidateView]
+    contexts: list[RetrievalTestContextView]
 
 
 class CreateKnowledgeBaseRequest(ApiModel):
@@ -278,6 +344,115 @@ def retrieval_config_domain(config: RetrievalConfigDto) -> RetrievalConfig:
         ),
         context_window=config.context_window,
         final_top_k=config.final_top_k,
+    )
+
+
+def retrieval_config_dto(config: RetrievalConfig) -> RetrievalConfigDto:
+    return RetrievalConfigDto(
+        retrieval_type=cast(Literal["vector", "keyword", "hybrid"], config.retrieval_type),
+        vector=VectorConfigDto(
+            top_k=config.vector.top_k,
+            score_threshold=config.vector.score_threshold,
+        ),
+        keyword=KeywordConfigDto(
+            top_k=config.keyword.top_k,
+            score_threshold=config.keyword.score_threshold,
+        ),
+        hybrid=HybridConfigDto(
+            fusion_strategy=cast(Literal["rrf", "weighted_score"], config.fusion.strategy),
+            rrf_k=config.fusion.rrf_k,
+            vector_weight=config.fusion.vector_weight,
+            keyword_weight=config.fusion.keyword_weight,
+            final_score_threshold=config.fusion.final_score_threshold,
+        ),
+        query_rewrite=QueryRewriteConfigDto(
+            strategy_code=cast(
+                Literal["off", "hyde", "multi_query", "step_back"],
+                config.query_rewrite.code,
+            ),
+            model_id=config.query_rewrite.model_id,
+            params=config.query_rewrite.params,
+        ),
+        rerank=RerankConfigDto(
+            strategy_code=cast(
+                Literal["off", "rerank_model", "llm_rerank"],
+                config.rerank.code,
+            ),
+            model_id=config.rerank.model_id,
+            params=config.rerank.params,
+        ),
+        context_window=config.context_window,
+        final_top_k=config.final_top_k,
+    )
+
+
+def retrieval_test_view(run: RetrievalTestRun) -> RetrievalTestResponse:
+    result = run.result
+    rewrite = run.rewrite
+    return RetrievalTestResponse(
+        knowledge_base_id=run.snapshot.knowledge_base_id,
+        active_generation_id=run.snapshot.generation_id,
+        retrieval_revision_id=run.snapshot.retrieval_revision.id,
+        query=rewrite.original_query,
+        standalone_query=rewrite.original_query,
+        config=retrieval_config_dto(run.config),
+        rewrite=RetrievalTestRewriteView(
+            original_query=rewrite.original_query,
+            queries=list(rewrite.queries),
+            generated_queries=list(rewrite.generated_queries),
+            degraded=rewrite.degraded,
+            warning_code=rewrite.warning_code,
+        ),
+        vector_candidate_count=result.vector_candidate_count,
+        keyword_candidate_count=result.keyword_candidate_count,
+        query_candidate_counts=list(result.query_candidate_counts),
+        rerank_applied=result.rerank_applied,
+        rerank_degraded=result.rerank_degraded,
+        warnings=[
+            warning
+            for warning in (
+                *((rewrite.warning_code,) if rewrite.warning_code else ()),
+                *result.warnings,
+            )
+        ],
+        candidates=[
+            RetrievalTestCandidateView(
+                chunk_id=candidate.chunk_id,
+                parsed_source_version_id=candidate.parsed_source_version_id,
+                chunk_kind=candidate.chunk_kind,
+                parent_chunk_id=candidate.parent_chunk_id,
+                vector_score=candidate.vector_score,
+                keyword_score=candidate.keyword_score,
+                vector_rank=candidate.vector_rank,
+                keyword_rank=candidate.keyword_rank,
+                vector_normalized=candidate.vector_normalized,
+                keyword_normalized=candidate.keyword_normalized,
+                fused_score=candidate.fused_score,
+                rerank_score=candidate.rerank_score,
+                rerank_rank=candidate.rerank_rank,
+                query_ranks=list(candidate.query_ranks),
+            )
+            for candidate in result.candidates
+        ],
+        contexts=[
+            RetrievalTestContextView(
+                chunk_id=context.chunk_id,
+                parsed_source_version_id=context.parsed_source_version_id,
+                chunk_kind=context.chunk_kind,
+                parent_chunk_id=context.parent_chunk_id,
+                preview=context.document[:2000],
+                fused_score=context.fused_score,
+                rerank_score=context.rerank_score,
+                matched_child_ids=list(context.matched_child_ids),
+                expanded_from_chunk_ids=list(context.expanded_from_chunk_ids),
+                source_block_ids=list(context.source_block_ids),
+                asset_ids=list(context.asset_ids),
+                page_range=list(context.page_range),
+                primary_page_number=context.primary_page_number,
+                normalized_text_hash=context.normalized_text_hash,
+            )
+            for context in result.contexts
+        ],
     )
 
 

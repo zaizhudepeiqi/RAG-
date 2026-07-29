@@ -1,16 +1,18 @@
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
 
 from app.modules.observability.schemas import DependencyHealthResponse, HealthResponse
+from app.modules.observability.service import HealthService
 
 router = APIRouter(prefix="/api/v1/health", tags=["系统健康"])
 
 
 @router.get("/live", response_model=HealthResponse, operation_id="healthLive")
 def live(request: Request) -> HealthResponse:
-    return request.app.state.dependencies.health_service.liveness(
+    return _health_service(request).liveness(
         trace_id=_trace_id(request),
         now=datetime.now(UTC),
     )
@@ -18,7 +20,7 @@ def live(request: Request) -> HealthResponse:
 
 @router.get("/ready", response_model=DependencyHealthResponse, operation_id="healthReady")
 def ready(request: Request, response: Response) -> DependencyHealthResponse:
-    result = request.app.state.dependencies.health_service.readiness(
+    result = _health_service(request).readiness(
         trace_id=_trace_id(request),
         now=datetime.now(UTC),
     )
@@ -33,7 +35,7 @@ def ready(request: Request, response: Response) -> DependencyHealthResponse:
     operation_id="healthDependencies",
 )
 def dependencies(request: Request, response: Response) -> DependencyHealthResponse:
-    result = request.app.state.dependencies.health_service.dependencies(
+    result = _health_service(request).dependencies(
         trace_id=_trace_id(request),
         now=datetime.now(UTC),
     )
@@ -47,3 +49,7 @@ def _trace_id(request: Request) -> UUID:
     if not isinstance(value, UUID):
         raise RuntimeError("trace middleware did not provide a UUID")
     return value
+
+
+def _health_service(request: Request) -> HealthService:
+    return cast(HealthService, request.app.state.dependencies.health_service)

@@ -681,6 +681,6 @@ def _integer_value(values: dict[str, object], key: str) -> int:
 
 def _number_value(values: dict[str, object], key: str) -> float:
     value = values[key]
-    if not isinstance(value, Real) or isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, Real):
         raise ValueError(f"stored retrieval revision has invalid {key}")
     return float(value)

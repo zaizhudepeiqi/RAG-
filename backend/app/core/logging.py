@@ -1,6 +1,6 @@
 import logging
 from collections.abc import MutableMapping
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from structlog.typing import FilteringBoundLogger
@@ -39,4 +39,4 @@ def configure_logging() -> None:
 
 
 def get_logger() -> FilteringBoundLogger:
-    return structlog.get_logger()
+    return cast(FilteringBoundLogger, structlog.get_logger())

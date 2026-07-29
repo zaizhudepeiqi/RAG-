@@ -383,7 +383,7 @@ def _validate_scalar(
     if expected == "integer":
         valid_type = isinstance(value, int) and not isinstance(value, bool)
     elif expected == "number":
-        valid_type = isinstance(value, Real) and not isinstance(value, bool)
+        valid_type = not isinstance(value, bool) and isinstance(value, Real)
     elif expected == "boolean":
         valid_type = isinstance(value, bool)
     elif expected == "string":
@@ -391,7 +391,7 @@ def _validate_scalar(
     if not valid_type:
         _add(errors, path, "字段类型无效")
         return
-    if isinstance(value, Real) and not isinstance(value, bool):
+    if not isinstance(value, bool) and isinstance(value, Real):
         minimum = schema.get("minimum")
         maximum = schema.get("maximum")
         if isinstance(minimum, Real) and value < minimum:

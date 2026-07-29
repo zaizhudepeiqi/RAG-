@@ -194,3 +194,53 @@ def test_rerank_candidate_limit_is_applied_before_model_and_result_is_final_limi
     assert vectors.requested_top_k == 10
     assert len(result.candidates) == 1
     assert result.rerank_applied is True
+
+
+def test_multiple_rewrite_queries_are_fused_before_final_limit() -> None:
+    shared = UUID("44444444-4444-4444-4444-444444444444")
+
+    class QueryEmbedder:
+        def embed_query(self, query: str) -> tuple[float, ...]:
+            return (1.0, 0.0) if query == "original" else (0.0, 1.0)
+
+    class QueryVectors(FakeVectors):
+        def query(self, _name, embedding, *, top_k):  # type: ignore[no-untyped-def]
+            if embedding == (1.0, 0.0):
+                values = (
+                    ("22222222-2222-2222-2222-222222222222", 0.9),
+                    (str(shared), 0.8),
+                )
+            else:
+                values = (
+                    (str(shared), 0.95),
+                    ("55555555-5555-5555-5555-555555555555", 0.7),
+                )
+            return tuple(
+                VectorHit(
+                    UUID(value),
+                    UUID("33333333-3333-3333-3333-333333333333"),
+                    "chunk",
+                    None,
+                    value,
+                    1 - score,
+                    "cosine",
+                    score,
+                    "cosine_distance_v1",
+                )
+                for value, score in values
+            )[:top_k]
+
+    retriever = SingleKnowledgeBaseRetriever(QueryVectors(), FakeKeywords(), QueryEmbedder())
+
+    result = retriever.retrieve_many(
+        None,  # type: ignore[arg-type]
+        generation_id=GENERATION_ID,
+        collection_name="generation",
+        queries=("original", "expanded"),
+        query_for_rerank="original",
+        config=config("vector"),
+    )
+
+    assert result.candidates[0].chunk_id == shared
+    assert result.candidates[0].query_ranks == (2, 1)
+    assert result.query_candidate_counts == (2, 2)

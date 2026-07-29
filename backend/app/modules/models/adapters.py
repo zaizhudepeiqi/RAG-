@@ -89,6 +89,44 @@ class EmbeddingResult:
     usage_input_tokens: int | None = None
 
 
+@dataclass(frozen=True)
+class TextGenerationRequest:
+    base_url: str
+    credential: SecretStr
+    model_name: str
+    prompt: str
+    max_tokens: int
+    temperature: float
+    params: Mapping[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TextGenerationResult:
+    text: str
+    provider_request_id: str | None = None
+    latency_ms: int | None = None
+    usage_input_tokens: int | None = None
+    usage_output_tokens: int | None = None
+
+
+@dataclass(frozen=True)
+class RerankRequest:
+    base_url: str
+    credential: SecretStr
+    model_name: str
+    query: str
+    documents: tuple[str, ...]
+    params: Mapping[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RerankResult:
+    indices: tuple[int, ...]
+    scores: tuple[float, ...]
+    provider_request_id: str | None = None
+    latency_ms: int | None = None
+
+
 class ModelProviderError(Exception):
     def __init__(self, code: str, *, retryable: bool) -> None:
         super().__init__(code)
@@ -129,6 +167,10 @@ class ModelProviderAdapter(Protocol):
     def verify_vision(self, request: ModelVerificationRequest) -> VerificationResult: ...
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResult: ...
+
+    def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult: ...
+
+    def rerank(self, request: RerankRequest) -> RerankResult: ...
 
 
 class ModelProviderAdapterResolver(Protocol):

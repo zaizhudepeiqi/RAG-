@@ -23,6 +23,7 @@ class RetrievalCandidate:
     fused_score: float
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    query_ranks: tuple[int, ...] = ()
 
 
 @dataclass

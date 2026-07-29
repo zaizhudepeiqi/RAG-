@@ -5,7 +5,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models.knowledge_bases import ChunkModel
+from app.infrastructure.database.models.knowledge_bases import (
+    ChunkAssetModel,
+    ChunkModel,
+    ChunkSourceBlockModel,
+)
 from app.modules.retrieval.context import ContextChunk
 from app.modules.retrieval.fusion import RetrievalCandidate
 
@@ -51,6 +55,22 @@ class SqlAlchemyContextStore:
                     next_frontier.add(row.next_chunk_id)
             frontier = next_frontier - loaded.keys()
 
+        source_blocks: dict[UUID, list[UUID]] = {}
+        assets: dict[UUID, list[UUID]] = {}
+        if loaded:
+            for chunk_id, block_id in session.execute(
+                select(ChunkSourceBlockModel.chunk_id, ChunkSourceBlockModel.parsed_block_id)
+                .where(ChunkSourceBlockModel.chunk_id.in_(loaded))
+                .order_by(ChunkSourceBlockModel.chunk_id, ChunkSourceBlockModel.order_index)
+            ):
+                source_blocks.setdefault(chunk_id, []).append(block_id)
+            for chunk_id, asset_id in session.execute(
+                select(ChunkAssetModel.chunk_id, ChunkAssetModel.parsed_asset_id)
+                .where(ChunkAssetModel.chunk_id.in_(loaded))
+                .order_by(ChunkAssetModel.chunk_id, ChunkAssetModel.parsed_asset_id)
+            ):
+                assets.setdefault(chunk_id, []).append(asset_id)
+
         return tuple(
             ContextChunk(
                 chunk_id=row.id,
@@ -62,6 +82,11 @@ class SqlAlchemyContextStore:
                 document=row.text_content,
                 previous_chunk_id=row.previous_chunk_id,
                 next_chunk_id=row.next_chunk_id,
+                source_block_ids=tuple(source_blocks.get(row.id, [])),
+                asset_ids=tuple(assets.get(row.id, [])),
+                page_range=tuple(row.page_range or []),
+                primary_page_number=row.primary_page_number,
+                normalized_text_hash=row.normalized_text_hash.strip(),
             )
             for row in loaded.values()
         )

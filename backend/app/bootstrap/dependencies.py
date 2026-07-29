@@ -49,12 +49,15 @@ from app.infrastructure.database.repositories.tasks import (
     SqlAlchemyOutboxDispatchStore,
     SqlAlchemyOutboxRepository,
 )
+from app.infrastructure.database.retrieval_context import SqlAlchemyContextStore
+from app.infrastructure.database.retrieval_testing import SqlAlchemyRetrievalTestSnapshotStore
 from app.infrastructure.database.session import create_engine_from_settings, create_session_factory
 from app.infrastructure.health.celery import CeleryHealthProbe
 from app.infrastructure.health.chroma import ChromaHealthProbe
 from app.infrastructure.health.postgresql import PostgreSQLHealthProbe
 from app.infrastructure.health.redis import RedisHealthProbe
 from app.infrastructure.health.storage import StorageHealthProbe
+from app.infrastructure.keyword.postgres_trigram import PostgreSQLTrigramKeywordStoreAdapter
 from app.infrastructure.model_providers.embedding import ConfiguredDocumentEmbedder
 from app.infrastructure.model_providers.registry import (
     ModelProviderAdapterRegistry,
@@ -65,6 +68,8 @@ from app.infrastructure.parsers.mineru_precision import MinerUPrecisionAdapter
 from app.infrastructure.parsers.registry import ParserRegistry
 from app.infrastructure.redis.client import create_redis_client
 from app.infrastructure.redis.login_rate_limit import RedisLoginRateLimiter
+from app.infrastructure.retrieval.models import ConfiguredTextGenerator
+from app.infrastructure.retrieval.runtime import RetrievalRuntimeFactory
 from app.infrastructure.storage.local import LocalStorageAdapter
 from app.infrastructure.vector.chroma import ChromaAdapter, ChromaVectorStoreAdapter
 from app.modules.auth.service import AuthService
@@ -95,6 +100,7 @@ from app.modules.parsing.tasks import (
     ParsingCleanupHandler,
     SourceParseHandler,
 )
+from app.modules.retrieval.testing import RetrievalTestService
 from app.modules.tasks.idempotency import AdminIdempotencyService
 from app.modules.tasks.ports import TaskDispatchDefinition, TaskDispatchRegistry
 from app.modules.tasks.service import TaskService
@@ -125,6 +131,7 @@ class ApplicationDependencies:
     mineru_settings_service: MinerUSettingsService
     data_source_service: DataSourceService
     knowledge_base_service: KnowledgeBaseService
+    retrieval_test_service: RetrievalTestService
     generation_build_handler: GenerationBuildHandler
     generation_retry_handler: GenerationRetryHandler
     source_storage: LocalStorageAdapter
@@ -232,6 +239,23 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         model_selection_service,
         model_provider_adapter_registry,
         settings.credential_encryption_key_bytes,
+    )
+    retrieval_runtime = RetrievalRuntimeFactory(
+        document_embedder,
+        ConfiguredTextGenerator(
+            session_factory,
+            model_selection_service,
+            model_provider_adapter_registry,
+            settings.credential_encryption_key_bytes,
+        ),
+        vector_store,
+        PostgreSQLTrigramKeywordStoreAdapter(),
+        SqlAlchemyContextStore(),
+    )
+    retrieval_test_service = RetrievalTestService(
+        SqlAlchemyRetrievalTestSnapshotStore(),
+        retrieval_runtime.create_retriever,
+        retrieval_runtime.create_rewrite_service,
     )
     generation_item_executor = DefaultGenerationItemExecutor(
         SqlAlchemyGenerationItemStore(session_factory),
@@ -368,6 +392,7 @@ def build_application_dependencies(settings: Settings) -> ApplicationDependencie
         mineru_settings_service=mineru_settings_service,
         data_source_service=data_source_service,
         knowledge_base_service=knowledge_base_service,
+        retrieval_test_service=retrieval_test_service,
         generation_build_handler=generation_build_handler,
         generation_retry_handler=generation_retry_handler,
         source_storage=source_storage,
